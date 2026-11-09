@@ -5,8 +5,8 @@ Herkese açık takım havuzunda listelenen isimlerle hazırlanmış, bağımsız
 ## Kapsam
 - 446 kulüp takımı ve 209 milli takım (toplam 655 kayıt).
 - Takım adıyla arama, kulüp/milli takım filtreleri ve ev/deplasman eşleşmesi.
-- Takım bazında düzenlenebilir rating, hücum, savunma ve form profilleri.
-- Poisson gol modeli ile 1-X-2, beklenen gol, 2.5 üstü ve en olası skor tahminleri.
+- Takım bazında düzenlenebilir rating, hücum, savunma, form, iç saha etkisi, yorgunluk, istikrar, moral ve motivasyon profilleri.
+- Rating, saha etkisi, form, yorgunluk ve mental göstergelerle ayarlanan negatif binom gol modeli üzerinden 1-X-2, beklenen gol, 2.5 üstü ve en olası skor tahminleri. İstikrar seviyesi düşük takımlarda skor dağılımı daha değişken olur.
 - 20.000 deterministik istatistik senaryosundan türetilen örnek maç istatistikleri.
 - Takım profillerini tarayıcıda saklama; JSON/CSV içe ve JSON dışa aktarma.
 
