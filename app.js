@@ -313,7 +313,7 @@ async function syncRecentTeamForm(){
     saveProfiles();setLiveStatus('Son maç formu profillere işlendi');
     $('liveUpdated').textContent='Form verisi güncellendi: '+new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit'}).format(new Date());
     if(!$('editor').hidden)openEditor(editingSide);
-    if(!$('results').hidden){lastResult={h:home,a:away,m:buildModel(home,away),s:null};lastResult.s=simulateStats(lastResult.m,home.name,away.name);renderResult(lastResult);}
+    if(!$('results').hidden){const m=buildModel(home,away);m.sampledScore=sampleScore(m);lastResult={h:home,a:away,m,s:simulateStats(m,home.name,away.name)};renderResult(lastResult);}
     toast('Son 5 maçtan form, moral, yorgunluk, istikrar, hücum ve savunma verileri güncellendi. Motivasyon manuel kalır.');
   }catch(err){setLiveStatus('Form verisi alınamadı');toast('Form analizi başarısız: '+err.message)}
   finally{$('syncTeamForm').disabled=false;}
