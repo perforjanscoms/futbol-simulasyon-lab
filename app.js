@@ -89,8 +89,8 @@ function parseCsvRows(text){
     const c=text[i];
     if(c==='"'){if(quoted&&text[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}
     else if(c===','&&!quoted){row.push(field);field='';}
-    else if((c==='\\n'||c==='\\r')&&!quoted){
-      if(c==='\\r'&&text[i+1]==='\\n')i++;
+    else if((c==='\n'||c==='\r')&&!quoted){
+      if(c==='\r'&&text[i+1]==='\\n')i++;
       row.push(field);if(row.some(v=>v.trim()!==''))rows.push(row);row=[];field='';
     }else field+=c;
   }
@@ -103,20 +103,30 @@ async function loadTeamRatings(){
     fetch('./national-ratings.json',{cache:'no-store'})
   ]);
   if(clubResult.status==='fulfilled'&&clubResult.value.ok){
-    const rows=parseCsvRows(await clubResult.value.text());
-    if(rows.length>1){
-      const headers=rows.shift().map(x=>x.trim().toLowerCase());
-      const nameIndex=headers.indexOf('name'),eloIndex=headers.indexOf('elo'),dateIndex=headers.indexOf('as_of');
-      if(nameIndex>=0&&eloIndex>=0){
-        for(const row of rows){const rating=Number(row[eloIndex]),name=row[nameIndex]?.trim();if(name&&Number.isFinite(rating))externalRatings.club.set(normalise(name),{rating,source:'beyondELO',asOf:row[dateIndex]||''});}
-        ratingDataStatus.club=externalRatings.club.size>0;
+    try{
+      const rows=parseCsvRows(await clubResult.value.text());
+      if(rows.length>1){
+        const headers=rows.shift().map(x=>x.trim().toLowerCase());
+        const nameIndex=headers.indexOf('name'),eloIndex=headers.indexOf('elo'),dateIndex=headers.indexOf('as_of');
+        if(nameIndex>=0&&eloIndex>=0){
+          for(const row of rows){
+            const rating=Number(row[eloIndex]),name=row[nameIndex]?.trim();
+            if(name&&Number.isFinite(rating))externalRatings.club.set(normalise(name),{rating,source:'beyondELO',asOf:row[dateIndex]||''});
+          }
+          ratingDataStatus.club=externalRatings.club.size>0;
+        }
       }
-    }
+    }catch(error){console.warn('Club Elo verisi okunamadı:',error);}
   }
   if(nationalResult.status==='fulfilled'&&nationalResult.value.ok){
-    const data=await nationalResult.value.json();
-    for(const item of data.teams||[]){const rating=Number(item.elo??item.rating);if(item.name&&Number.isFinite(rating))externalRatings.national.set(normalise(item.name),{rating,source:'World Football Elo',asOf:''});}
-    ratingDataStatus.national=externalRatings.national.size>0;
+    try{
+      const data=await nationalResult.value.json();
+      for(const item of data.teams||[]){
+        const rating=Number(item.elo??item.rating);
+        if(item.name&&Number.isFinite(rating))externalRatings.national.set(normalise(item.name),{rating,source:'World Football Elo',asOf:''});
+      }
+      ratingDataStatus.national=externalRatings.national.size>0;
+    }catch(error){console.warn('Milli takım Elo verisi okunamadı:',error);}
   }
   updateRatingCoverage();
 }
