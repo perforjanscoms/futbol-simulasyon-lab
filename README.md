@@ -32,7 +32,7 @@ Depoda `index.html`, `style.css`, `app.js` ve `teams.json` kök dizindedir. GitH
 
 
 ## Canlı maç verisi (API-Football)
-Canlı skor ve günün fikstürü, API-Football v3 üzerinden alınabilir.
+Canlı skor ve günün fikstürü, API-Football v3 üzerinden alınabilir. Ayrıca seçili iki takımın son 5 tamamlanmış karşılaşması çekilerek form, moral, maç aralığına dayalı yorgunluk, gol farkı değişkenliğine dayalı istikrar ve son maç gollerinden türetilmiş hücum/savunma katsayıları profile işlenebilir.
 
 1. [API-Football hesabı oluşturun](https://dashboard.api-football.com/register) ve ücretsiz API anahtarınızı alın.
 2. Uygulamanın **Gerçek maç akışı** bölümüne anahtarı girip kaydedin.
