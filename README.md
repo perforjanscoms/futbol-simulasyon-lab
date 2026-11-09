@@ -10,8 +10,12 @@ Herkese açık takım havuzunda listelenen isimlerle hazırlanmış, bağımsız
 - 20.000 deterministik istatistik senaryosundan türetilen örnek maç istatistikleri.
 - Takım profillerini tarayıcıda saklama; JSON/CSV içe ve JSON dışa aktarma.
 
-## Önemli veri notu
-Bu sürüm **canlı maç, sakatlık, kadro, güncel form veya bahis oranı verisi çekmez**. Takımlar başlangıçta eşit 1500 rating ve varsayılan katsayılarla gelir. Kullanıcı takım güçlerini elle düzenleyebilir. Sonuçlar istatistiksel simülasyon çıktısıdır; kesin skor veya bahis garantisi değildir.
+## Takım gücü ve model verileri
+- Avrupa kulüpleri için [beyondELO](https://beyondelo.com/developers) açık kulüp Elo CSV'si (CC BY 4.0) her Pages dağıtımında alınır; GitHub Actions her gün yeniden yayınlar.
+- Milli takımlar için [World Football Elo Ratings](https://eloratings.net) verisini temel alan [WorldCupElo açık sıralama akışı](https://worldcupelo.com/api/rankings) kullanılır.
+- Her iki veri kümesinde bulunmayan takımlarda 1500 varsayılan rating kullanılır. Sonuç ekranı her iki takımın rating puanını ve kaynağını açıkça gösterir; eşleşme için kaynak puanı bulunmayan takımların sonuçları gerçek ölçülmüş güç olarak yorumlanmamalıdır.
+- API-Football anahtarı girildiğinde seçili iki takımın son 5 tamamlanmış karşılaşmasından form, moral, yorgunluk, istikrar, hücum ve savunma profili ayrıca güncellenebilir.
+- Model çıktıları istatistiksel tahmindir; kesin skor veya bahis garantisi değildir.
 
 ## Yerelde çalıştırma
 Tarayıcıda dosyaya çift tıklamak yerine klasörü bir statik web sunucusuyla açın. Örneğin Python kuruluysa:
