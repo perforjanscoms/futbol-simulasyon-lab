@@ -29,3 +29,16 @@ Depoda `index.html`, `style.css`, `app.js` ve `teams.json` kök dizindedir. GitH
 - `app.js`: takım arama, model ve simülasyon
 - `teams.json`: 655 takımlık isim havuzu
 - `.nojekyll`: GitHub Pages için statik yayın işareti
+
+
+## Canlı maç verisi (API-Football)
+Canlı skor ve günün fikstürü, API-Football v3 üzerinden alınabilir.
+
+1. [API-Football hesabı oluşturun](https://dashboard.api-football.com/register) ve ücretsiz API anahtarınızı alın.
+2. Uygulamanın **Gerçek maç akışı** bölümüne anahtarı girip kaydedin.
+3. **Canlı maçları getir** veya **Bugünün fikstürü** düğmesine basın. Canlı maç kartındaki **Eşleşmeye aktar** düğmesi takımları simülatör seçimine taşır.
+4. İsterseniz otomatik yenilemeyi açın. Varsayılan aralık 30 dakikadır; ücretsiz plan kotasını korumak için otomatik yenileme kapalı gelir.
+
+API-Football'ın ücretsiz planı günlük 100 istektir. Sağlayıcı fikstür uç noktasını canlı maçlarda yaklaşık 15 saniyede bir günceller; fakat bu uygulama ücretsiz kotayı korumak için 30 dakikalık otomatik yenileme sunar. İstek kotası API yanıtından okunabiliyorsa uygulamada gösterilir.
+
+**Güvenlik ve kapsam:** API anahtarı GitHub dosyalarına yazılmaz; bu tarayıcının `localStorage` alanında tutulur ve API'ye doğrudan bu tarayıcıdan gönderilir. Anahtarı sohbet içinde paylaşmayın. API-Football panelinde mümkünse kullanım alanını uygulamanın alan adıyla sınırlandırın. Bu canlı mod şu anda gerçek skor/fikstür akışını gösterir ve eşleşmeyi simülatöre taşır; canlı maçın dakika/skor bilgisini tam maç gol modeline otomatik katmaz. Model tahminleri ayrı bir simülasyon hesabıdır, canlı skor kaynağının tahmini değildir.
