@@ -19,7 +19,7 @@ function teamByName(name){const key=normalise(name);return teams.find(t=>normali
 function toast(msg){let n=$('toast');if(!n){n=document.createElement('div');n.id='toast';n.className='toast';document.body.append(n)}n.textContent=msg;n.classList.add('show');clearTimeout(n._timer);n._timer=setTimeout(()=>n.classList.remove('show'),2600)}
 
 async function init(){
-  try{const r=await fetch('./teams.json');if(!r.ok)throw new Error('Takım dosyası yüklenemedi');teams=await r.json();}
+  try{const r=await fetch('./teams.json');if(!r.ok)throw new Error('Takım dosyası yüklenemedi');const source=await r.json();teams=Array.isArray(source)?source:[...source.club.map(name=>({name,type:'club'})),...source.national.map(name=>({name,type:'national'}))];}
   catch(e){$('teamCount').textContent='Takım verisi yüklenemedi';toast('Uygulamayı bir web sunucusu üzerinden açın (GitHub Pages desteklenir).');return;}
   $('teamCount').textContent=`${teams.length} takım`;
   $('teamNames').innerHTML=teams.map(t=>`<option value="${escapeHtml(t.name)}"></option>`).join('');
