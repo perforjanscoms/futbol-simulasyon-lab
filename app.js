@@ -112,5 +112,37 @@ function renderResult({h,a,m,s}){
 }
 function exportData(){const data={format:'futbol-lab-profiles-v1',exportedAt:new Date().toISOString(),profiles};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});download(blob,'futbol-lab-verileri.json')}
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
-async function importData(e){const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();if(f.name.toLowerCase().endsWith('.csv')){const lines=text.split(/\r?\n/).filter(Boolean),header=lines.shift().split(',').map(x=>x.trim().toLowerCase());for(const line of lines){const vals=line.split(',');const row=Object.fromEntries(header.map((k,i)=>[k,vals[i]?.trim()]));const t=teamByName(row.team||row.name);if(t)profiles[t.name]={rating:clamp(+(row.rating||1500),900,2200),attack:clamp(+(row.attack||1),.65,1.55),defense:clamp(+(row.defense||1),.65,1.55),form:clamp(+(row.form||0),-5,5)}}}else{const obj=JSON.parse(text);const incoming=obj.profiles||obj;if(!incoming||typeof incoming!=='object')throw new Error('JSON biçimi tanınmadı');for(const [name,p] of Object.entries(incoming)){if(teamByName(name))profiles[name]={rating:clamp(+(p.rating||1500),900,2200),attack:clamp(+(p.attack||1),.65,1.55),defense:clamp(+(p.defense||1),.65,1.55),form:clamp(+(p.form||0),-5,5)}}}saveProfiles();toast('Takım güç verileri içe aktarıldı.');if(!$('editor').hidden)openEditor(editingSide)}catch(err){toast('Dosya okunamadı: '+err.message)}finally{e.target.value=''}}
+async function importData(e){
+  const f=e.target.files?.[0];if(!f)return;
+  try{
+    const text=await f.text();
+    if(f.name.toLowerCase().endsWith('.csv')){
+      const lines=text.split(/\r?\n/).filter(Boolean),header=lines.shift().split(',').map(x=>x.trim().toLowerCase());
+      for(const line of lines){
+        const vals=line.split(','),row=Object.fromEntries(header.map((k,i)=>[k,vals[i]?.trim()]));
+        const t=teamByName(row.team||row.name);
+        if(t)profiles[t.name]={
+          rating:clamp(+(row.rating??1500),900,2200),attack:clamp(+(row.attack??1),.65,1.55),defense:clamp(+(row.defense??1),.65,1.55),
+          form:clamp(+(row.form??0),-5,5),homeEdge:clamp(+(row.homeedge??row.home_edge??0),-5,5),
+          fatigue:clamp(+(row.fatigue??0),0,10),consistency:clamp(+(row.consistency??72),0,100),
+          morale:clamp(+(row.morale??0),-5,5),motivation:clamp(+(row.motivation??5),0,10)
+        };
+      }
+    }else{
+      const obj=JSON.parse(text),incoming=obj.profiles||obj;
+      if(!incoming||typeof incoming!=='object')throw new Error('JSON biçimi tanınmadı');
+      for(const [name,p] of Object.entries(incoming)){
+        if(teamByName(name)){
+          const v={...DEFAULT_PROFILE,...p};
+          profiles[name]={
+            rating:clamp(+v.rating,900,2200),attack:clamp(+v.attack,.65,1.55),defense:clamp(+v.defense,.65,1.55),
+            form:clamp(+v.form,-5,5),homeEdge:clamp(+v.homeEdge,-5,5),fatigue:clamp(+v.fatigue,0,10),
+            consistency:clamp(+v.consistency,0,100),morale:clamp(+v.morale,-5,5),motivation:clamp(+v.motivation,0,10)
+          };
+        }
+      }
+    }
+    saveProfiles();toast('Takım profilleri içe aktarıldı.');if(!$('editor').hidden)openEditor(editingSide);
+  }catch(err){toast('Dosya okunamadı: '+err.message)}finally{e.target.value=''}
+}
 init();
