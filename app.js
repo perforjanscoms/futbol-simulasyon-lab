@@ -43,7 +43,7 @@ async function init(){
   initLiveData();
 }
 function setLiveStatus(text){$('liveStatus').textContent=text}
-function getIstanbulDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+function getIstanbulDate(){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const v=Object.fromEntries(parts.map(x=>[x.type,x.value]));return v.year+'-'+v.month+'-'+v.day}
 function formatIstanbulTime(value){if(!value)return '—';return new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit'}).format(new Date(value))}
 function ensureApiTeam(name){
   let team=teamByName(name);
@@ -211,7 +211,7 @@ function calculateScoreMarkets(m){
   return out;
 }
 function marketRows(target,rows){
-  $(target).innerHTML=rows.map(([label,value])=>'<div class="market-row"><span>'+label+'</span><strong>'+pct(value)+'</strong><div class="market-track"><i style="width:'+clamp(value*100,0,100)+'%"></i></div></div>').join('');
+  $(target).innerHTML=rows.map(([label,value])=>'<div class="market-row"><span>'+escapeHtml(label)+'</span><strong>'+pct(value)+'</strong><div class="market-track"><i style="width:'+clamp(value*100,0,100)+'%"></i></div></div>').join('');
 }
 function renderResult({h,a,m,s}){
   $('resultTitle').innerHTML=`${escapeHtml(h.name)} <small>—</small> ${escapeHtml(a.name)}`;$('resultMeta').textContent=`90 dakika · Değişken dağılımlı gol modeli · ${SIMULATIONS.toLocaleString('tr-TR')} sanal istatistik senaryosu`;
