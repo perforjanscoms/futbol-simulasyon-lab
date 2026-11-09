@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1321"><meta name="description" content="Kulüp ve milli takımlar için Poisson tabanlı futbol maç simülatörü.">
+  <title>Futbol Simülasyon Laboratuvarı</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="#top"><span class="brand-mark">⚽</span><span>FUTBOL<span class="brand-accent">LAB</span><small>MAÇ SİMÜLASYON MERKEZİ</small></span></a><div class="top-actions"><span class="status"><i></i> Yerel model aktif</span><button id="exportBtn" class="button subtle">Verileri dışa aktar</button><label class="button subtle import-label">Veri içe aktar<input id="importFile" type="file" accept=".json,.csv,application/json,text/csv"></label></div></header>
+<main id="top" class="shell">
+  <section class="hero"><div><div class="eyebrow">İSTATİSTİKSEL MAÇ MOTORU <span>v1.0</span></div><h1>Maçı sezgiyle değil,<br><em>olasılıkla</em> incele.</h1><p>655 takım arasından iki ekip seç. Takım güçlerini düzenle, Poisson olasılıklarını ve sanal maç istatistiklerini hesapla.</p></div><div class="hero-stat"><strong>655</strong><span>TAKIM KAYDI</span><div>446 kulüp · 209 milli takım</div></div></section>
+  <section class="panel selector-panel">
+    <div class="section-head"><div><span class="kicker">01 / EŞLEŞME</span><h2>Takımları seç</h2></div><div class="tabs" role="tablist"><button class="tab active" data-type="club">Kulüp takımları</button><button class="tab" data-type="national">Milli takımlar</button></div></div>
+    <div class="match-selectors">
+      <div class="team-select home"><label for="homeTeam">EV SAHİBİ</label><input id="homeTeam" list="teamNames" value="Beşiktaş" autocomplete="off" placeholder="Takım ara..."><div class="team-foot"><span class="team-dot"></span><span id="homeType">Kulüp takımı</span><button class="text-button" data-edit="home">Gücü düzenle</button></div></div>
+      <div class="versus"><span>VS</span><button id="swapBtn" aria-label="Takımları değiştir" title="Takımları değiştir">⇄</button></div>
+      <div class="team-select away"><label for="awayTeam">DEPLASMAN</label><input id="awayTeam" list="teamNames" value="Fenerbahçe" autocomplete="off" placeholder="Takım ara..."><div class="team-foot"><span class="team-dot"></span><span id="awayType">Kulüp takımı</span><button class="text-button" data-edit="away">Gücü düzenle</button></div></div>
+    </div>
+    <datalist id="teamNames"></datalist>
+    <div class="selector-bottom"><div class="model-note"><span class="info">i</span><span>Başlangıçta takımlar eşit 1500 rating ile gelir. Gerçek performans verisi ekledikçe tahminler kişiselleşir.</span></div><button id="simulateBtn" class="button primary">MAÇI SİMÜLE ET <span>→</span></button></div>
+  </section>
+
+  <section id="editor" class="panel editor-panel" hidden>
+    <div class="section-head"><div><span class="kicker">TAKIM PROFİLİ</span><h2 id="editorTitle">Takım gücü</h2></div><button id="closeEditor" class="icon-button" aria-label="Kapat">×</button></div>
+    <div class="editor-grid">
+      <label>SM Rating <output id="ratingOut">1500</output><input id="rating" type="range" min="900" max="2200" step="10" value="1500"></label>
+      <label>Hücum katsayısı <output id="attackOut">1.00×</output><input id="attack" type="range" min="0.65" max="1.55" step="0.01" value="1"></label>
+      <label>Savunma katsayısı <output id="defenseOut">1.00×</output><input id="defense" type="range" min="0.65" max="1.55" step="0.01" value="1"></label>
+      <label>Son form etkisi <output id="formOut">0</output><input id="form" type="range" min="-5" max="5" step="1" value="0"></label>
+    </div>
+    <div class="editor-foot"><span>Bu değerler yalnızca bu tarayıcıda saklanır.</span><button id="resetProfile" class="button subtle">Takımı varsayılana döndür</button></div>
+  </section>
+
+  <section id="results" hidden>
+    <div class="results-heading"><div><span class="kicker">02 / SİMÜLASYON RAPORU</span><h2 id="resultTitle">Beşiktaş <small>—</small> Fenerbahçe</h2><p id="resultMeta">90 dakika · Poisson olasılık matrisi · 20.000 sanal maç</p></div><button class="button subtle" id="rerunBtn">↻ Yeniden hesapla</button></div>
+    <div class="result-grid">
+      <article class="panel outcome-panel"><div class="card-kicker">MAÇ SONUCU OLASILIKLARI</div><div class="probabilities"><div><strong id="homeProb">—</strong><span>EV SAHİBİ</span></div><div><strong id="drawProb">—</strong><span>BERABERLİK</span></div><div><strong id="awayProb">—</strong><span>DEPLASMAN</span></div></div><div class="prob-bar"><span id="homeBar"></span><span id="drawBar"></span><span id="awayBar"></span></div><div class="favorite-line"><span class="favorite-pip"></span><span id="favoriteText">Favori hesaplanıyor</span></div><div class="divider"></div><div class="score-row"><div><span>BEKLENEN GOL</span><strong id="expectedGoals">—</strong></div><div><span>EN OLASI SKOR</span><strong id="mostLikely">—</strong></div><div><span>2.5 GOL ÜSTÜ</span><strong id="over25">—</strong></div></div></article>
+      <article class="panel score-panel"><div class="card-kicker">EN OLASI SKORLAR</div><div id="scoreList" class="score-list"></div><p class="muted small">Skor olasılıkları 0–8 gol aralığındaki Poisson matrisinden normalize edilir.</p></article>
+    </div>
+    <article class="panel stats-panel"><div class="section-head"><div><span class="kicker">03 / SANAL MAÇ</span><h2>Simüle edilen maç istatistikleri</h2></div><span class="sim-count">20.000 SENARYO</span></div><div id="statsTable" class="stats-table"></div></article>
+    <article class="panel model-panel"><div class="section-head"><div><span class="kicker">04 / MODEL ŞEFFAFLIĞI</span><h2>Hesaplama özeti</h2></div></div><div id="modelDetails" class="model-details"></div></article>
+  </section>
+  <section class="panel teams-panel"><div class="section-head"><div><span class="kicker">TAKIM VERİTABANI</span><h2>Takım havuzu</h2></div><div class="team-count" id="teamCount">655 takım</div></div><div class="team-tools"><input id="teamSearch" placeholder="Takım adıyla ara..."><div class="tabs compact"><button class="tab active" data-filter="all">Tümü</button><button class="tab" data-filter="club">Kulüpler</button><button class="tab" data-filter="national">Milli takımlar</button></div></div><div id="teamChips" class="team-chips"></div><div class="list-footer" id="listFooter"></div></section>
+  <footer><span>FUTBOL LAB · Bağımsız istatistiksel simülatör</span><span>Veri kaynağı: SanalMaç'ın herkese açık takım listesi · Model: açık Poisson + rating yaklaşımı</span></footer>
+</main>
+<script src="app.js"></script>
+</body></html>
