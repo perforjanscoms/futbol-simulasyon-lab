@@ -32,7 +32,7 @@ async function init(){
   $('swapBtn').addEventListener('click',()=>{const a=$('homeTeam').value;$('homeTeam').value=$('awayTeam').value;$('awayTeam').value=a;updateTeamLabels();simulate()});
   document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openEditor(b.dataset.edit)));
   $('closeEditor').addEventListener('click',()=>$('editor').hidden=true);
-  ['rating','attack','defense','form'].forEach(id=>$(id).addEventListener('input',updateEditorOutput));
+  ['rating','attack','defense','form','homeEdge','fatigue','consistency','morale','motivation'].forEach(id=>$(id).addEventListener('input',updateEditorOutput));
   $('resetProfile').addEventListener('click',()=>{const t=teamByName($(editingSide+'Team').value);if(!t)return;delete profiles[t.name];saveProfiles();openEditor(editingSide);toast('Takım varsayılan değerlere döndürüldü.')});
   $('exportBtn').addEventListener('click',exportData);$('importFile').addEventListener('change',importData);
   $('teamChips').addEventListener('click',e=>{const b=e.target.closest('[data-team]');if(!b)return;const t=teams.find(x=>x.name===b.dataset.team);if(!t)return;$(activeTarget).value=t.name;updateTeamLabels();window.scrollTo({top:0,behavior:'smooth'});});
