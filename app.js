@@ -8,6 +8,10 @@ let activeTarget = 'awayTeam';
 let lastResult = null;
 let profiles = loadProfiles();
 const $ = id => document.getElementById(id);
+const API_FOOTBALL_BASE = 'https://v3.football.api-sports.io';
+let liveFixtures = [];
+let liveMode = 'live';
+let liveRefreshTimer = null;
 const clamp = (n,lo,hi) => Math.min(hi,Math.max(lo,n));
 const fmt = n => Number(n).toFixed(2);
 
@@ -36,6 +40,102 @@ async function init(){
   $('resetProfile').addEventListener('click',()=>{const t=teamByName($(editingSide+'Team').value);if(!t)return;delete profiles[t.name];saveProfiles();openEditor(editingSide);toast('Takım varsayılan değerlere döndürüldü.')});
   $('exportBtn').addEventListener('click',exportData);$('importFile').addEventListener('change',importData);
   $('teamChips').addEventListener('click',e=>{const b=e.target.closest('[data-team]');if(!b)return;const t=teams.find(x=>x.name===b.dataset.team);if(!t)return;$(activeTarget).value=t.name;updateTeamLabels();window.scrollTo({top:0,behavior:'smooth'});});
+  initLiveData();
+}
+function setLiveStatus(text){$('liveStatus').textContent=text}
+function getIstanbulDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+function formatIstanbulTime(value){if(!value)return '—';return new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit'}).format(new Date(value))}
+function ensureApiTeam(name){
+  let team=teamByName(name);
+  if(!team&&name){team={name,type:'club',external:true};teams.push(team);const option=document.createElement('option');option.value=name;$('teamNames').append(option);}
+  return team||{name,type:'club'};
+}
+function liveMatchStatus(f){
+  const status=f.fixture?.status||{},short=status.short||'';
+  if(status.elapsed!==null&&status.elapsed!==undefined)return short==='HT'?'Devre arası':String(status.elapsed)+"'";
+  const labels={NS:'Başlamadı',FT:'Bitti',AET:'Uzatmalar bitti',PEN:'Penaltılar',PST:'Ertelendi',CANC:'İptal',SUSP:'Durduruldu',INT:'Kesildi',BT:'Uzatma arası','1H':'1. yarı','2H':'2. yarı',LIVE:'Canlı'};
+  return labels[short]||status.long||short||'Durum bilinmiyor';
+}
+function renderLiveFixtures(items){
+  if(!items.length){
+    $('liveFixtures').innerHTML='<div class="live-empty">'+(liveMode==='live'?'Şu anda API tarafından canlı olarak bildirilen maç bulunamadı.':'Bugün için fikstür kaydı bulunamadı.')+'</div>';
+    return;
+  }
+  const sorted=[...items].sort((a,b)=>{
+    const active=x=>x.fixture?.status?.elapsed!==null&&x.fixture?.status?.elapsed!==undefined?0:1;
+    return active(a)-active(b)||new Date(a.fixture?.date)-new Date(b.fixture?.date);
+  });
+  $('liveFixtures').innerHTML=sorted.slice(0,100).map(f=>{
+    const id=String(f.fixture?.id??''),home=f.teams?.home?.name||'Ev sahibi',away=f.teams?.away?.name||'Deplasman';
+    const gh=f.goals?.home,ga=f.goals?.away,league=[f.league?.country,f.league?.name].filter(Boolean).join(' · ');
+    const clock=f.fixture?.status?.elapsed!==null&&f.fixture?.status?.elapsed!==undefined?String(f.fixture.status.elapsed)+"'":formatIstanbulTime(f.fixture?.date);
+    const events=(f.events||[]).filter(ev=>ev.type==='Goal'||ev.type==='Card').slice(-3).map(ev=>String(ev.time?.elapsed??'')+"' "+(ev.player?.name||ev.type)).join(' · ');
+    return '<article class="live-match"><div class="live-match-top"><span>'+escapeHtml(league||'Futbol')+'</span><span class="live-match-state">'+escapeHtml(liveMatchStatus(f))+'</span></div><div class="live-scoreline"><div><span class="live-team">'+escapeHtml(home)+'</span><strong>'+(gh===null||gh===undefined?'–':gh)+'</strong></div><b>:</b><div><strong>'+(ga===null||ga===undefined?'–':ga)+'</strong><span class="live-team">'+escapeHtml(away)+'</span></div></div><div class="live-match-bottom"><span>'+escapeHtml(clock)+(events?' · '+escapeHtml(events):'')+'</span><button class="button subtle" data-live-select="'+escapeHtml(id)+'">Eşleşmeye aktar</button></div></article>';
+  }).join('');
+}
+async function refreshLiveFixtures(mode='live'){
+  const key=localStorage.getItem('futbolLabApiSportsKey')||$('liveApiKey').value.trim();
+  if(!key){setLiveStatus('API anahtarı gerekli');toast('Canlı veri için API-Football anahtarını kaydedin.');return}
+  liveMode=mode;setLiveStatus('Veri alınıyor…');$('refreshLive').disabled=true;$('todayFixtures').disabled=true;
+  $('liveFixtures').innerHTML='<div class="live-empty">Maç verileri sağlayıcıdan alınıyor…</div>';
+  try{
+    const query=mode==='live'?'live=all':'date='+encodeURIComponent(getIstanbulDate());
+    const url=API_FOOTBALL_BASE+'/fixtures?'+query+'&timezone=Europe%2FIstanbul';
+    const response=await fetch(url,{method:'GET',headers:{'x-apisports-key':key}});
+    const remaining=response.headers.get('x-ratelimit-requests-remaining');
+    const limit=response.headers.get('x-ratelimit-requests-limit');
+    const data=await response.json();
+    if(!response.ok){
+      const detail=typeof data.message==='string'?data.message:JSON.stringify(data.errors||{});
+      if(response.status===401||response.status===403)throw new Error('API anahtarı reddedildi. Anahtarı ve hesap erişimini kontrol edin.');
+      if(response.status===429)throw new Error('API istek sınırına ulaşıldı. Kota yenilenince tekrar deneyin.');
+      throw new Error(detail||('HTTP '+response.status));
+    }
+    if(data.errors&&(Array.isArray(data.errors)?data.errors.length:Object.keys(data.errors).length))throw new Error(JSON.stringify(data.errors));
+    liveFixtures=Array.isArray(data.response)?data.response:[];
+    renderLiveFixtures(liveFixtures);
+    $('liveUpdated').textContent='Son güncelleme: '+new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit'}).format(new Date());
+    $('liveQuota').textContent=remaining!==null?'Kalan günlük istek: '+remaining+(limit!==null?'/'+limit:''):'';
+    setLiveStatus(mode==='live'?'Canlı veri bağlantısı başarılı':'Günün fikstürü yüklendi');
+  }catch(err){
+    setLiveStatus('Veri alınamadı');
+    $('liveFixtures').innerHTML='<div class="live-error">'+escapeHtml(err.message)+'<br><span>API anahtarı, ücretsiz plan kotası, tarayıcı CORS izni veya bağlantı durumunu kontrol edin.</span></div>';
+    toast('Canlı veri alınamadı: '+err.message);
+  }finally{$('refreshLive').disabled=false;$('todayFixtures').disabled=false;}
+}
+function initLiveData(){
+  const saved=localStorage.getItem('futbolLabApiSportsKey')||'';
+  $('liveApiKey').value=saved;
+  if(saved)setLiveStatus('Anahtar kayıtlı · bağlantı için yenile');
+  $('saveLiveKey').addEventListener('click',()=>{
+    const key=$('liveApiKey').value.trim();
+    if(key.length<12){toast('Geçerli API anahtarını girin.');return}
+    localStorage.setItem('futbolLabApiSportsKey',key);setLiveStatus('Anahtar bu tarayıcıya kaydedildi');toast('API anahtarı tarayıcıya kaydedildi.');
+  });
+  $('clearLiveKey').addEventListener('click',()=>{
+    localStorage.removeItem('futbolLabApiSportsKey');$('liveApiKey').value='';
+    if(liveRefreshTimer){clearInterval(liveRefreshTimer);liveRefreshTimer=null}
+    $('autoLiveRefresh').checked=false;liveFixtures=[];$('liveFixtures').innerHTML='<div class="live-empty">API anahtarı silindi. Canlı veri bağlantısı kapatıldı.</div>';
+    $('liveQuota').textContent='';$('liveUpdated').textContent='Henüz veri alınmadı.';setLiveStatus('API anahtarı gerekli');
+  });
+  $('refreshLive').addEventListener('click',()=>refreshLiveFixtures('live'));
+  $('todayFixtures').addEventListener('click',()=>refreshLiveFixtures('today'));
+  $('autoLiveRefresh').addEventListener('change',()=>{
+    if(liveRefreshTimer){clearInterval(liveRefreshTimer);liveRefreshTimer=null}
+    if($('autoLiveRefresh').checked){
+      if(!localStorage.getItem('futbolLabApiSportsKey')){$('autoLiveRefresh').checked=false;toast('Önce API anahtarını kaydedin.');return}
+      liveRefreshTimer=setInterval(()=>refreshLiveFixtures('live'),30*60*1000);
+      toast('Canlı maçlar 30 dakikada bir yenilenecek.');
+    }
+  });
+  $('liveFixtures').addEventListener('click',e=>{
+    const b=e.target.closest('[data-live-select]');if(!b)return;
+    const match=liveFixtures.find(x=>String(x.fixture?.id)===b.dataset.liveSelect);if(!match)return;
+    const home=ensureApiTeam(match.teams?.home?.name),away=ensureApiTeam(match.teams?.away?.name);
+    $('homeTeam').value=home.name;$('awayTeam').value=away.name;updateTeamLabels();
+    $('teamCount').textContent=teams.length+' takım';renderTeamChips();
+    window.scrollTo({top:0,behavior:'smooth'});toast('Eşleşme simülatöre aktarıldı. Canlı skor tam maç tahminine otomatik eklenmez.');
+  });
 }
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function updateTeamLabels(){for(const side of ['home','away']){const t=teamByName($(side+'Team').value);$(side+'Type').textContent=t?(t.type==='club'?'Kulüp takımı':'Milli takım'):'Listede bulunamadı';}}
@@ -99,13 +199,30 @@ function simulate(){const h=teamByName($('homeTeam').value),a=teamByName($('away
   const m=buildModel(h,a),s=simulateStats(m,h.name,a.name);lastResult={h,a,m,s};renderResult(lastResult);$('results').hidden=false;$('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function pct(n){return (n*100).toFixed(1)+'%'}
+function calculateScoreMarkets(m){
+  const out={btts:0,over15:0,over25:0,over35:0,over45:0,homeBy1:0,homeBy2:0,draw:0,awayBy1:0,awayBy2:0,goals01:0,goals23:0,goals4plus:0};
+  for(let i=0;i<=8;i++)for(let j=0;j<=8;j++){
+    const p=m.matrix[i][j]/m.total,total=i+j,diff=i-j;
+    if(i>0&&j>0)out.btts+=p;
+    if(total>=2)out.over15+=p;if(total>=3)out.over25+=p;if(total>=4)out.over35+=p;if(total>=5)out.over45+=p;
+    if(diff===1)out.homeBy1+=p;else if(diff>=2)out.homeBy2+=p;else if(diff===0)out.draw+=p;else if(diff===-1)out.awayBy1+=p;else out.awayBy2+=p;
+    if(total<=1)out.goals01+=p;else if(total<=3)out.goals23+=p;else out.goals4plus+=p;
+  }
+  return out;
+}
+function marketRows(target,rows){
+  $(target).innerHTML=rows.map(([label,value])=>'<div class="market-row"><span>'+label+'</span><strong>'+pct(value)+'</strong><div class="market-track"><i style="width:'+clamp(value*100,0,100)+'%"></i></div></div>').join('');
+}
 function renderResult({h,a,m,s}){
   $('resultTitle').innerHTML=`${escapeHtml(h.name)} <small>—</small> ${escapeHtml(a.name)}`;$('resultMeta').textContent=`90 dakika · Değişken dağılımlı gol modeli · ${SIMULATIONS.toLocaleString('tr-TR')} sanal istatistik senaryosu`;
   $('homeProb').textContent=pct(m.hw);$('drawProb').textContent=pct(m.d);$('awayProb').textContent=pct(m.aw);
   $('homeBar').style.width=pct(m.hw);$('drawBar').style.width=pct(m.d);$('awayBar').style.width=pct(m.aw);
   const fav=m.hw>m.aw?h.name:m.aw>m.hw?a.name:'İki takım eşit';$('favoriteText').textContent=fav==='İki takım eşit'?'Belirgin favori yok':`${fav} daha yüksek galibiyet olasılığına sahip`;
   $('expectedGoals').textContent=`${m.homeXg.toFixed(2)} – ${m.awayXg.toFixed(2)}`;$('mostLikely').textContent=m.scores[0].score;$('over25').textContent=pct(m.over25);
-  $('scoreList').innerHTML=m.scores.slice(0,6).map(x=>`<div class="score-chip"><strong>${x.score}</strong><span>${pct(x.p)}</span></div>`).join('');
+  $('scoreList').innerHTML=m.scores.slice(0,10).map((x,i)=>`<div class="score-chip"><strong><small>#${i+1}</small> ${x.score}</strong><span>${pct(x.p)}</span></div>`).join('');
+  const markets=calculateScoreMarkets(m);
+  marketRows('goalMarkets',[['Karşılıklı gol var',markets.btts],['Karşılıklı gol yok',1-markets.btts],['1.5 gol üstü',markets.over15],['2.5 gol üstü',markets.over25],['3.5 gol üstü',markets.over35],['4.5 gol üstü',markets.over45]]);
+  marketRows('marginMarkets',[[`${h.name} 1 farkla kazanır`,markets.homeBy1],[`${h.name} 2+ farkla kazanır`,markets.homeBy2],['Beraberlik',markets.draw],[`${a.name} 1 farkla kazanır`,markets.awayBy1],[`${a.name} 2+ farkla kazanır`,markets.awayBy2],['Toplam gol 0–1',markets.goals01],['Toplam gol 2–3',markets.goals23],['Toplam gol 4+',markets.goals4plus]]);
   const stats=[['Topla oynama',s.posH,s.posA,'%'],['Toplam şut',s.shotsH,s.shotsA,''],['İsabetli şut',s.onH,s.onA,''],['Korner',s.cornersH,s.cornersA,''],['Faul',s.foulsH,s.foulsA,''],['Sarı kart',s.yellowH,s.yellowA,''],['Kırmızı kart',s.redH,s.redA,'']];
   $('statsTable').innerHTML=stats.map(([name,x,y,unit])=>{const sum=x+y||1,share=x/sum*100;return `<div class="stat-row"><div class="side-cell"><div class="stat-value">${x.toFixed(unit==='%'?1:1)}${unit}</div><div class="stat-track"><span style="width:${share}%"></span><span style="width:${100-share}%"></span></div></div><div class="stat-name">${name}</div><div class="side-cell"><div class="stat-value right">${y.toFixed(1)}${unit}</div><div class="stat-track"><span style="width:${100-share}%"></span><span style="width:${share}%"></span></div></div></div>`}).join('');
   $('modelDetails').innerHTML=[['Ev sahibi xG',m.homeXg.toFixed(3)],['Deplasman xG',m.awayXg.toFixed(3)],['SM Rating farkı',(m.hp.rating-m.ap.rating).toFixed(0)],['Ev sahibi saha çarpanı',m.homeAdv.toFixed(2)+'×'],['Form (E / D)',`${m.hp.form>=0?'+':''}${m.hp.form} / ${m.ap.form>=0?'+':''}${m.ap.form}`],['Yorgunluk (E / D)',`${m.hp.fatigue}/10 / ${m.ap.fatigue}/10`],['İstikrar (E / D)',`${m.hp.consistency}/100 / ${m.ap.consistency}/100`],['Moral (E / D)',`${m.hp.morale>=0?'+':''}${m.hp.morale} / ${m.ap.morale>=0?'+':''}${m.ap.morale}`],['Motivasyon (E / D)',`${m.hp.motivation}/10 / ${m.ap.motivation}/10`],['Gol dağılımı',`Negatif binom · k=${m.homeShape.toFixed(1)} / ${m.awayShape.toFixed(1)}`]].map(([a,b])=>`<div class="model-item"><span>${a}</span><strong>${b}</strong></div>`).join('');
