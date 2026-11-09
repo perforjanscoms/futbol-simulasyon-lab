@@ -100,7 +100,7 @@ function simulate(){const h=teamByName($('homeTeam').value),a=teamByName($('away
 }
 function pct(n){return (n*100).toFixed(1)+'%'}
 function renderResult({h,a,m,s}){
-  $('resultTitle').innerHTML=`${escapeHtml(h.name)} <small>—</small> ${escapeHtml(a.name)}`;$('resultMeta').textContent=`90 dakika · Poisson olasılık matrisi · ${SIMULATIONS.toLocaleString('tr-TR')} sanal istatistik senaryosu`;
+  $('resultTitle').innerHTML=`${escapeHtml(h.name)} <small>—</small> ${escapeHtml(a.name)}`;$('resultMeta').textContent=`90 dakika · Değişken dağılımlı gol modeli · ${SIMULATIONS.toLocaleString('tr-TR')} sanal istatistik senaryosu`;
   $('homeProb').textContent=pct(m.hw);$('drawProb').textContent=pct(m.d);$('awayProb').textContent=pct(m.aw);
   $('homeBar').style.width=pct(m.hw);$('drawBar').style.width=pct(m.d);$('awayBar').style.width=pct(m.aw);
   const fav=m.hw>m.aw?h.name:m.aw>m.hw?a.name:'İki takım eşit';$('favoriteText').textContent=fav==='İki takım eşit'?'Belirgin favori yok':`${fav} daha yüksek galibiyet olasılığına sahip`;
