@@ -1,5 +1,54 @@
 const SIMULATIONS = 20000;
 const DEFAULT_PROFILE = Object.freeze({rating:1500, attack:1, defense:1, form:0, homeEdge:0, fatigue:0, consistency:72, morale:0, motivation:5});
+const externalRatings = {club:new Map(),national:new Map()};
+const ratingDataStatus = {club:false,national:false};
+const ratingAliases = {
+  club:{
+    'Bayern München':['Bayern Munich'],'Bodo Glimt':['Bodo/Glimt','Bodø/Glimt'],
+    'Athletic Bilbao':['Athletic Club','Athletic Club Bilbao'],'Atletico Madrid':['Atlético Madrid','Atlético de Madrid'],
+    'Beşiktaş':['Besiktas'],'Çaykur Rizespor':['Rizespor'],'Fenerbahçe':['Fenerbahce'],
+    'Göztepe':['Goztepe'],'İstanbul Başaksehir FK':['Istanbul Basaksehir','Başakşehir'],
+    'Kasımpaşa':['Kasimpasa'],'Kızılyıldız':['Crvena Zvezda','Red Star Belgrade'],
+    'Kopenhag':['FC Copenhagen','Copenhagen'],'Mönchengladbach':['Borussia Mönchengladbach','Borussia Monchengladbach'],
+    'Malmö FF':['Malmo FF'],'Paris Saint-Germain':['Paris Saint Germain','PSG'],
+    'Porto':['FC Porto'],'RSC Anderlecht':['Anderlecht'],'Shakhtar Donezk':['Shakhtar Donetsk'],
+    'Slavia Prag':['Slavia Prague'],'Sparta Prag':['Sparta Prague'],'Sporting Lizbon':['Sporting CP','Sporting Lisbon'],
+    'Viktoria Plzen':['Viktoria Plzeň','Viktoria Pilsen'],'Zürich':['Zurich','FC Zurich'],
+    'CSKA Moskova':['CSKA Moscow'],'CSKA Sofya':['CSKA Sofia'],'Levski Sofya':['Levski Sofia'],
+    'Ferencvaros':['Ferencváros'],'Nordsjaelland':['FC Nordsjælland'],'Tromsö IL':['Tromsø IL'],
+    'Olympiakos Piraeus':['Olympiacos','Olympiakos'],'Red Bull Salzburg':['Salzburg'],
+    'FCSB':['Steaua Bucharest'],'VfL Wolfsburg':['Wolfsburg'],'Inter Milan':['Inter','Internazionale'],
+    'Glasgow Rangers':['Rangers FC'],'Stade Brest':['Stade Brestois 29'],'Stade Rennes':['Stade Rennais'],
+    'Celta de Vigo':['Celta Vigo'],'OGC Nice':['Nice'],'Olympique Lyon':['Olympique Lyonnais','Lyon'],
+    'Olympique Marseille':['Marseille'],'FC Köln':['1. FC Köln','Cologne'],'KRC Genk':['Genk'],
+    'Young Boys':['BSC Young Boys'],'LASK Linz':['LASK'],'AZ Alkmaar':['AZ'],
+    'Vissel Kobe':['Vissel Kōbe'],'Atletico Mineiro':['Atlético Mineiro','Atletico-MG']
+  },
+  national:{
+    'ABD':['United States','USA'],'BAE':['United Arab Emirates','UAE'],
+    'Almanya':['Germany'],'Arjantin':['Argentina'],'Avustralya':['Australia'],'Avusturya':['Austria'],
+    'Belçika':['Belgium'],'Bosna':['Bosnia & Herzegovina','Bosnia and Herzegovina'],
+    'Brezilya':['Brazil'],'Çekya':['Czechia','Czech Republic'],'Danimarka':['Denmark'],
+    'Ekvador':['Ecuador'],'Fas':['Morocco'],'Fildişi Sahili':['Ivory Coast',"Côte d’Ivoire"],
+    'Finlandiya':['Finland'],'Fransa':['France'],'Galler':['Wales'],'Güney Afrika':['South Africa'],
+    'Güney Kore':['South Korea'],'Hırvatistan':['Croatia'],'Hollanda':['Netherlands'],
+    'İngiltere':['England'],'İran':['Iran'],'İrlanda':['Ireland'],'İskoçya':['Scotland'],
+    'İspanya':['Spain'],'İsrail':['Israel'],'İsveç':['Sweden'],'İsviçre':['Switzerland'],
+    'İtalya':['Italy'],'İzlanda':['Iceland'],'Jamaika':['Jamaica'],'Japonya':['Japan'],
+    'Kamerun':['Cameroon'],'Kanada':['Canada'],'Karadağ':['Montenegro'],'Katar':['Qatar'],
+    'Kolombiya':['Colombia'],'Kosova':['Kosovo'],'Kuzey İrlanda':['Northern Ireland'],
+    'Kuzey Makedonya':['North Macedonia'],'Macaristan':['Hungary'],'Meksika':['Mexico'],
+    'Mısır':['Egypt'],'Nijerya':['Nigeria'],'Norveç':['Norway'],'Özbekistan':['Uzbekistan'],
+    'Panama':['Panama'],'Paraguay':['Paraguay'],'Peru':['Peru'],'Polonya':['Poland'],
+    'Portekiz':['Portugal'],'Romanya':['Romania'],'Rusya':['Russia'],'Senegal':['Senegal'],
+    'Sırbistan':['Serbia'],'Slovakya':['Slovakia'],'Slovenya':['Slovenia'],
+    'Suudi Arabistan':['Saudi Arabia'],'Şili':['Chile'],'Tunus':['Tunisia'],
+    'Türkiye':['Turkey'],'Ukrayna':['Ukraine'],'Uruguay':['Uruguay'],'Venezuela':['Venezuela'],
+    'Yeni Zelanda':['New Zealand'],'Yeşil Burun':['Cape Verde'],'Yunanistan':['Greece'],
+    'Kongo DC':['DR Congo','Congo DR'],'Filistin':['Palestine'],'Curaçao':['Curacao'],
+    'Gürcistan':['Georgia'],'Belarus':['Belarus'],'Bahreyn':['Bahrain'],'Angola':['Angola']
+  }
+};
 let teams = [];
 let selectedType = 'club';
 let listFilter = 'all';
@@ -17,14 +66,75 @@ const fmt = n => Number(n).toFixed(2);
 
 function loadProfiles(){ try{return JSON.parse(localStorage.getItem('futbolLabProfiles')||'{}')}catch{return {}} }
 function saveProfiles(){localStorage.setItem('futbolLabProfiles',JSON.stringify(profiles));}
-function profile(name){return {...DEFAULT_PROFILE,...(profiles[name]||{})}}
+function externalRatingForTeam(team){
+  const map=externalRatings[team.type];
+  if(!map)return null;
+  const candidates=[team.name,...(ratingAliases[team.type]?.[team.name]||[])];
+  for(const candidate of candidates){const hit=map.get(normalise(candidate));if(hit)return hit;}
+  return null;
+}
+function profile(name){
+  const saved=profiles[name]||{},team=teamByName(name),external=team?externalRatingForTeam(team):null;
+  const savedRating=Number(saved.rating),hasSaved=Number.isFinite(savedRating);
+  const manual=saved.ratingOverride===true||(saved.ratingOverride!==false&&hasSaved&&Math.abs(savedRating-DEFAULT_PROFILE.rating)>.001);
+  const rating=manual?savedRating:(external?.rating??(hasSaved?savedRating:DEFAULT_PROFILE.rating));
+  const ratingSource=manual?'Kullanıcı profili':external?.source||(hasSaved&&savedRating!==DEFAULT_PROFILE.rating?'Önceki kayıt · kaynak teyitsiz':'Veri yok · 1500 varsayılan');
+  return {...DEFAULT_PROFILE,...saved,rating,ratingOverride:manual,ratingSource,ratingAsOf:external?.asOf||null};
+}
 function normalise(s){return (s||'').toLocaleLowerCase('tr').replace(/ı/g,'i').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function teamByName(name){const key=normalise(name);return teams.find(t=>normalise(t.name)===key)}
+function parseCsvRows(text){
+  const rows=[];let row=[],field='',quoted=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(c==='"'){if(quoted&&text[i+1]==='"'){field+='"';i++;}else quoted=!quoted;}
+    else if(c===','&&!quoted){row.push(field);field='';}
+    else if((c==='\\n'||c==='\\r')&&!quoted){
+      if(c==='\\r'&&text[i+1]==='\\n')i++;
+      row.push(field);if(row.some(v=>v.trim()!==''))rows.push(row);row=[];field='';
+    }else field+=c;
+  }
+  if(field.length||row.length){row.push(field);if(row.some(v=>v.trim()!==''))rows.push(row);}
+  return rows;
+}
+async function loadTeamRatings(){
+  const [clubResult,nationalResult]=await Promise.allSettled([
+    fetch('./club-ratings.csv',{cache:'no-store'}),
+    fetch('./national-ratings.json',{cache:'no-store'})
+  ]);
+  if(clubResult.status==='fulfilled'&&clubResult.value.ok){
+    const rows=parseCsvRows(await clubResult.value.text());
+    if(rows.length>1){
+      const headers=rows.shift().map(x=>x.trim().toLowerCase());
+      const nameIndex=headers.indexOf('name'),eloIndex=headers.indexOf('elo'),dateIndex=headers.indexOf('as_of');
+      if(nameIndex>=0&&eloIndex>=0){
+        for(const row of rows){const rating=Number(row[eloIndex]),name=row[nameIndex]?.trim();if(name&&Number.isFinite(rating))externalRatings.club.set(normalise(name),{rating,source:'beyondELO',asOf:row[dateIndex]||''});}
+        ratingDataStatus.club=externalRatings.club.size>0;
+      }
+    }
+  }
+  if(nationalResult.status==='fulfilled'&&nationalResult.value.ok){
+    const data=await nationalResult.value.json();
+    for(const item of data.teams||[]){const rating=Number(item.elo??item.rating);if(item.name&&Number.isFinite(rating))externalRatings.national.set(normalise(item.name),{rating,source:'World Football Elo',asOf:''});}
+    ratingDataStatus.national=externalRatings.national.size>0;
+  }
+  updateRatingCoverage();
+}
+function updateRatingCoverage(){
+  const clubCount=teams.filter(t=>t.type==='club'&&externalRatingForTeam(t)).length;
+  const nationalCount=teams.filter(t=>t.type==='national'&&externalRatingForTeam(t)).length;
+  const note=$('modelDataNote');if(!note)return;
+  const ready=ratingDataStatus.club||ratingDataStatus.national;
+  note.textContent=ready
+    ? `ELO verisi yüklendi: ${clubCount}/${teams.filter(t=>t.type==='club').length} kulüp, ${nationalCount}/${teams.filter(t=>t.type==='national').length} milli takım. Kaynağı bulunmayan ekiplerde 1500 varsayılanı kullanılır; maç raporu kaynak bilgisini gösterir.`
+    : 'ELO kaynak dosyaları alınamadı. Kaynak puanı bulunmayan takımlarda 1500 varsayılanı kullanılır; API anahtarıyla son 5 maç formunu veya takım gücünü elle ekleyin.';
+}
 function toast(msg){let n=$('toast');if(!n){n=document.createElement('div');n.id='toast';n.className='toast';document.body.append(n)}n.textContent=msg;n.classList.add('show');clearTimeout(n._timer);n._timer=setTimeout(()=>n.classList.remove('show'),2600)}
 
 async function init(){
   try{const r=await fetch('./teams.json');if(!r.ok)throw new Error('Takım dosyası yüklenemedi');const source=await r.json();teams=Array.isArray(source)?source:[...source.club.map(name=>({name,type:'club'})),...source.national.map(name=>({name,type:'national'}))];}
   catch(e){$('teamCount').textContent='Takım verisi yüklenemedi';toast('Uygulamayı bir web sunucusu üzerinden açın (GitHub Pages desteklenir).');return;}
+  await loadTeamRatings();
   $('teamCount').textContent=`${teams.length} takım`;
   $('teamNames').innerHTML=teams.map(t=>`<option value="${escapeHtml(t.name)}"></option>`).join('');
   renderTeamChips();updateTeamLabels();
@@ -225,7 +335,12 @@ function updateEditorOutput(){
   $('fatigueOut').textContent=$('fatigue').value+'/10';$('consistencyOut').textContent=$('consistency').value+'/100';
   $('moraleOut').textContent=signed('morale');$('motivationOut').textContent=$('motivation').value+'/10';
   const t=teamByName($(editingSide+'Team').value);
-  if(t){profiles[t.name]={rating:+$('rating').value,attack:+$('attack').value,defense:+$('defense').value,form:+$('form').value,homeEdge:+$('homeEdge').value,fatigue:+$('fatigue').value,consistency:+$('consistency').value,morale:+$('morale').value,motivation:+$('motivation').value};saveProfiles();}
+  if(t){
+    const current=profile(t.name),enteredRating=+$('rating').value;
+    const ratingOverride=current.ratingOverride||Math.abs(enteredRating-current.rating)>.001;
+    profiles[t.name]={rating:enteredRating,ratingOverride,attack:+$('attack').value,defense:+$('defense').value,form:+$('form').value,homeEdge:+$('homeEdge').value,fatigue:+$('fatigue').value,consistency:+$('consistency').value,morale:+$('morale').value,motivation:+$('motivation').value};
+    saveProfiles();
+  }
 }
 function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambda/i;return p}
 function negativeBinomialArray(mean,shape,max=8){
@@ -289,7 +404,8 @@ function marketRows(target,rows){
   $(target).innerHTML=rows.map(([label,value])=>'<div class="market-row"><span>'+escapeHtml(label)+'</span><strong>'+pct(value)+'</strong><div class="market-track"><i style="width:'+clamp(value*100,0,100)+'%"></i></div></div>').join('');
 }
 function renderResult({h,a,m,s}){
-  $('resultTitle').innerHTML=`${escapeHtml(h.name)} <small>—</small> ${escapeHtml(a.name)}`;$('resultMeta').textContent=`90 dakika · Değişken dağılımlı gol modeli · ${SIMULATIONS.toLocaleString('tr-TR')} sanal istatistik senaryosu`;
+  $('resultTitle').innerHTML=`${escapeHtml(h.name)} <small>—</small> ${escapeHtml(a.name)}`;
+  $('resultMeta').textContent=`90 dakika · Negatif binom gol modeli · ${SIMULATIONS.toLocaleString('tr-TR')} istatistik senaryosu · ELO: ${m.hp.rating} (${m.hp.ratingSource}) / ${m.ap.rating} (${m.ap.ratingSource})`;
   $('homeProb').textContent=pct(m.hw);$('drawProb').textContent=pct(m.d);$('awayProb').textContent=pct(m.aw);
   $('homeBar').style.width=pct(m.hw);$('drawBar').style.width=pct(m.d);$('awayBar').style.width=pct(m.aw);
   const fav=m.hw>m.aw?h.name:m.aw>m.hw?a.name:'İki takım eşit';$('favoriteText').textContent=fav==='İki takım eşit'?'Belirgin favori yok':`${fav} daha yüksek galibiyet olasılığına sahip`;
@@ -300,7 +416,7 @@ function renderResult({h,a,m,s}){
   marketRows('marginMarkets',[[`${h.name} 1 farkla kazanır`,markets.homeBy1],[`${h.name} 2+ farkla kazanır`,markets.homeBy2],['Beraberlik',markets.draw],[`${a.name} 1 farkla kazanır`,markets.awayBy1],[`${a.name} 2+ farkla kazanır`,markets.awayBy2],['Toplam gol 0–1',markets.goals01],['Toplam gol 2–3',markets.goals23],['Toplam gol 4+',markets.goals4plus]]);
   const stats=[['Topla oynama',s.posH,s.posA,'%'],['Toplam şut',s.shotsH,s.shotsA,''],['İsabetli şut',s.onH,s.onA,''],['Korner',s.cornersH,s.cornersA,''],['Faul',s.foulsH,s.foulsA,''],['Sarı kart',s.yellowH,s.yellowA,''],['Kırmızı kart',s.redH,s.redA,'']];
   $('statsTable').innerHTML=stats.map(([name,x,y,unit])=>{const sum=x+y||1,share=x/sum*100;return `<div class="stat-row"><div class="side-cell"><div class="stat-value">${x.toFixed(unit==='%'?1:1)}${unit}</div><div class="stat-track"><span style="width:${share}%"></span><span style="width:${100-share}%"></span></div></div><div class="stat-name">${name}</div><div class="side-cell"><div class="stat-value right">${y.toFixed(1)}${unit}</div><div class="stat-track"><span style="width:${100-share}%"></span><span style="width:${share}%"></span></div></div></div>`}).join('');
-  $('modelDetails').innerHTML=[['Ev sahibi xG',m.homeXg.toFixed(3)],['Deplasman xG',m.awayXg.toFixed(3)],['SM Rating farkı',(m.hp.rating-m.ap.rating).toFixed(0)],['Ev sahibi saha çarpanı',m.homeAdv.toFixed(2)+'×'],['Form (E / D)',`${m.hp.form>=0?'+':''}${m.hp.form} / ${m.ap.form>=0?'+':''}${m.ap.form}`],['Yorgunluk (E / D)',`${m.hp.fatigue}/10 / ${m.ap.fatigue}/10`],['İstikrar (E / D)',`${m.hp.consistency}/100 / ${m.ap.consistency}/100`],['Moral (E / D)',`${m.hp.morale>=0?'+':''}${m.hp.morale} / ${m.ap.morale>=0?'+':''}${m.ap.morale}`],['Motivasyon (E / D)',`${m.hp.motivation}/10 / ${m.ap.motivation}/10`],['Gol dağılımı',`Negatif binom · k=${m.homeShape.toFixed(1)} / ${m.awayShape.toFixed(1)}`]].map(([a,b])=>`<div class="model-item"><span>${a}</span><strong>${b}</strong></div>`).join('');
+  $('modelDetails').innerHTML=[['Ev sahibi xG',m.homeXg.toFixed(3)],['Deplasman xG',m.awayXg.toFixed(3)],['ELO puanları (E / D)',`${m.hp.rating} / ${m.ap.rating}`],['Rating kaynağı (E / D)',`${m.hp.ratingSource} / ${m.ap.ratingSource}`],['SM Rating farkı',(m.hp.rating-m.ap.rating).toFixed(0)],['Ev sahibi saha çarpanı',m.homeAdv.toFixed(2)+'×'],['Form (E / D)',`${m.hp.form>=0?'+':''}${m.hp.form} / ${m.ap.form>=0?'+':''}${m.ap.form}`],['Yorgunluk (E / D)',`${m.hp.fatigue}/10 / ${m.ap.fatigue}/10`],['İstikrar (E / D)',`${m.hp.consistency}/100 / ${m.ap.consistency}/100`],['Moral (E / D)',`${m.hp.morale>=0?'+':''}${m.hp.morale} / ${m.ap.morale>=0?'+':''}${m.ap.morale}`],['Motivasyon (E / D)',`${m.hp.motivation}/10 / ${m.ap.motivation}/10`],['Gol dağılımı',`Negatif binom · k=${m.homeShape.toFixed(1)} / ${m.awayShape.toFixed(1)}`]].map(([a,b])=>`<div class="model-item"><span>${a}</span><strong>${b}</strong></div>`).join('');
 }
 function exportData(){const data={format:'futbol-lab-profiles-v1',exportedAt:new Date().toISOString(),profiles};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});download(blob,'futbol-lab-verileri.json')}
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
@@ -314,7 +430,7 @@ async function importData(e){
         const vals=line.split(','),row=Object.fromEntries(header.map((k,i)=>[k,vals[i]?.trim()]));
         const t=teamByName(row.team||row.name);
         if(t)profiles[t.name]={
-          rating:clamp(+(row.rating??1500),900,2200),attack:clamp(+(row.attack??1),.65,1.55),defense:clamp(+(row.defense??1),.65,1.55),
+          rating:clamp(+(row.rating??1500),900,2200),ratingOverride:true,attack:clamp(+(row.attack??1),.65,1.55),defense:clamp(+(row.defense??1),.65,1.55),
           form:clamp(+(row.form??0),-5,5),homeEdge:clamp(+(row.homeedge??row.home_edge??0),-5,5),
           fatigue:clamp(+(row.fatigue??0),0,10),consistency:clamp(+(row.consistency??72),0,100),
           morale:clamp(+(row.morale??0),-5,5),motivation:clamp(+(row.motivation??5),0,10)
@@ -327,7 +443,7 @@ async function importData(e){
         if(teamByName(name)){
           const v={...DEFAULT_PROFILE,...p};
           profiles[name]={
-            rating:clamp(+v.rating,900,2200),attack:clamp(+v.attack,.65,1.55),defense:clamp(+v.defense,.65,1.55),
+            rating:clamp(+v.rating,900,2200),ratingOverride:true,attack:clamp(+v.attack,.65,1.55),defense:clamp(+v.defense,.65,1.55),
             form:clamp(+v.form,-5,5),homeEdge:clamp(+v.homeEdge,-5,5),fatigue:clamp(+v.fatigue,0,10),
             consistency:clamp(+v.consistency,0,100),morale:clamp(+v.morale,-5,5),motivation:clamp(+v.motivation,0,10)
           };
