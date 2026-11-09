@@ -145,8 +145,8 @@ function deriveRecentProfile(name,teamId,fixtures){
   const meanDiff=rows.reduce((sum,x)=>sum+x.diff,0)/rows.length;
   const sd=Math.sqrt(rows.reduce((sum,x)=>sum+Math.pow(x.diff-meanDiff,2),0)/rows.length);
   const consistency=clamp(Math.round(100-sd*22),15,100);
-  const daysSince=Math.max(0,(Date.now()-rows[0].date.getTime())/86400000);
-  const recent14=rows.filter(x=>(Date.now()-x.date.getTime())/86400000<=14).length;
+  const lastStamp=rows[0].date.getTime(),daysSince=Number.isFinite(lastStamp)?Math.max(0,(Date.now()-lastStamp)/86400000):5;
+  const recent14=rows.filter(x=>Number.isFinite(x.date.getTime())&&(Date.now()-x.date.getTime())/86400000<=14).length;
   const fatigue=clamp(Math.round(Math.max(0,9-daysSince*1.8)+Math.max(0,recent14-2)*1.2),0,10);
   const recentAttack=clamp(.5+avgFor/2.8,.65,1.55);
   const recentDefense=clamp(1.5-avgAgainst/2.8,.65,1.55);
@@ -171,6 +171,7 @@ async function syncRecentTeamForm(){
     saveProfiles();setLiveStatus('Son maç formu profillere işlendi');
     $('liveUpdated').textContent='Form verisi güncellendi: '+new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit'}).format(new Date());
     if(!$('editor').hidden)openEditor(editingSide);
+    if(!$('results').hidden){lastResult={h:home,a:away,m:buildModel(home,away),s:null};lastResult.s=simulateStats(lastResult.m,home.name,away.name);renderResult(lastResult);}
     toast('Son 5 maçtan form, moral, yorgunluk, istikrar, hücum ve savunma verileri güncellendi. Motivasyon manuel kalır.');
   }catch(err){setLiveStatus('Form verisi alınamadı');toast('Form analizi başarısız: '+err.message)}
   finally{$('syncTeamForm').disabled=false;}
