@@ -1,5 +1,5 @@
 const SIMULATIONS = 20000;
-const DEFAULT_PROFILE = Object.freeze({rating:1500, attack:1, defense:1, form:0});
+const DEFAULT_PROFILE = Object.freeze({rating:1500, attack:1, defense:1, form:0, homeEdge:0, fatigue:0, consistency:72, morale:0, motivation:5});
 let teams = [];
 let selectedType = 'club';
 let listFilter = 'all';
@@ -40,28 +40,51 @@ async function init(){
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function updateTeamLabels(){for(const side of ['home','away']){const t=teamByName($(side+'Team').value);$(side+'Type').textContent=t?(t.type==='club'?'Kulüp takımı':'Milli takım'):'Listede bulunamadı';}}
 function renderTeamChips(){const q=normalise($('teamSearch').value);const rows=teams.filter(t=>(listFilter==='all'||t.type===listFilter)&&(!q||normalise(t.name).includes(q)));const shown=rows.slice(0,120);$('teamChips').innerHTML=shown.map(t=>`<button class="team-chip" data-team="${escapeHtml(t.name)}">${escapeHtml(t.name)}</button>`).join('');$('listFooter').textContent=rows.length>120?`${rows.length} eşleşme bulundu · İlk 120 takım gösteriliyor. Aramayı daralt.`:`${rows.length} takım gösteriliyor.`;}
-function openEditor(side){const t=teamByName($(side+'Team').value);if(!t){toast('Önce listeden bir takım seçin.');return}editingSide=side;const p=profile(t.name);$('editorTitle').textContent=t.name+' · '+(side==='home'?'Ev sahibi':'Deplasman');$('rating').value=p.rating;$('attack').value=p.attack;$('defense').value=p.defense;$('form').value=p.form;updateEditorOutput();$('editor').hidden=false;$('editor').scrollIntoView({behavior:'smooth',block:'nearest'});}
-function updateEditorOutput(){$('ratingOut').textContent=$('rating').value;$('attackOut').textContent=Number($('attack').value).toFixed(2)+'×';$('defenseOut').textContent=Number($('defense').value).toFixed(2)+'×';$('formOut').textContent=Number($('form').value)>0?'+'+$('form').value:$('form').value;const t=teamByName($(editingSide+'Team').value);if(t){profiles[t.name]={rating:+$('rating').value,attack:+$('attack').value,defense:+$('defense').value,form:+$('form').value};saveProfiles();}}
+function openEditor(side){const t=teamByName($(side+'Team').value);if(!t){toast('Önce listeden bir takım seçin.');return}editingSide=side;const p=profile(t.name);$('editorTitle').textContent=t.name+' · '+(side==='home'?'Ev sahibi':'Deplasman');for(const id of ['rating','attack','defense','form','homeEdge','fatigue','consistency','morale','motivation'])$(id).value=p[id];updateEditorOutput();$('editor').hidden=false;$('editor').scrollIntoView({behavior:'smooth',block:'nearest'});}
+function updateEditorOutput(){
+  $('ratingOut').textContent=$('rating').value;
+  $('attackOut').textContent=Number($('attack').value).toFixed(2)+'×';
+  $('defenseOut').textContent=Number($('defense').value).toFixed(2)+'×';
+  const signed=id=>(Number($(id).value)>0?'+':'')+$(id).value;
+  $('formOut').textContent=signed('form');$('homeEdgeOut').textContent=signed('homeEdge');
+  $('fatigueOut').textContent=$('fatigue').value+'/10';$('consistencyOut').textContent=$('consistency').value+'/100';
+  $('moraleOut').textContent=signed('morale');$('motivationOut').textContent=$('motivation').value+'/10';
+  const t=teamByName($(editingSide+'Team').value);
+  if(t){profiles[t.name]={rating:+$('rating').value,attack:+$('attack').value,defense:+$('defense').value,form:+$('form').value,homeEdge:+$('homeEdge').value,fatigue:+$('fatigue').value,consistency:+$('consistency').value,morale:+$('morale').value,motivation:+$('motivation').value};saveProfiles();}
+}
 function poisson(lambda,k){let p=Math.exp(-lambda);for(let i=1;i<=k;i++)p*=lambda/i;return p}
-function poissonArray(lambda,max=8){return Array.from({length:max+1},(_,k)=>poisson(lambda,k))}
+function negativeBinomialArray(mean,shape,max=8){
+  const p=shape/(shape+mean),q=1-p;let probability=Math.pow(p,shape),sum=probability;
+  const values=[probability];
+  for(let k=0;k<max;k++){probability*=((k+shape)/(k+1))*q;values.push(probability);sum+=probability;}
+  return values.map(value=>value/sum);
+}
 function buildModel(home,away){
-  const hp=profile(home.name),ap=profile(away.name),homeAdv=1.09;
+  const hp=profile(home.name),ap=profile(away.name);
   const ratingDelta=(hp.rating-ap.rating)/850;
-  const formDelta=(hp.form-ap.form)*.035;
-  const homeXg=clamp(1.38*Math.exp(ratingDelta+formDelta)*hp.attack*ap.defense*homeAdv,.15,4.5);
-  const awayXg=clamp(1.12*Math.exp(-ratingDelta-formDelta)*ap.attack*hp.defense,.15,4.5);
-  const h=poissonArray(homeXg),a=poissonArray(awayXg);let matrix=[],hw=0,d=0,aw=0,over25=0,total=0;
+  const homeForm=hp.form*(.55+hp.consistency*.0045),awayForm=ap.form*(.55+ap.consistency*.0045);
+  const formDelta=(homeForm-awayForm)*.035;
+  const homeMind=hp.morale*.018+(hp.motivation-5)*.014;
+  const awayMind=ap.morale*.018+(ap.motivation-5)*.014;
+  const mentalDelta=homeMind-awayMind;
+  const homeAdv=1.09*Math.exp(hp.homeEdge*.05);
+  const homeFatigue=Math.exp(-hp.fatigue*.016+ap.fatigue*.009);
+  const awayFatigue=Math.exp(-ap.fatigue*.016+hp.fatigue*.009);
+  const homeXg=clamp(1.38*Math.exp(ratingDelta+formDelta+mentalDelta)*hp.attack*ap.defense*homeAdv*homeFatigue,.15,4.5);
+  const awayXg=clamp(1.12*Math.exp(-ratingDelta-formDelta-mentalDelta)*ap.attack*hp.defense*awayFatigue,.15,4.5);
+  const homeShape=2+hp.consistency*.18,awayShape=2+ap.consistency*.18;
+  const h=negativeBinomialArray(homeXg,homeShape),a=negativeBinomialArray(awayXg,awayShape);let matrix=[],hw=0,d=0,aw=0,over25=0,total=0;
   for(let i=0;i<=8;i++){matrix[i]=[];for(let j=0;j<=8;j++){let p=h[i]*a[j];matrix[i][j]=p;total+=p;if(i>j)hw+=p;else if(i===j)d+=p;else aw+=p;if(i+j>=3)over25+=p;}}
   hw/=total;d/=total;aw/=total;over25/=total;
   const scores=[];for(let i=0;i<=8;i++)for(let j=0;j<=8;j++)scores.push({score:`${i}-${j}`,p:matrix[i][j]/total,goals:i+j});scores.sort((x,y)=>y.p-x.p);
-  return {hp,ap,homeXg,awayXg,hw,d,aw,over25,scores,matrix,total,homeAdv};
+  return {hp,ap,homeXg,awayXg,hw,d,aw,over25,scores,matrix,total,homeAdv,homeShape,awayShape,formDelta,mentalDelta};
 }
 function seededRandom(seed){let x=seed>>>0;return()=>{x=(x+0x6D2B79F5)>>>0;let t=x;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296}}
 function samplePoisson(lambda,rng){const limit=Math.exp(-lambda);let k=0,p=1;do{k++;p*=rng()}while(p>limit&&k<20);return k-1}
 function simulateStats(m,homeName,awayName){const seed=[...homeName+awayName].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,2166136261);const rng=seededRandom(seed);const sums={posH:0,shotsH:0,shotsA:0,onH:0,onA:0,cornersH:0,cornersA:0,foulsH:0,foulsA:0,yellowH:0,yellowA:0,redH:0,redA:0};const possession=clamp(50+(m.hp.rating-m.ap.rating)/35+4,35,65);
   for(let i=0;i<SIMULATIONS;i++){
     const jitter=()=>.86+rng()*.28;
-    const sh=samplePoisson((8.8+m.homeXg*2.2)*jitter(),rng),sa=samplePoisson((8.4+m.awayXg*2.2)*jitter(),rng);
+    const sh=samplePoisson((8.8+m.homeXg*2.2)*jitter()*Math.exp(-m.hp.fatigue*.012),rng),sa=samplePoisson((8.4+m.awayXg*2.2)*jitter()*Math.exp(-m.ap.fatigue*.012),rng);
     sums.posH+=clamp(possession+(rng()-.5)*14,25,75);sums.shotsH+=sh;sums.shotsA+=sa;
     sums.onH+=Math.min(sh,samplePoisson(m.homeXg*2.3+1.1,rng));sums.onA+=Math.min(sa,samplePoisson(m.awayXg*2.3+1.1,rng));
     sums.cornersH+=samplePoisson(4.2+m.homeXg*.55,rng);sums.cornersA+=samplePoisson(4.0+m.awayXg*.55,rng);
@@ -85,7 +108,7 @@ function renderResult({h,a,m,s}){
   $('scoreList').innerHTML=m.scores.slice(0,6).map(x=>`<div class="score-chip"><strong>${x.score}</strong><span>${pct(x.p)}</span></div>`).join('');
   const stats=[['Topla oynama',s.posH,s.posA,'%'],['Toplam şut',s.shotsH,s.shotsA,''],['İsabetli şut',s.onH,s.onA,''],['Korner',s.cornersH,s.cornersA,''],['Faul',s.foulsH,s.foulsA,''],['Sarı kart',s.yellowH,s.yellowA,''],['Kırmızı kart',s.redH,s.redA,'']];
   $('statsTable').innerHTML=stats.map(([name,x,y,unit])=>{const sum=x+y||1,share=x/sum*100;return `<div class="stat-row"><div class="side-cell"><div class="stat-value">${x.toFixed(unit==='%'?1:1)}${unit}</div><div class="stat-track"><span style="width:${share}%"></span><span style="width:${100-share}%"></span></div></div><div class="stat-name">${name}</div><div class="side-cell"><div class="stat-value right">${y.toFixed(1)}${unit}</div><div class="stat-track"><span style="width:${100-share}%"></span><span style="width:${share}%"></span></div></div></div>`}).join('');
-  $('modelDetails').innerHTML=[['Ev sahibi xG',m.homeXg.toFixed(3)],['Deplasman xG',m.awayXg.toFixed(3)],['Elo / SM Rating farkı',(m.hp.rating-m.ap.rating).toFixed(0)],['Ev sahibi avantajı',m.homeAdv.toFixed(2)+'×'],['Form etkisi',`${m.hp.form>=0?'+':''}${m.hp.form} / ${m.ap.form>=0?'+':''}${m.ap.form}`],['Skor matrisi','0–8 / normalize']].map(([a,b])=>`<div class="model-item"><span>${a}</span><strong>${b}</strong></div>`).join('');
+  $('modelDetails').innerHTML=[['Ev sahibi xG',m.homeXg.toFixed(3)],['Deplasman xG',m.awayXg.toFixed(3)],['SM Rating farkı',(m.hp.rating-m.ap.rating).toFixed(0)],['Ev sahibi saha çarpanı',m.homeAdv.toFixed(2)+'×'],['Form (E / D)',`${m.hp.form>=0?'+':''}${m.hp.form} / ${m.ap.form>=0?'+':''}${m.ap.form}`],['Yorgunluk (E / D)',`${m.hp.fatigue}/10 / ${m.ap.fatigue}/10`],['İstikrar (E / D)',`${m.hp.consistency}/100 / ${m.ap.consistency}/100`],['Moral (E / D)',`${m.hp.morale>=0?'+':''}${m.hp.morale} / ${m.ap.morale>=0?'+':''}${m.ap.morale}`],['Motivasyon (E / D)',`${m.hp.motivation}/10 / ${m.ap.motivation}/10`],['Gol dağılımı',`Negatif binom · k=${m.homeShape.toFixed(1)} / ${m.awayShape.toFixed(1)}`]].map(([a,b])=>`<div class="model-item"><span>${a}</span><strong>${b}</strong></div>`).join('');
 }
 function exportData(){const data={format:'futbol-lab-profiles-v1',exportedAt:new Date().toISOString(),profiles};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});download(blob,'futbol-lab-verileri.json')}
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
