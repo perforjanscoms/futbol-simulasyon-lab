@@ -18,7 +18,7 @@ const fmt = n => Number(n).toFixed(2);
 function loadProfiles(){ try{return JSON.parse(localStorage.getItem('futbolLabProfiles')||'{}')}catch{return {}} }
 function saveProfiles(){localStorage.setItem('futbolLabProfiles',JSON.stringify(profiles));}
 function profile(name){return {...DEFAULT_PROFILE,...(profiles[name]||{})}}
-function normalise(s){return (s||'').toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+function normalise(s){return (s||'').toLocaleLowerCase('tr').replace(/ı/g,'i').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function teamByName(name){const key=normalise(name);return teams.find(t=>normalise(t.name)===key)}
 function toast(msg){let n=$('toast');if(!n){n=document.createElement('div');n.id='toast';n.className='toast';document.body.append(n)}n.textContent=msg;n.classList.add('show');clearTimeout(n._timer);n._timer=setTimeout(()=>n.classList.remove('show'),2600)}
 
@@ -103,6 +103,78 @@ async function refreshLiveFixtures(mode='live'){
     toast('Canlı veri alınamadı: '+err.message);
   }finally{$('refreshLive').disabled=false;$('todayFixtures').disabled=false;}
 }
+async function apiGet(path,key){
+  const response=await fetch(API_FOOTBALL_BASE+path,{method:'GET',headers:{'x-apisports-key':key}});
+  const remaining=response.headers.get('x-ratelimit-requests-remaining');
+  const limit=response.headers.get('x-ratelimit-requests-limit');
+  if(remaining!==null)$('liveQuota').textContent='Kalan günlük istek: '+remaining+(limit!==null?'/'+limit:'');
+  let data={};try{data=await response.json()}catch{throw new Error('API yanıtı JSON olarak okunamadı.')}
+  if(!response.ok){
+    if(response.status===401||response.status===403)throw new Error('API anahtarı reddedildi. Hesap/anahtar erişimini kontrol edin.');
+    if(response.status===429)throw new Error('API günlük veya dakikalık istek kotası doldu.');
+    throw new Error(typeof data.message==='string'?data.message:'API isteği başarısız: HTTP '+response.status);
+  }
+  if(data.errors&&(Array.isArray(data.errors)?data.errors.length:Object.keys(data.errors).length))throw new Error(JSON.stringify(data.errors));
+  return Array.isArray(data.response)?data.response:[];
+}
+async function resolveApiTeamId(name,key){
+  let cache={};try{cache=JSON.parse(localStorage.getItem('futbolLabApiTeamIds')||'{}')}catch{}
+  const cached=cache[normalise(name)];if(cached)return Number(cached);
+  if(normalise(name).length<3)throw new Error(name+' için takım araması en az 3 karakter gerektiriyor.');
+  const matches=await apiGet('/teams?search='+encodeURIComponent(name),key);
+  const target=normalise(name);
+  const exact=matches.find(x=>normalise(x.team?.name||'')===target);
+  const partial=matches.filter(x=>{const n=normalise(x.team?.name||'');return n.includes(target)||target.includes(n)});
+  const found=exact||(partial.length===1?partial[0]:(matches.length===1?matches[0]:null));
+  if(!found?.team?.id)throw new Error(name+' için tekil API takım eşleşmesi bulunamadı. Takım adını kontrol edin.');
+  cache[target]=found.team.id;localStorage.setItem('futbolLabApiTeamIds',JSON.stringify(cache));return Number(found.team.id);
+}
+function deriveRecentProfile(name,teamId,fixtures){
+  const finished=fixtures.filter(x=>['FT','AET','PEN'].includes(x.fixture?.status?.short)&&x.goals?.home!==null&&x.goals?.away!==null)
+    .sort((a,b)=>new Date(b.fixture.date)-new Date(a.fixture.date)).slice(0,5);
+  if(finished.length<3)throw new Error(name+' için son 5 maçta en az 3 tamamlanmış karşılaşma bulunamadı.');
+  const rows=finished.map(x=>{
+    const homeId=x.teams?.home?.id,isHome=Number(homeId)===Number(teamId);
+    const gf=Number(isHome?x.goals.home:x.goals.away),ga=Number(isHome?x.goals.away:x.goals.home);
+    return {gf,ga,diff:gf-ga,points:gf>ga?3:gf===ga?1:0,date:new Date(x.fixture.date)};
+  });
+  const points=rows.reduce((sum,x)=>sum+x.points,0),avgFor=rows.reduce((sum,x)=>sum+x.gf,0)/rows.length,avgAgainst=rows.reduce((sum,x)=>sum+x.ga,0)/rows.length;
+  const form=clamp(Math.round(points/rows.length/3*10-5),-5,5);
+  const last3=rows.slice(0,3).reduce((sum,x)=>sum+x.points,0);
+  const morale=clamp(Math.round(last3/Math.min(3,rows.length)/3*10-5),-5,5);
+  const meanDiff=rows.reduce((sum,x)=>sum+x.diff,0)/rows.length;
+  const sd=Math.sqrt(rows.reduce((sum,x)=>sum+Math.pow(x.diff-meanDiff,2),0)/rows.length);
+  const consistency=clamp(Math.round(100-sd*22),15,100);
+  const daysSince=Math.max(0,(Date.now()-rows[0].date.getTime())/86400000);
+  const recent14=rows.filter(x=>(Date.now()-x.date.getTime())/86400000<=14).length;
+  const fatigue=clamp(Math.round(Math.max(0,9-daysSince*1.8)+Math.max(0,recent14-2)*1.2),0,10);
+  const recentAttack=clamp(.5+avgFor/2.8,.65,1.55);
+  const recentDefense=clamp(1.5-avgAgainst/2.8,.65,1.55);
+  const current=profile(name);
+  return {...current,
+    form,morale,fatigue,consistency,
+    attack:Number(clamp(current.attack*.6+recentAttack*.4,.65,1.55).toFixed(2)),
+    defense:Number(clamp(current.defense*.6+recentDefense*.4,.65,1.55).toFixed(2))
+  };
+}
+async function syncRecentTeamForm(){
+  const key=localStorage.getItem('futbolLabApiSportsKey')||$('liveApiKey').value.trim();
+  if(!key){toast('Önce API anahtarını kaydedin.');return}
+  const home=teamByName($('homeTeam').value),away=teamByName($('awayTeam').value);
+  if(!home||!away||home.name===away.name){toast('Önce iki farklı takımı seçin.');return}
+  $('syncTeamForm').disabled=true;setLiveStatus('Son maç verileri alınıyor…');
+  try{
+    const ids=await Promise.all([resolveApiTeamId(home.name,key),resolveApiTeamId(away.name,key)]);
+    const histories=await Promise.all(ids.map(id=>apiGet('/fixtures?team='+id+'&last=5&timezone=Europe%2FIstanbul',key)));
+    profiles[home.name]=deriveRecentProfile(home.name,ids[0],histories[0]);
+    profiles[away.name]=deriveRecentProfile(away.name,ids[1],histories[1]);
+    saveProfiles();setLiveStatus('Son maç formu profillere işlendi');
+    $('liveUpdated').textContent='Form verisi güncellendi: '+new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',hour:'2-digit',minute:'2-digit'}).format(new Date());
+    if(!$('editor').hidden)openEditor(editingSide);
+    toast('Son 5 maçtan form, moral, yorgunluk, istikrar, hücum ve savunma verileri güncellendi. Motivasyon manuel kalır.');
+  }catch(err){setLiveStatus('Form verisi alınamadı');toast('Form analizi başarısız: '+err.message)}
+  finally{$('syncTeamForm').disabled=false;}
+}
 function initLiveData(){
   const saved=localStorage.getItem('futbolLabApiSportsKey')||'';
   $('liveApiKey').value=saved;
@@ -120,6 +192,7 @@ function initLiveData(){
   });
   $('refreshLive').addEventListener('click',()=>refreshLiveFixtures('live'));
   $('todayFixtures').addEventListener('click',()=>refreshLiveFixtures('today'));
+  $('syncTeamForm').addEventListener('click',syncRecentTeamForm);
   $('autoLiveRefresh').addEventListener('change',()=>{
     if(liveRefreshTimer){clearInterval(liveRefreshTimer);liveRefreshTimer=null}
     if($('autoLiveRefresh').checked){
@@ -132,6 +205,7 @@ function initLiveData(){
     const b=e.target.closest('[data-live-select]');if(!b)return;
     const match=liveFixtures.find(x=>String(x.fixture?.id)===b.dataset.liveSelect);if(!match)return;
     const home=ensureApiTeam(match.teams?.home?.name),away=ensureApiTeam(match.teams?.away?.name);
+    try{const ids=JSON.parse(localStorage.getItem('futbolLabApiTeamIds')||'{}');ids[normalise(home.name)]=match.teams?.home?.id;ids[normalise(away.name)]=match.teams?.away?.id;localStorage.setItem('futbolLabApiTeamIds',JSON.stringify(ids));}catch{}
     $('homeTeam').value=home.name;$('awayTeam').value=away.name;updateTeamLabels();
     $('teamCount').textContent=teams.length+' takım';renderTeamChips();
     window.scrollTo({top:0,behavior:'smooth'});toast('Eşleşme simülatöre aktarıldı. Canlı skor tam maç tahminine otomatik eklenmez.');
@@ -170,8 +244,8 @@ function buildModel(home,away){
   const homeAdv=1.09*Math.exp(hp.homeEdge*.05);
   const homeFatigue=Math.exp(-hp.fatigue*.016+ap.fatigue*.009);
   const awayFatigue=Math.exp(-ap.fatigue*.016+hp.fatigue*.009);
-  const homeXg=clamp(1.38*Math.exp(ratingDelta+formDelta+mentalDelta)*hp.attack*ap.defense*homeAdv*homeFatigue,.15,4.5);
-  const awayXg=clamp(1.12*Math.exp(-ratingDelta-formDelta-mentalDelta)*ap.attack*hp.defense*awayFatigue,.15,4.5);
+  const homeXg=clamp(1.38*Math.exp(ratingDelta+formDelta+mentalDelta)*hp.attack/Math.max(.4,ap.defense)*homeAdv*homeFatigue,.15,4.5);
+  const awayXg=clamp(1.12*Math.exp(-ratingDelta-formDelta-mentalDelta)*ap.attack/Math.max(.4,hp.defense)*awayFatigue,.15,4.5);
   const homeShape=2+hp.consistency*.18,awayShape=2+ap.consistency*.18;
   const h=negativeBinomialArray(homeXg,homeShape),a=negativeBinomialArray(awayXg,awayShape);let matrix=[],hw=0,d=0,aw=0,over25=0,total=0;
   for(let i=0;i<=8;i++){matrix[i]=[];for(let j=0;j<=8;j++){let p=h[i]*a[j];matrix[i][j]=p;total+=p;if(i>j)hw+=p;else if(i===j)d+=p;else aw+=p;if(i+j>=3)over25+=p;}}
