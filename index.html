@@ -27,8 +27,14 @@
       <label>Hücum katsayısı <output id="attackOut">1.00×</output><input id="attack" type="range" min="0.65" max="1.55" step="0.01" value="1"></label>
       <label>Savunma katsayısı <output id="defenseOut">1.00×</output><input id="defense" type="range" min="0.65" max="1.55" step="0.01" value="1"></label>
       <label>Son form etkisi <output id="formOut">0</output><input id="form" type="range" min="-5" max="5" step="1" value="0"></label>
+      <label>İç saha etkisi <output id="homeEdgeOut">0</output><input id="homeEdge" type="range" min="-5" max="5" step="1" value="0"></label>
+      <label>Yorgunluk <output id="fatigueOut">0/10</output><input id="fatigue" type="range" min="0" max="10" step="1" value="0"></label>
+      <label>İstikrar <output id="consistencyOut">72/100</output><input id="consistency" type="range" min="0" max="100" step="1" value="72"></label>
+      <label>Moral <output id="moraleOut">0</output><input id="morale" type="range" min="-5" max="5" step="1" value="0"></label>
+      <label>Motivasyon <output id="motivationOut">5/10</output><input id="motivation" type="range" min="0" max="10" step="1" value="5"></label>
     </div>
-    <div class="editor-foot"><span>Bu değerler yalnızca bu tarayıcıda saklanır.</span><button id="resetProfile" class="button subtle">Takımı varsayılana döndür</button></div>
+    <p class="editor-hint">İç saha etkisi yalnızca takım ev sahibiyken uygulanır. Yorgunluk hücum gücünü düşürüp rakibin gol beklentisini artırır. Düşük istikrar skor dağılımını daha değişken yapar; moral, motivasyon ve form beklenen performansı etkiler.</p>
+    <div class="editor-foot"><span>Takım profilleri bu tarayıcıda saklanır ve sonraki maçlarda da kullanılır.</span><button id="resetProfile" class="button subtle">Takımı varsayılana döndür</button></div>
   </section>
 
   <section id="results" hidden>
