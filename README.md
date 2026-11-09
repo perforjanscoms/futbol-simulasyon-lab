@@ -1,6 +1,6 @@
 # Futbol Simülasyon Laboratuvarı
 
-SanalMaç'ın herkese açık takım havuzunda listelenen isimlerle hazırlanmış, bağımsız ve mobil uyumlu futbol karşılaştırma/simülasyon uygulaması. Kaynak sitenin kodu, markası veya kapalı algoritması kopyalanmamıştır.
+Herkese açık takım havuzunda listelenen isimlerle hazırlanmış, bağımsız ve mobil uyumlu futbol karşılaştırma/simülasyon uygulaması. Kaynak sitenin kodu, markası veya kapalı algoritması kopyalanmamıştır.
 
 ## Kapsam
 - 446 kulüp takımı ve 209 milli takım (toplam 655 kayıt).
