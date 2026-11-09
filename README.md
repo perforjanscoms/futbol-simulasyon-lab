@@ -21,7 +21,9 @@ python -m http.server 8000
 Ardından `http://localhost:8000` adresini açın.
 
 ## GitHub Pages
-Depoda `index.html`, `style.css`, `app.js` ve `teams.json` kök dizindedir. GitHub deposunda **Settings → Pages** bölümüne gidin. **Deploy from a branch** seçin, branch olarak `main`, klasör olarak `/(root)` seçip **Save** düğmesine basın. GitHub Pages dağıtımı tamamlandığında sayfa `https://KULLANICI.github.io/REPO/` biçiminde yayınlanır.
+Uygulama, depodaki `.github/workflows/pages.yml` iş akışıyla GitHub Pages'e dağıtılır. İlk yayın için GitHub deposunda **Settings → Pages → Build and deployment → Source** alanını **GitHub Actions** olarak seçin. Sonrasında `main` dalına gönderilen her güncelleme otomatik yayınlanır; isterseniz **Actions → Deploy static site to GitHub Pages → Run workflow** yoluyla elle de başlatabilirsiniz.
+
+**Canlı adres:** https://perforjanscoms.github.io/futbol-simulasyon-lab/
 
 ## Dosyalar
 - `index.html`: uygulama arayüzü
