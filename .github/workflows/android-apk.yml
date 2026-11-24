@@ -40,7 +40,7 @@ jobs:
           key: bybora-marketdesk-debug-keystore-v1
 
       - name: Install Android 36 platform and build tools
-        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
