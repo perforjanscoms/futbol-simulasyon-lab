@@ -1,653 +1,946 @@
 (() => {
   "use strict";
 
-  const TV_CHART_SCRIPT = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-  const TV_TICKER_SCRIPT = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
-  const STORAGE_KEY = "bybora-market-desk-watchlist-v1";
-  const STUDY_STORAGE_KEY = "bybora-market-desk-active-studies-v1";
-  const STUDY_PRESETS_KEY = "bybora-market-desk-study-presets-v1";
-  const STUDY_CATALOG = [
-    {id:"STD;RSI",label:"RSI"},
-    {id:"STD;MACD",label:"MACD"},
-    {id:"STD;EMA",label:"EMA"},
-    {id:"STD;SMA",label:"SMA"},
-    {id:"STD;BB",label:"Bollinger Bantları"},
-    {id:"STD;VWAP",label:"VWAP"},
-    {id:"STD;Stochastic",label:"Stochastic"},
-    {id:"STD;ATR",label:"ATR"}
+  const $ = id => document.getElementById(id);
+  const BINANCE = "https://data-api.binance.vision/api/v3";
+  const ISTFIN = "https://api.istfin.com/v1";
+  const ISTFIN_KEY = "bybora_istfin_key_v1";
+  const WATCH_KEY = "bybora_watchlist_v3";
+  const LAYOUT_KEY = "bybora_layouts_v3";
+  const TROY_OUNCE_GRAMS = 31.1034768;
+
+  const symbols = [
+    {id:"BINANCE:BTCUSDT", ticker:"BTCUSDT", name:"Bitcoin / Tether", exchange:"BINANCE", type:"crypto", pair:"BTCUSDT", currency:"USDT", decimals:2},
+    {id:"BINANCE:ETHUSDT", ticker:"ETHUSDT", name:"Ethereum / Tether", exchange:"BINANCE", type:"crypto", pair:"ETHUSDT", currency:"USDT", decimals:2},
+    {id:"BINANCE:SOLUSDT", ticker:"SOLUSDT", name:"Solana / Tether", exchange:"BINANCE", type:"crypto", pair:"SOLUSDT", currency:"USDT", decimals:3},
+    {id:"BINANCE:XRPUSDT", ticker:"XRPUSDT", name:"XRP / Tether", exchange:"BINANCE", type:"crypto", pair:"XRPUSDT", currency:"USDT", decimals:4},
+    {id:"BINANCE:BNBUSDT", ticker:"BNBUSDT", name:"BNB / Tether", exchange:"BINANCE", type:"crypto", pair:"BNBUSDT", currency:"USDT", decimals:2},
+    {id:"BINANCE:DOGEUSDT", ticker:"DOGEUSDT", name:"Dogecoin / Tether", exchange:"BINANCE", type:"crypto", pair:"DOGEUSDT", currency:"USDT", decimals:5},
+    {id:"GOLD:GRAM_TRY", ticker:"GRAM ALTIN", name:"Gram Altın · PAXG/TRY referansı", exchange:"BINANCE", type:"gold", pair:"PAXGTRY", currency:"TRY", decimals:2},
+    {id:"BIST:PETKM", ticker:"PETKM", name:"Petkim Petrokimya Holding", exchange:"BIST", type:"bist", pair:"PETKM", currency:"TRY", decimals:2},
+    {id:"BIST:XU100", ticker:"XU100", name:"BIST 100", exchange:"BIST", type:"bist", pair:"XU100", currency:"TRY", decimals:2},
+    {id:"BIST:XU030", ticker:"XU030", name:"BIST 30", exchange:"BIST", type:"bist", pair:"XU030", currency:"TRY", decimals:2},
+    {id:"BIST:THYAO", ticker:"THYAO", name:"Türk Hava Yolları", exchange:"BIST", type:"bist", pair:"THYAO", currency:"TRY", decimals:2},
+    {id:"BIST:ASELS", ticker:"ASELS", name:"Aselsan", exchange:"BIST", type:"bist", pair:"ASELS", currency:"TRY", decimals:2},
+    {id:"BIST:TUPRS", ticker:"TUPRS", name:"Tüpraş", exchange:"BIST", type:"bist", pair:"TUPRS", currency:"TRY", decimals:2},
+    {id:"BIST:EREGL", ticker:"EREGL", name:"Ereğli Demir Çelik", exchange:"BIST", type:"bist", pair:"EREGL", currency:"TRY", decimals:2},
+    {id:"BIST:AKBNK", ticker:"AKBNK", name:"Akbank", exchange:"BIST", type:"bist", pair:"AKBNK", currency:"TRY", decimals:2},
+    {id:"BIST:SISE", ticker:"SISE", name:"Şişecam", exchange:"BIST", type:"bist", pair:"SISE", currency:"TRY", decimals:2}
   ];
 
-  const catalog = [
-    {symbol:"BIST:XU100",name:"BIST 100",short:"XU100",category:"indices",venue:"BIST",description:"Borsa İstanbul · Ana endeks",aliases:["xu100","bist100","bist 100","bist 100 endeksi"]},
-    {symbol:"BIST:XU030",name:"BIST 30",short:"XU030",category:"indices",venue:"BIST",description:"Borsa İstanbul · 30 büyük şirket",aliases:["xu030","bist30","bist 30"]},
-    {symbol:"BIST:PETKM",name:"Petkim Petrokimya Holding A.Ş.",short:"PETKM",category:"bist",venue:"BIST",description:"Petkim · Borsa İstanbul",aliases:["petkm","petkim"]},
-    {symbol:"BIST:THYAO",name:"Türk Hava Yolları A.O.",short:"THYAO",category:"bist",venue:"BIST",description:"Türk Hava Yolları · BIST",aliases:["thy","thy a.o.","thy hissesi"]},
-    {symbol:"BIST:ASELS",name:"Aselsan Elektronik Sanayi",short:"ASELS",category:"bist",venue:"BIST",description:"Aselsan · Borsa İstanbul",aliases:["asels","aselsan"]},
-    {symbol:"BIST:SISE",name:"Türkiye Şişe ve Cam Fabrikaları",short:"SISE",category:"bist",venue:"BIST",description:"Şişecam · Borsa İstanbul",aliases:["sise","şişecam","sisecam"]},
-    {symbol:"BIST:EREGL",name:"Ereğli Demir ve Çelik",short:"EREGL",category:"bist",venue:"BIST",description:"Ereğli Demir Çelik · BIST",aliases:["eregl","eregli","erdemir"]},
-    {symbol:"BIST:TUPRS",name:"Tüpraş",short:"TUPRS",category:"bist",venue:"BIST",description:"Tüpraş · Borsa İstanbul",aliases:["tuprs","tüpraş","tupras"]},
-    {symbol:"BIST:AKBNK",name:"Akbank T.A.Ş.",short:"AKBNK",category:"bist",venue:"BIST",description:"Akbank · Borsa İstanbul",aliases:["akbnk","akbank"]},
-    {symbol:"BIST:ISCTR",name:"Türkiye İş Bankası C",short:"ISCTR",category:"bist",venue:"BIST",description:"İş Bankası · Borsa İstanbul",aliases:["isctr","iş bankası","is bankasi"]},
-    {symbol:"BIST:KCHOL",name:"Koç Holding",short:"KCHOL",category:"bist",venue:"BIST",description:"Koç Holding · Borsa İstanbul",aliases:["kchol","koç holding","koc holding"]},
-    {symbol:"BIST:SAHOL",name:"Hacı Ömer Sabancı Holding",short:"SAHOL",category:"bist",venue:"BIST",description:"Sabancı Holding · Borsa İstanbul",aliases:["sahol","sabanci holding","sabancı holding"]},
-    {symbol:"BINANCE:BTCUSDT",name:"Bitcoin / Tether",short:"BTCUSDT",category:"crypto",venue:"BINANCE",description:"Bitcoin · Binance Spot",aliases:["btc","bitcoin","btc usdt","btc/usdt"]},
-    {symbol:"BINANCE:ETHUSDT",name:"Ethereum / Tether",short:"ETHUSDT",category:"crypto",venue:"BINANCE",description:"Ethereum · Binance Spot",aliases:["eth","ethereum","eth usdt","eth/usdt"]},
-    {symbol:"BINANCE:SOLUSDT",name:"Solana / Tether",short:"SOLUSDT",category:"crypto",venue:"BINANCE",description:"Solana · Binance Spot",aliases:["sol","solana","sol usdt","sol/usdt"]},
-    {symbol:"BINANCE:XRPUSDT",name:"XRP / Tether",short:"XRPUSDT",category:"crypto",venue:"BINANCE",description:"XRP · Binance Spot",aliases:["xrp","ripple","xrp usdt"]},
-    {symbol:"BINANCE:BNBUSDT",name:"BNB / Tether",short:"BNBUSDT",category:"crypto",venue:"BINANCE",description:"BNB · Binance Spot",aliases:["bnb","bnb usdt"]},
-    {symbol:"BINANCE:DOGEUSDT",name:"Dogecoin / Tether",short:"DOGEUSDT",category:"crypto",venue:"BINANCE",description:"Dogecoin · Binance Spot",aliases:["doge","dogecoin","doge usdt"]},
-    {symbol:"FX_IDC:USDTRY",name:"ABD Doları / Türk Lirası",short:"USDTRY",category:"forex",venue:"FX_IDC",description:"Dolar / TL · Döviz",aliases:["usdtry","dolar tl","dolar/tl","usd try"]},
-    {symbol:"FX_IDC:EURTRY",name:"Euro / Türk Lirası",short:"EURTRY",category:"forex",venue:"FX_IDC",description:"Euro / TL · Döviz",aliases:["eurtry","euro tl","euro/tl","eur try"]},
-    {symbol:"FX_IDC:EURUSD",name:"Euro / ABD Doları",short:"EURUSD",category:"forex",venue:"FX_IDC",description:"EUR/USD · Forex",aliases:["eurusd","eur/usd","euro dolar"]},
-    {symbol:"FX_IDC:GBPUSD",name:"İngiliz Sterlini / ABD Doları",short:"GBPUSD",category:"forex",venue:"FX_IDC",description:"GBP/USD · Forex",aliases:["gbpusd","gbp/usd","sterlin dolar"]},
-    {symbol:"ICE:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"ICE",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","gau/try","gau try","altin tl","altın tl","gram"]},
-    {symbol:"OANDA:XAUUSD",name:"Altın / ABD Doları",short:"XAUUSD",category:"metals",venue:"OANDA",description:"Ons altın · XAU/USD",aliases:["xauusd","ons altın","ons altin","altın ons","gold","gold usd"]},
-    {symbol:"OANDA:XAGUSD",name:"Gümüş / ABD Doları",short:"XAGUSD",category:"metals",venue:"OANDA",description:"Ons gümüş · XAG/USD",aliases:["xagusd","ons gümüş","ons gumus","silver"]},
-    {symbol:"TVC:USOIL",name:"WTI Ham Petrol",short:"USOIL",category:"metals",venue:"TVC",description:"Ham petrol · WTI",aliases:["usoil","petrol","wti","ham petrol"]},
-    {symbol:"NASDAQ:AAPL",name:"Apple Inc.",short:"AAPL",category:"global",venue:"NASDAQ",description:"Apple · NASDAQ",aliases:["aapl","apple"]},
-    {symbol:"NASDAQ:NVDA",name:"NVIDIA Corporation",short:"NVDA",category:"global",venue:"NASDAQ",description:"NVIDIA · NASDAQ",aliases:["nvda","nvidia"]},
-    {symbol:"NASDAQ:TSLA",name:"Tesla, Inc.",short:"TSLA",category:"global",venue:"NASDAQ",description:"Tesla · NASDAQ",aliases:["tsla","tesla"]}
+  const intervals = ["1m","5m","15m","30m","1h","4h","1d","1w","1M"];
+  const intervalIstfin = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"1h","4h":"4h","1d":"1d","1w":"1w","1M":"1mo"};
+  const intervalBinance = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"1h","4h":"4h","1d":"1d","1w":"1w","1M":"1M"};
+  const studies = [
+    {id:"EMA20",label:"EMA 20",type:"overlay"},
+    {id:"EMA50",label:"EMA 50",type:"overlay"},
+    {id:"SMA200",label:"SMA 200",type:"overlay"},
+    {id:"BB",label:"Bollinger Bands",type:"overlay"},
+    {id:"VWAP",label:"VWAP",type:"overlay"},
+    {id:"RSI14",label:"RSI 14",type:"lower"},
+    {id:"MACD",label:"MACD",type:"lower"},
+    {id:"STOCH",label:"Stochastic",type:"lower"}
   ];
 
-  const categoryLabels = {
-    all:"Tüm piyasalar",bist:"Borsa İstanbul",crypto:"Kripto",forex:"Döviz",metals:"Altın & emtia",indices:"Endeksler",global:"Global hisseler"
-  };
-  const defaultWatchlist = ["BIST:XU100","BIST:PETKM","ICE:XAUTRYG","BINANCE:BTCUSDT","FX_IDC:USDTRY"];
+  let activeSymbol = "BINANCE:BTCUSDT";
+  let activeInterval = "15m";
+  let chartType = "candles";
+  let activeStudies = loadStudies(activeSymbol);
   let watchlist = loadWatchlist();
-  let activeSymbol = "BIST:XU100";
-  let activeInterval = "15";
-  let activeCategory = "all";
-  let activeStudies = loadActiveStudies();
-  let studyPresets = loadStudyPresets();
-  let suggestionIndex = -1;
+  let layouts = loadLayouts();
+  let chart = null;
+  let candleSeries = null;
+  let volumeSeries = null;
+  let lineSeries = null;
+  let overlaySeries = [];
+  let lowerCharts = [];
+  let bars = [];
+  let drawingLines = [];
+  let drawingMode = null;
+  let firstDrawPoint = null;
+  let quoteTimer = null;
+  let refreshTimer = null;
+  let toastTimer = null;
+  let activeFilter = "all";
+  let isLoading = false;
 
-  const $ = (id) => document.getElementById(id);
-  const normalise = (value) => String(value || "")
-    .toLocaleLowerCase("tr-TR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ı/g, "i")
-    .trim();
+  function instrument(id = activeSymbol) {
+    return symbols.find(s => s.id === id) || null;
+  }
 
   function loadWatchlist() {
     try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      return Array.isArray(stored) && stored.length ? [...new Set(stored)].slice(0, 40) : [...defaultWatchlist];
+      const v = JSON.parse(localStorage.getItem(WATCH_KEY) || "null");
+      return Array.isArray(v) ? [...new Set(v.filter(id => symbols.some(s => s.id === id)))].slice(0,30) :
+        ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
     } catch {
-      return [...defaultWatchlist];
+      return ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
     }
   }
 
   function saveWatchlist() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist)); }
-    catch { /* Private browsing can block local storage; the terminal remains usable. */ }
+    try { localStorage.setItem(WATCH_KEY, JSON.stringify(watchlist)); } catch {}
   }
 
-  function loadActiveStudies() {
+  function loadStudies(symbol) {
     try {
-      const saved = JSON.parse(localStorage.getItem(STUDY_STORAGE_KEY) || "[]");
-      const allowed = new Set(STUDY_CATALOG.map(item => item.id));
-      return Array.isArray(saved) ? [...new Set(saved.filter(id => allowed.has(id)))] : [];
+      const v = JSON.parse(localStorage.getItem("bybora_studies_" + symbol) || "null");
+      return Array.isArray(v) ? [...new Set(v.filter(id => studies.some(s => s.id === id)))] : ["EMA20","EMA50","RSI14"];
+    } catch { return ["EMA20","EMA50","RSI14"]; }
+  }
+
+  function saveStudies() {
+    try { localStorage.setItem("bybora_studies_" + activeSymbol, JSON.stringify(activeStudies)); } catch {}
+  }
+
+  function loadDrawings(symbol) {
+    try {
+      const v = JSON.parse(localStorage.getItem("bybora_drawings_" + symbol) || "[]");
+      return Array.isArray(v) ? v : [];
     } catch { return []; }
   }
 
-  function persistActiveStudies() {
-    try { localStorage.setItem(STUDY_STORAGE_KEY, JSON.stringify(activeStudies)); } catch {}
+  function saveDrawings() {
+    try { localStorage.setItem("bybora_drawings_" + activeSymbol, JSON.stringify(drawingLines)); } catch {}
   }
 
-  function loadStudyPresets() {
+  function loadLayouts() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STUDY_PRESETS_KEY) || "[]");
-      const allowed = new Set(STUDY_CATALOG.map(item => item.id));
-      if (!Array.isArray(saved)) return [];
-      return saved.filter(item => item && typeof item.name === "string" && Array.isArray(item.studies))
-        .map(item => ({name:item.name.slice(0,32),studies:[...new Set(item.studies.filter(id => allowed.has(id)))]}))
-        .slice(0,30);
+      const v = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "[]");
+      return Array.isArray(v) ? v.filter(x => x && x.name && x.symbol && Array.isArray(x.studies)).slice(0,40) : [];
     } catch { return []; }
   }
 
-  function persistStudyPresets() {
-    try { localStorage.setItem(STUDY_PRESETS_KEY, JSON.stringify(studyPresets)); } catch {}
+  function saveLayouts() {
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layouts)); } catch {}
   }
 
-  function studyLabel(id) {
-    return STUDY_CATALOG.find(item => item.id === id)?.label || id;
+  function getIstfinKey() {
+    try { return localStorage.getItem(ISTFIN_KEY) || ""; } catch { return ""; }
   }
 
-  function setStudyMessage(message, isError = false) {
-    const node = $("studyMessage");
-    if (!node) return;
+  function setMessage(title, text, action = false) {
+    $("chartMessageTitle").textContent = title;
+    $("chartMessageText").textContent = text;
+    $("chartMessageAction").hidden = !action;
+    $("chartOverlay").classList.remove("transparent");
+    $("chartOverlay").hidden = false;
+  }
+
+  function hideMessage() {
+    $("chartOverlay").hidden = true;
+  }
+
+  function setStatus(text, level = "idle") {
+    $("connectionText").textContent = text.toLocaleUpperCase("tr-TR");
+    $("connectionLamp").className = "connection-lamp" + (level === "good" ? " good" : level === "warn" ? " warn" : "");
+    $("chartStatusText").textContent = text.toLocaleUpperCase("tr-TR");
+    $("chartLiveStatus").classList.toggle("ready", level === "good");
+  }
+
+  function toast(message) {
+    const node = $("toast");
     node.textContent = message;
-    node.classList.toggle("is-error", isError);
+    node.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => node.classList.remove("show"), 2600);
   }
 
-  function renderStudyManager() {
-    const chipHost = $("activeStudies");
-    if (!chipHost) return;
-    chipHost.innerHTML = "";
-    $("studyCount").textContent = activeStudies.length + " GÖSTERGE";
-
-    if (!activeStudies.length) {
-      const empty = document.createElement("span");
-      empty.className = "empty-studies";
-      empty.textContent = "Henüz gösterge eklenmedi. Yukarıdan gösterge seçip ekleyebilirsin.";
-      chipHost.appendChild(empty);
-    } else {
-      activeStudies.forEach(id => {
-        const chip = document.createElement("div");
-        chip.className = "study-chip";
-        const label = document.createElement("span");
-        label.textContent = studyLabel(id);
-        const remove = document.createElement("button");
-        remove.type = "button";
-        remove.textContent = "×";
-        remove.setAttribute("aria-label", studyLabel(id) + " göstergesini kaldır");
-        remove.addEventListener("click", () => removeStudy(id));
-        chip.append(label, remove);
-        chipHost.appendChild(chip);
-      });
-    }
-
-    const select = $("studyPresetSelect");
-    const previous = select.value;
-    select.innerHTML = "";
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Kayıtlı set seç...";
-    select.appendChild(placeholder);
-    studyPresets.forEach((preset, index) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = preset.name;
-      select.appendChild(option);
-    });
-    if (previous && Number(previous) < studyPresets.length) select.value = previous;
+  function fmtPrice(value, decimals = 2) {
+    if (!Number.isFinite(value)) return "—";
+    return new Intl.NumberFormat("tr-TR", {minimumFractionDigits:decimals,maximumFractionDigits:decimals}).format(value);
   }
 
-  function addStudy() {
-    const id = $("indicatorPicker").value;
-    if (!STUDY_CATALOG.some(item => item.id === id)) return;
-    if (activeStudies.includes(id)) {
-      setStudyMessage(studyLabel(id) + " zaten gösterge listende.");
-      return;
-    }
-    activeStudies.push(id);
-    persistActiveStudies();
-    renderStudyManager();
-    renderChart();
-    setStudyMessage(studyLabel(id) + " eklendi ve telefonuna kaydedildi.");
+  function fmtCompact(value) {
+    if (!Number.isFinite(value)) return "—";
+    return new Intl.NumberFormat("tr-TR", {notation:"compact",maximumFractionDigits:2}).format(value);
   }
 
-  function removeStudy(id) {
-    activeStudies = activeStudies.filter(item => item !== id);
-    persistActiveStudies();
-    renderStudyManager();
-    renderChart();
-    setStudyMessage(studyLabel(id) + " kaldırıldı.");
-  }
-
-  function saveStudyPreset() {
-    const name = $("studyPresetName").value.trim();
-    if (!name) {
-      setStudyMessage("Önce gösterge setine bir isim ver.", true);
-      $("studyPresetName").focus();
-      return;
-    }
-    if (!activeStudies.length) {
-      setStudyMessage("Kaydetmek için önce en az bir gösterge ekle.", true);
-      return;
-    }
-    const existing = studyPresets.findIndex(item => item.name.toLocaleLowerCase("tr-TR") === name.toLocaleLowerCase("tr-TR"));
-    const preset = {name,studies:[...activeStudies]};
-    if (existing >= 0) studyPresets[existing] = preset;
-    else studyPresets.push(preset);
-    studyPresets = studyPresets.slice(-30);
-    persistStudyPresets();
-    renderStudyManager();
-    $("studyPresetSelect").value = String(studyPresets.findIndex(item => item.name === name));
-    setStudyMessage('"' + name + '" gösterge seti bu telefona kaydedildi.');
-  }
-
-  function applyStudyPreset() {
-    const index = Number($("studyPresetSelect").value);
-    if (!Number.isInteger(index) || !studyPresets[index]) {
-      setStudyMessage("Yüklemek için önce kayıtlı bir set seç.", true);
-      return;
-    }
-    activeStudies = [...studyPresets[index].studies];
-    persistActiveStudies();
-    renderStudyManager();
-    $("studyPresetSelect").value = String(index);
-    renderChart();
-    setStudyMessage('"' + studyPresets[index].name + '" seti uygulandı.');
-  }
-
-  function deleteStudyPreset() {
-    const index = Number($("studyPresetSelect").value);
-    if (!Number.isInteger(index) || !studyPresets[index]) {
-      setStudyMessage("Silmek için önce kayıtlı bir set seç.", true);
-      return;
-    }
-    const name = studyPresets[index].name;
-    studyPresets.splice(index, 1);
-    persistStudyPresets();
-    renderStudyManager();
-    setStudyMessage('"' + name + '" seti silindi.');
-  }
-
-  function lookupSymbol(query) {
-    const key = normalise(query);
-    return catalog.find(item =>
-      normalise(item.symbol) === key ||
-      normalise(item.short) === key ||
-      normalise(item.name) === key ||
-      item.aliases.some(alias => normalise(alias) === key)
-    ) || null;
+  function fmtTime(date = new Date()) {
+    return new Intl.DateTimeFormat("tr-TR",{timeZone:"Europe/Istanbul",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(date) + " TRT";
   }
 
   function resolveSymbol(query) {
-    const cleaned = String(query || "").trim().replace(/\s+/g, "");
-    if (!cleaned) return null;
-    if (cleaned.includes(":")) return cleaned.toUpperCase();
-    const known = lookupSymbol(query);
-    if (known) return known.symbol;
-
-    const token = cleaned.toUpperCase().replace("/", "");
-    if (/^[A-Z]{6}$/.test(token) && /^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|TRY|SEK|NOK|CNY|CNH)/.test(token)) return "FX_IDC:" + token;
-    if (/^[A-Z0-9]{2,24}(USDT|USDC|BUSD|FDUSD|TRY)$/.test(token)) return "BINANCE:" + token;
-    if (/^(BTC|ETH|SOL|XRP|DOGE|ADA)USD$/.test(token)) return "COINBASE:" + token;
-    if (/^[A-Z0-9._!-]{2,18}$/.test(token)) return "BIST:" + token;
-    return cleaned.toUpperCase();
-  }
-
-  function metadata(symbol) {
-    const known = catalog.find(item => item.symbol === symbol);
-    if (known) return known;
-    const [venue, ticker] = symbol.includes(":") ? symbol.split(":", 2) : ["", symbol];
-    let category = "global";
-    if (venue === "BIST") category = "bist";
-    else if (venue === "BINANCE" || venue === "BYBIT" || venue === "COINBASE" || venue === "OKX") category = "crypto";
-    else if (venue === "FX_IDC" || venue === "OANDA" || venue === "FOREXCOM") category = "forex";
-    else if (venue === "ICE" || venue === "TVC" || venue.includes("COMEX") || venue.includes("NYMEX")) category = "metals";
-    else if (ticker === "XU100" || ticker.startsWith("XU")) category = "indices";
-    return {
-      symbol,
-      name: ticker || symbol,
-      short: ticker || symbol,
-      category,
-      venue: venue || "TRADINGVIEW",
-      description: symbol + " · TradingView sembolü",
-      aliases: []
+    const q = String(query || "").trim().toLocaleLowerCase("tr-TR");
+    const direct = symbols.find(s => s.id.toLocaleLowerCase("tr-TR") === q ||
+      s.ticker.toLocaleLowerCase("tr-TR") === q ||
+      s.name.toLocaleLowerCase("tr-TR") === q);
+    if (direct) return direct.id;
+    const aliases = {
+      "petkim":"BIST:PETKM","petkm":"BIST:PETKM","gram altın":"GOLD:GRAM_TRY","gram altin":"GOLD:GRAM_TRY",
+      "xautryg":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100",
+      "bist 100":"BIST:XU100","bitcoin":"BINANCE:BTCUSDT","btc":"BINANCE:BTCUSDT","btc/usdt":"BINANCE:BTCUSDT",
+      "ethereum":"BINANCE:ETHUSDT","eth":"BINANCE:ETHUSDT"
     };
-  }
-
-  function renderWidgetScript(container, src, options) {
-    const widgetRoot = document.createElement("div");
-    widgetRoot.className = "tradingview-widget-container__widget";
-    widgetRoot.style.width = "100%";
-    widgetRoot.style.height = src === TV_CHART_SCRIPT ? "calc(100% - 32px)" : "100%";
-    container.appendChild(widgetRoot);
-
-    const script = document.createElement("script");
-    script.type = "text/javascript";
-    script.src = src;
-    script.async = true;
-    script.textContent = JSON.stringify(options);
-    container.appendChild(script);
-    script.addEventListener("error", () => {
-      if (src !== TV_CHART_SCRIPT) return;
-      const errorBox = document.createElement("div");
-      errorBox.className = "chart-load-error";
-      const title = document.createElement("strong");
-      title.textContent = "TradingView grafiği yüklenemedi";
-      const detail = document.createElement("span");
-      detail.textContent = "Bağlantıyı kontrol et veya grafiğin sol üstündeki arama alanından farklı bir TradingView sembolü dene.";
-      errorBox.append(title, detail);
-      widgetRoot.replaceChildren(errorBox);
-    });
-  }
-
-  function renderTickerTape() {
-    const mount = $("tickerTape");
-    if (!mount) return;
-    mount.innerHTML = "";
-    const container = document.createElement("div");
-    container.className = "tradingview-widget-container";
-    container.style.width = "100%";
-    container.style.height = "100%";
-    mount.appendChild(container);
-    renderWidgetScript(container, TV_TICKER_SCRIPT, {
-      symbols: [
-        {proName:"BIST:XU100",title:"BIST 100"},
-        {proName:"BIST:XU030",title:"BIST 30"},
-        {proName:"BINANCE:BTCUSDT",title:"Bitcoin"},
-        {proName:"FX_IDC:USDTRY",title:"USD/TRY"},
-        {proName:"OANDA:XAUUSD",title:"Ons Altın"}
-      ],
-      showSymbolLogo: false,
-      isTransparent: true,
-      displayMode: "adaptive",
-      colorTheme: "dark",
-      locale: "tr"
-    });
-  }
-
-  function renderChart() {
-    const host = $("chartMount");
-    if (!host) return;
-    host.innerHTML = "";
-    const container = document.createElement("div");
-    container.className = "tradingview-widget-container";
-    container.style.width = "100%";
-    container.style.height = "100%";
-    host.appendChild(container);
-
-    renderWidgetScript(container, TV_CHART_SCRIPT, {
-      autosize: true,
-      symbol: activeSymbol,
-      interval: activeInterval,
-      timezone: "Europe/Istanbul",
-      theme: "dark",
-      style: "1",
-      locale: "tr",
-      enable_publishing: false,
-      allow_symbol_change: true,
-      withdateranges: true,
-      hide_side_toolbar: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      save_image: true,
-      details: true,
-      calendar: false,
-      hotlist: false,
-      support_host: "https://www.tradingview.com",
-      studies: [...activeStudies]
-    });
-  }
-
-  function renderInstrument() {
-    const item = metadata(activeSymbol);
-    $("instrumentLabel").textContent = (categoryLabels[item.category] || "PİYASA") + " · " + item.category.toLocaleUpperCase("tr-TR");
-    $("instrumentName").textContent = item.name;
-    $("instrumentSymbol").innerHTML = "";
-    const symbolText = document.createTextNode(item.symbol);
-    const dot = document.createElement("span");
-    dot.textContent = "·";
-    const currency = document.createTextNode(item.category === "crypto" ? "Kripto parite" : item.category === "bist" || item.category === "indices" ? "Türk Lirası" : item.description);
-    $("instrumentSymbol").append(symbolText, dot, currency);
-    $("exchangeTag").textContent = item.venue;
-    const symbolWarning = $("symbolWarning");
-    if (symbolWarning) {
-      if (activeSymbol === "BIST:PETKM" || activeSymbol === "ICE:XAUTRYG") {
-        symbolWarning.hidden = false;
-        symbolWarning.textContent = "Bu sembol Investing.com'un kendi mum grafiğinde açılır. Uygulamaya dönmek için Android geri tuşunu kullan.";
-      } else {
-        symbolWarning.hidden = true;
-        symbolWarning.textContent = "";
-      }
-    }
-    $("instrumentLogo").textContent = (item.short || item.name || "?").slice(0, 2).toUpperCase();
-    $("instrumentLogo").dataset.category = item.category;
-    const alternativeUrl = alternativeChartUrl(activeSymbol);
-    $("openTradingView").href = alternativeUrl || ("https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(activeSymbol));
-    $("openTradingView").innerHTML = alternativeUrl ? "Alternatif grafiği aç <span>↗</span>" : "TradingView'de aç <span>↗</span>";
-    $("favoriteCurrent").classList.toggle("is-active", watchlist.includes(activeSymbol));
-    $("favoriteCurrent").textContent = watchlist.includes(activeSymbol) ? "★" : "☆";
-    $("favoriteCurrent").setAttribute("aria-label", watchlist.includes(activeSymbol) ? "Favorilerden çıkar" : "Favorilere ekle");
-    document.title = item.short + " | BYBORA Market Desk";
-  }
-
-  function renderWatchlist() {
-    const mount = $("watchlist");
-    if (!mount) return;
-    mount.innerHTML = "";
-    const visible = watchlist
-      .map(symbol => metadata(symbol))
-      .filter(item => activeCategory === "all" || item.category === activeCategory);
-    if (!visible.length) {
-      const empty = document.createElement("div");
-      empty.className = "watch-empty";
-      empty.textContent = "Bu kategoride kayıtlı sembol yok. Arama alanından ekleyebilirsin.";
-      mount.appendChild(empty);
-      return;
-    }
-    visible.forEach(item => {
-      const row = document.createElement("div");
-      row.className = "watch-item" + (item.symbol === activeSymbol ? " active" : "");
-      const select = document.createElement("button");
-      select.className = "watch-select";
-      select.type = "button";
-      select.setAttribute("aria-label", item.short + " grafiğini aç");
-      const icon = document.createElement("span");
-      icon.className = "watch-icon";
-      icon.textContent = (item.short || "?").slice(0, 2).toUpperCase();
-      const info = document.createElement("span");
-      info.className = "watch-info";
-      const strong = document.createElement("strong");
-      strong.textContent = item.short;
-      const small = document.createElement("small");
-      small.textContent = item.name;
-      info.append(strong, small);
-      select.append(icon, info);
-      select.addEventListener("click", () => setActiveSymbol(item.symbol));
-      const remove = document.createElement("button");
-      remove.className = "watch-remove";
-      remove.type = "button";
-      remove.textContent = "×";
-      remove.title = "İzleme listesinden çıkar";
-      remove.setAttribute("aria-label", item.short + " listesinden çıkar");
-      remove.addEventListener("click", event => {
-        event.stopPropagation();
-        watchlist = watchlist.filter(symbol => symbol !== item.symbol);
-        saveWatchlist();
-        renderWatchlist();
-        renderInstrument();
-      });
-      row.append(select, remove);
-      mount.appendChild(row);
-    });
-  }
-
-  function alternativeChartUrl(symbol) {
-    if (symbol === "BIST:PETKM") {
-      return "https://tr.investing.com/equities/petkim-candlestick";
-    }
-    if (symbol === "ICE:XAUTRYG" || symbol === "FX_IDC:XAUTRYG") {
-      return "https://tr.investing.com/currencies/gau-try-candlestick";
-    }
+    if (aliases[q]) return aliases[q];
+    const compact = q.toUpperCase().replace(/\s+/g,"");
+    if (/^[A-Z]{2,18}USDT$/.test(compact)) return "BINANCE:" + compact;
+    if (/^[A-Z]{4,6}$/.test(compact)) return "BIST:" + compact;
     return null;
   }
 
-  function setActiveSymbol(symbol) {
-    const resolved = resolveSymbol(symbol);
-    if (!resolved) return;
-    activeSymbol = resolved;
-    renderInstrument();
-    renderWatchlist();
-    $("symbolSearch").value = "";
-    $("searchSuggestions").hidden = true;
-    closeMobileMenu();
-
-    // TradingView widgets block PETKM. Open the public Investing.com candlestick
-    // chart inside this Android WebView for PETKM and gram gold; other symbols
-    // continue using the original TradingView embedded chart and terminal controls.
-    const alternativeUrl = alternativeChartUrl(resolved);
-    if (alternativeUrl) {
-      window.location.assign(alternativeUrl);
-      return;
-    }
-    renderChart();
-  }
-
-  function addCurrentToWatchlist() {
-    if (!watchlist.includes(activeSymbol)) {
-      watchlist.unshift(activeSymbol);
-      watchlist = watchlist.slice(0, 40);
-      saveWatchlist();
-    } else {
-      watchlist = watchlist.filter(symbol => symbol !== activeSymbol);
-    }
-    renderInstrument();
-    renderWatchlist();
-  }
-
-  function showSuggestions(query) {
-    const mount = $("searchSuggestions");
-    const q = normalise(query);
-    if (!q) {
-      mount.hidden = true;
-      return;
-    }
-    const results = catalog.filter(item =>
-      normalise(item.name).includes(q) ||
-      normalise(item.short).includes(q) ||
-      normalise(item.symbol).includes(q) ||
-      item.aliases.some(alias => normalise(alias).includes(q))
-    ).slice(0, 7);
-    mount.innerHTML = "";
-    if (!results.length) {
-      const hint = document.createElement("div");
-      hint.className = "suggestion-hint";
-      hint.textContent = "Enter ile sembolü TradingView'de aç: " + (query.includes(":") ? query.toUpperCase() : resolveSymbol(query));
-      mount.appendChild(hint);
-      mount.hidden = false;
-      return;
-    }
-    results.forEach(item => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "suggestion";
-      const left = document.createElement("span");
-      const title = document.createElement("strong");
-      title.textContent = item.short;
-      const desc = document.createElement("small");
-      desc.textContent = item.name;
-      left.append(title, desc);
-      const code = document.createElement("span");
-      code.className = "suggestion-code";
-      code.textContent = item.venue;
-      button.append(left, code);
-      button.addEventListener("click", () => setActiveSymbol(item.symbol));
-      mount.appendChild(button);
+  function createChartIfNeeded() {
+    if (chart) return true;
+    if (!window.LightweightCharts) return false;
+    const L = window.LightweightCharts;
+    const host = $("priceChart");
+    chart = L.createChart(host, {
+      autoSize: true,
+      layout: {
+        background: {type:L.ColorType.Solid,color:"#0a1220"},
+        textColor:"#91a3ba",
+        fontFamily:"DM Sans, sans-serif",
+        fontSize:10
+      },
+      grid: {
+        vertLines:{color:"rgba(132,157,188,.065)"},
+        horzLines:{color:"rgba(132,157,188,.085)"}
+      },
+      crosshair: {
+        mode:L.CrosshairMode.Normal,
+        vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
+        horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
+      },
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,scaleMargins:{top:.08,bottom:.18}},
+      timeScale:{
+        borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
+        rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
+      },
+      localization:{locale:"tr-TR"}
     });
-    mount.hidden = false;
+    $("chartOverlay").hidden = true;
+    return true;
   }
 
-  function chooseInterval(button) {
-    activeInterval = button.dataset.interval;
-    document.querySelectorAll("#timeframes button").forEach(el => el.classList.toggle("active", el === button));
-    renderChart();
+  function mapBinanceInterval(interval) {
+    return intervalBinance[interval] || "15m";
   }
 
-  function closeMobileMenu() {
-    document.body.classList.remove("sidebar-open");
+  function mapIstfinInterval(interval) {
+    return intervalIstfin[interval] || "15m";
   }
 
-  function openMobileMenu() {
-    document.body.classList.add("sidebar-open");
+  async function fetchBinanceBars(pair, interval) {
+    const url = new URL(BINANCE + "/klines");
+    url.searchParams.set("symbol", pair);
+    url.searchParams.set("interval", mapBinanceInterval(interval));
+    url.searchParams.set("limit", "1000");
+    const response = await fetch(url.toString(), {cache:"no-store"});
+    if (!response.ok) throw new Error("Binance mum verisi alınamadı (" + response.status + ").");
+    const raw = await response.json();
+    if (!Array.isArray(raw) || !raw.length) throw new Error("Bu Binance paritesi için mum verisi bulunamadı.");
+    return raw.map(row => ({
+      time:Math.floor(Number(row[0])/1000),
+      open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4]),
+      volume:Number(row[5])||0
+    }));
+  }
+
+  async function fetchIstfinBars(symbol, interval) {
+    const key = getIstfinKey();
+    if (!key) {
+      const error = new Error("BIST_API_KEY_REQUIRED");
+      error.code = "BIST_API_KEY_REQUIRED";
+      throw error;
+    }
+    const url = new URL(ISTFIN + "/bars/" + encodeURIComponent(symbol));
+    url.searchParams.set("interval", mapIstfinInterval(interval));
+    url.searchParams.set("limit", "1500");
+    const response = await fetch(url.toString(), {
+      cache:"no-store",
+      headers:{Authorization:"Bearer " + key,Accept:"application/json"}
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = body?.error?.message || body?.message || "BIST veri sağlayıcısı yanıt vermedi (" + response.status + ").";
+      const error = new Error(message);
+      error.status = response.status;
+      throw error;
+    }
+    const data = body.data || [];
+    if (!Array.isArray(data) || !data.length) throw new Error("Bu BIST sembolü için seçili zaman diliminde mum bulunamadı.");
+    return data.map(row => ({
+      time:Number(row.t),
+      open:Number(row.o),high:Number(row.h),low:Number(row.l),close:Number(row.c),
+      volume:Number(row.v)||0
+    })).filter(x => Number.isFinite(x.time) && Number.isFinite(x.close)).sort((a,b)=>a.time-b.time);
+  }
+
+  async function fetchQuote(symbol) {
+    const item = instrument(symbol);
+    if (!item) return null;
+    if (item.type === "bist") {
+      const key = getIstfinKey();
+      if (!key) return null;
+      const url = new URL(ISTFIN + "/quotes");
+      url.searchParams.set("symbols", item.pair);
+      const response = await fetch(url.toString(),{cache:"no-store",headers:{Authorization:"Bearer "+key,Accept:"application/json"}});
+      if (!response.ok) return null;
+      const body = await response.json();
+      return (body.data || []).find(x => x.symbol === item.pair) || null;
+    }
+    const url = new URL(BINANCE + "/ticker/24hr");
+    url.searchParams.set("symbol",item.pair);
+    const response = await fetch(url.toString(),{cache:"no-store"});
+    if (!response.ok) return null;
+    return await response.json();
+  }
+
+  async function getMarketData(item, interval) {
+    if (item.type === "bist") {
+      const [history, quote] = await Promise.all([
+        fetchIstfinBars(item.pair, interval),
+        fetchQuote(item.id).catch(()=>null)
+      ]);
+      return {bars:history,quote,source:"istfin · 15 dk gecikmeli",delay:"BIST lisanslı · 15 dk gecikmeli"};
+    }
+    const history = await fetchBinanceBars(item.pair,mapChartInterval(item,interval));
+    const quote = await fetchQuote(item.id).catch(()=>null);
+    if (item.type === "gold") {
+      const factor = 1 / TROY_OUNCE_GRAMS;
+      history.forEach(bar => {
+        bar.open*=factor;bar.high*=factor;bar.low*=factor;bar.close*=factor;
+      });
+      if (quote) {
+        quote.lastPrice = String(Number(quote.lastPrice)*factor);
+        quote.highPrice = String(Number(quote.highPrice)*factor);
+        quote.lowPrice = String(Number(quote.lowPrice)*factor);
+      }
+      return {bars:history,quote,source:"Binance PAXGTRY ÷ 31,1034768",delay:"Altın destekli token · TRY spot referansı"};
+    }
+    return {bars:history,quote,source:"Binance public market data",delay:"Kripto · gerçek zamanlı"};
+  }
+
+  function mapChartInterval(item, interval) {
+    if (item.type === "gold") return interval;
+    return interval;
+  }
+
+  function ensureMainSeries() {
+    if (!chart) return;
+    const L = window.LightweightCharts;
+    if (candleSeries) { chart.removeSeries(candleSeries); candleSeries = null; }
+    if (lineSeries) { chart.removeSeries(lineSeries); lineSeries = null; }
+    if (volumeSeries) { chart.removeSeries(volumeSeries); volumeSeries = null; }
+    if (chartType === "candles") {
+      candleSeries = chart.addSeries(L.CandlestickSeries,{
+        upColor:"#28cda0",downColor:"#f06479",
+        borderUpColor:"#28cda0",borderDownColor:"#f06479",
+        wickUpColor:"#28cda0",wickDownColor:"#f06479",
+        priceLineVisible:true,lastValueVisible:true
+      });
+    } else {
+      lineSeries = chart.addSeries(L.LineSeries,{
+        color:"#55c9e8",lineWidth:2,priceLineVisible:true,lastValueVisible:true,
+        crosshairMarkerVisible:true
+      });
+    }
+    volumeSeries = chart.addSeries(L.HistogramSeries,{
+      priceFormat:{type:"volume"},priceScaleId:"volume",lastValueVisible:false,priceLineVisible:false
+    });
+    volumeSeries.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
+  }
+
+  function clearOverlaySeries() {
+    if (!chart) return;
+    for (const series of overlaySeries) {
+      try { chart.removeSeries(series); } catch {}
+    }
+    overlaySeries = [];
+  }
+
+  function addOverlayLine(data,color,title,width=2,style) {
+    if (!chart || !data.length) return null;
+    const s = chart.addSeries(window.LightweightCharts.LineSeries,{
+      color,lineWidth:width,title,priceLineVisible:false,lastValueVisible:false,
+      crosshairMarkerVisible:false,lineStyle:style
+    });
+    s.setData(data.filter(p=>Number.isFinite(p.value)));
+    overlaySeries.push(s);
+    return s;
+  }
+
+  function sma(values,period) {
+    const out=[];let sum=0;
+    for(let i=0;i<values.length;i++){
+      sum+=values[i].close;
+      if(i>=period)sum-=values[i-period].close;
+      if(i>=period-1)out.push({time:values[i].time,value:sum/period});
+    }
+    return out;
+  }
+
+  function ema(values,period) {
+    const out=[];const k=2/(period+1);let prev=null;
+    for(const row of values){
+      prev=prev===null?row.close:row.close*k+prev*(1-k);
+      out.push({time:row.time,value:prev});
+    }
+    return out;
+  }
+
+  function bollinger(values,period=20,mult=2) {
+    const mid=sma(values,period);const upper=[],lower=[];
+    for(let i=period-1;i<values.length;i++){
+      const slice=values.slice(i-period+1,i+1);
+      const mean=mid[i-period+1].value;
+      const variance=slice.reduce((acc,x)=>acc+Math.pow(x.close-mean,2),0)/period;
+      const sd=Math.sqrt(variance);
+      upper.push({time:values[i].time,value:mean+mult*sd});
+      lower.push({time:values[i].time,value:mean-mult*sd});
+    }
+    return {mid,upper,lower};
+  }
+
+  function vwap(values) {
+    let pv=0,v=0;const out=[];
+    for(const row of values){
+      const volume=row.volume||0;const typical=(row.high+row.low+row.close)/3;
+      pv+=typical*volume;v+=volume;
+      if(v>0)out.push({time:row.time,value:pv/v});
+    }
+    return out;
+  }
+
+  function rsi(values,period=14) {
+    const out=[];let avgGain=0,avgLoss=0;
+    for(let i=1;i<values.length;i++){
+      const diff=values[i].close-values[i-1].close;
+      const gain=Math.max(0,diff),loss=Math.max(0,-diff);
+      if(i<=period){avgGain+=gain/period;avgLoss+=loss/period;}
+      else {avgGain=(avgGain*(period-1)+gain)/period;avgLoss=(avgLoss*(period-1)+loss)/period;}
+      if(i>=period){
+        const rs=avgLoss===0?100:avgGain/avgLoss;
+        const val=avgLoss===0?100:100-(100/(1+rs));
+        out.push({time:values[i].time,value:val});
+      }
+    }
+    return out;
+  }
+
+  function macd(values) {
+    const e12=ema(values,12),e26=ema(values,26),signal=[];
+    const line=e12.map((v,i)=>({time:v.time,value:v.value-e26[i].value}));
+    const k=2/10;let s=null;const hist=[];
+    line.forEach(v=>{s=s===null?v.value:v.value*k+s*(1-k);signal.push({time:v.time,value:s});hist.push({time:v.time,value:v.value-s});});
+    return {line,signal,hist};
+  }
+
+  function stochastic(values,period=14) {
+    const out=[];let smooth=[];
+    for(let i=period-1;i<values.length;i++){
+      const slice=values.slice(i-period+1,i+1);
+      const hi=Math.max(...slice.map(x=>x.high)),lo=Math.min(...slice.map(x=>x.low));
+      const value=hi===lo?50:((values[i].close-lo)/(hi-lo))*100;
+      out.push({time:values[i].time,value});
+    }
+    return out;
+  }
+
+  function renderStudies() {
+    if (!chart || !bars.length) return;
+    clearOverlaySeries();
+    const close = bars;
+    if (activeStudies.includes("EMA20")) addOverlayLine(ema(close,20),"#f0bd62","EMA 20");
+    if (activeStudies.includes("EMA50")) addOverlayLine(ema(close,50),"#6bb8ff","EMA 50");
+    if (activeStudies.includes("SMA200")) addOverlayLine(sma(close,200),"#c58cff","SMA 200");
+    if (activeStudies.includes("BB")) {
+      const bb=bollinger(close,20,2);
+      addOverlayLine(bb.upper,"rgba(132,157,190,.8)","BB Upper",1);
+      addOverlayLine(bb.mid,"rgba(132,157,190,.55)","BB Mid",1);
+      addOverlayLine(bb.lower,"rgba(132,157,190,.8)","BB Lower",1);
+    }
+    if (activeStudies.includes("VWAP")) addOverlayLine(vwap(close),"#e9a66a","VWAP",2);
+    renderLowerStudies();
+    renderStudyChips();
+  }
+
+  function renderLowerStudies() {
+    const host=$("lowerIndicatorCharts");
+    host.innerHTML="";
+    lowerCharts.forEach(c=>{try{c.remove()}catch{}});
+    lowerCharts=[];
+    if (!bars.length || !window.LightweightCharts) return;
+    const L=window.LightweightCharts;
+    const lower = activeStudies.filter(id=>["RSI14","MACD","STOCH"].includes(id));
+    lower.forEach(id=>{
+      const wrap=document.createElement("div");
+      wrap.className="lower-chart-wrap";
+      const title=document.createElement("div");
+      title.className="lower-chart-title";
+      title.textContent=studies.find(s=>s.id===id).label;
+      const mount=document.createElement("div");
+      mount.className="lower-indicator-chart";
+      wrap.append(title,mount);
+      host.appendChild(wrap);
+      const c=L.createChart(mount,{
+        autoSize:true,
+        layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:9},
+        grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)"},
+        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7},
+        crosshair:{mode:L.CrosshairMode.Normal}
+      });
+      lowerCharts.push(c);
+      if (id==="RSI14") {
+        const s=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+        s.setData(rsi(bars));
+        s.createPriceLine({price:70,color:"rgba(255,113,134,.6)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"70"});
+        s.createPriceLine({price:30,color:"rgba(69,214,195,.6)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"30"});
+      } else if (id==="MACD") {
+        const m=macd(bars);
+        const h=c.addSeries(L.HistogramSeries,{priceLineVisible:false,lastValueVisible:false});
+        h.setData(m.hist.map(x=>({time:x.time,value:x.value,color:x.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"})));
+        const s1=c.addSeries(L.LineSeries,{color:"#62a9ff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
+        const s2=c.addSeries(L.LineSeries,{color:"#f0bd62",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
+        s1.setData(m.line);s2.setData(m.signal);
+      } else {
+        const s=c.addSeries(L.LineSeries,{color:"#e4b86b",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
+        s.setData(stochastic(bars));
+        s.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
+        s.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
+      }
+    });
+  }
+
+  function renderStudyChips() {
+    document.querySelectorAll("[data-study]").forEach(button=>button.classList.toggle("active",activeStudies.includes(button.dataset.study)));
+    const host=$("activeStudyList");host.innerHTML="";
+    if (!activeStudies.length) {
+      const span=document.createElement("span");span.className="subtle-copy";span.textContent="Henüz gösterge eklenmedi.";host.appendChild(span);return;
+    }
+    activeStudies.forEach(id=>{
+      const item=studies.find(x=>x.id===id);if(!item)return;
+      const pill=document.createElement("span");pill.className="active-study-pill";pill.append(document.createTextNode(item.label));
+      const remove=document.createElement("button");remove.type="button";remove.textContent="×";remove.addEventListener("click",()=>toggleStudy(id));
+      pill.appendChild(remove);host.appendChild(pill);
+    });
+  }
+
+  function toggleStudy(id) {
+    activeStudies=activeStudies.includes(id)?activeStudies.filter(x=>x!==id):[...activeStudies,id];
+    saveStudies();
+    renderStudies();
+    $("saveState").innerHTML="<i></i> Gösterge seti kaydedildi";
+  }
+
+  function restoreDrawingLines() {
+    if (!chart || !candleSeries) return;
+    drawingLines.forEach(d=>{
+      if (d.type==="horizontal") {
+        const line=candleSeries.createPriceLine({price:d.price,color:d.color||"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:d.title||"Seviye"});
+        d._runtimeId = line;
+      } else if (d.type==="trend" && d.points?.length===2) {
+        const s=chart.addSeries(window.LightweightCharts.LineSeries,{color:d.color||"#e8bd68",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+        s.setData(d.points);
+        d._runtimeId=s;
+      } else if (d.type==="fib" && Array.isArray(d.levels)) {
+        d._runtimeId=[];
+        d.levels.forEach(level=>{
+          d._runtimeId.push(candleSeries.createPriceLine({price:level.price,color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:level.label}));
+        });
+      }
+    });
+  }
+
+  function clearDrawings() {
+    if (candleSeries) {
+      drawingLines.forEach(d=>{
+        try {
+          if (d.type==="horizontal") candleSeries.removePriceLine(d._runtimeId);
+          if (d.type==="fib") d._runtimeId?.forEach(l=>candleSeries.removePriceLine(l));
+          if (d.type==="trend" && d._runtimeId) chart.removeSeries(d._runtimeId);
+        } catch {}
+      });
+    }
+    drawingLines=[];
+    saveDrawings();
+    renderDrawingList();
+  }
+
+  function renderDrawingList() {
+    const host=$("activeDrawings");host.innerHTML="";
+    drawingLines.forEach((d,i)=>{
+      const label=d.type==="horizontal"?"Yatay çizgi":d.type==="trend"?"Trend çizgisi":"Fibonacci";
+      const item=document.createElement("span");item.className="active-study-pill";
+      const text=document.createElement("span");text.textContent=label+(d.price?" · "+fmtPrice(d.price,instrument()?.decimals||2):"");
+      const btn=document.createElement("button");btn.textContent="×";btn.addEventListener("click",()=>{
+        if (d.type==="horizontal") candleSeries?.removePriceLine(d._runtimeId);
+        if (d.type==="fib") d._runtimeId?.forEach(x=>candleSeries?.removePriceLine(x));
+        if (d.type==="trend" && d._runtimeId) chart?.removeSeries(d._runtimeId);
+        drawingLines.splice(i,1);saveDrawings();renderDrawingList();
+      });
+      item.append(text,btn);host.appendChild(item);
+    });
+  }
+
+  function beginDrawing(mode) {
+    drawingMode=mode;firstDrawPoint=null;
+    document.querySelectorAll("[data-drawing]").forEach(b=>b.classList.toggle("active",b.dataset.drawing===mode));
+    $("drawingHint").textContent=mode==="horizontal"?"Yatay çizgi yerleştirmek için grafikte bir fiyata dokun.":
+      mode==="trend"?"Trend çizgisi için önce başlangıç, sonra bitiş noktasına dokun.":
+      "Fibonacci için önce dip, sonra tepe (veya tersi) noktasına dokun.";
+    if (mode==="clear") { clearDrawings();drawingMode=null;document.querySelectorAll("[data-drawing]").forEach(b=>b.classList.remove("active"));toast("Çizimler temizlendi.");}
+  }
+
+  function onChartClick(param) {
+    if (!drawingMode || !param?.point || !param.time || !candleSeries) return;
+    const price=candleSeries.coordinateToPrice(param.point.y);
+    if (!Number.isFinite(price)) return;
+    const point={time:param.time,price};
+    if (drawingMode==="horizontal") {
+      const item={type:"horizontal",price,color:"#e8bd68",title:"Seviye"};
+      item._runtimeId=candleSeries.createPriceLine({price,color:item.color,lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:"Seviye"});
+      drawingLines.push(item);
+      drawingMode=null;
+    } else if (!firstDrawPoint) {
+      firstDrawPoint=point;
+      $("drawingHint").textContent="İlk nokta seçildi. Şimdi ikinci noktaya dokun.";
+      return;
+    } else if (drawingMode==="trend") {
+      const points=[firstDrawPoint,point].sort((a,b)=>a.time-b.time);
+      const series=chart.addSeries(window.LightweightCharts.LineSeries,{color:"#e8bd68",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
+      series.setData(points.map(x=>({time:x.time,value:x.price})));
+      drawingLines.push({type:"trend",points:points.map(x=>({time:x.time,value:x.price})),_runtimeId:series});
+      drawingMode=null;firstDrawPoint=null;
+    } else if (drawingMode==="fib") {
+      const high=Math.max(firstDrawPoint.price,point.price),low=Math.min(firstDrawPoint.price,point.price);
+      const levels=[0,.236,.382,.5,.618,.786,1].map(r=>{
+        const price=high-(high-low)*r;
+        const item={price,label:(r*100).toFixed(1)+"%"};
+        item.runtime=candleSeries.createPriceLine({price,color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:item.label});
+        return item;
+      });
+      drawingLines.push({type:"fib",levels:levels.map(x=>({price:x.price,label:x.label})),_runtimeId:levels.map(x=>x.runtime)});
+      drawingMode=null;firstDrawPoint=null;
+    }
+    saveDrawings();renderDrawingList();
+    $("drawingHint").textContent="Çizim telefona kaydedildi. Yeni araç seçebilir veya grafiği kullanabilirsin.";
+    document.querySelectorAll("[data-drawing]").forEach(b=>b.classList.remove("active"));
+  }
+
+  function renderInstrumentHeader(item,quote,lastBar) {
+    $("instrumentAvatar").textContent=item.ticker.slice(0,2);
+    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · PAXG/TRY SPOT REFERANSI":"KRİPTO · SPOT";
+    $("instrumentName").textContent=item.name;
+    $("instrumentSymbol").textContent=item.id+" · "+item.currency;
+    $("exchangeBadge").textContent=item.exchange;
+    $("chartTicker").textContent=item.ticker;
+    const price = item.type==="bist" && quote?.price ? Number(quote.price) : lastBar?.close;
+    $("lastPrice").textContent=Number.isFinite(price)?fmtPrice(price,item.decimals):"—";
+    const change = item.type==="bist" && quote?.changePercent!=null ? Number(quote.changePercent) :
+      (bars.length>1?((bars[bars.length-1].close/bars[bars.length-2].close)-1)*100:null);
+    $("priceChange").textContent=Number.isFinite(change)?(change>=0?"+":"")+change.toFixed(2)+"%":"—";
+    $("priceChange").className="quote-change"+(change>0?" up":change<0?" down":"");
+    const hi = quote?.dayHigh ?? quote?.highPrice ?? lastBar?.high;
+    const lo = quote?.dayLow ?? quote?.lowPrice ?? lastBar?.low;
+    const vol = quote?.volume ?? quote?.volume24h ?? lastBar?.volume;
+    $("dayHigh").textContent=Number.isFinite(Number(hi))?fmtPrice(Number(hi),item.decimals):"—";
+    $("dayLow").textContent=Number.isFinite(Number(lo))?fmtPrice(Number(lo),item.decimals):"—";
+    $("dayVolume").textContent=Number.isFinite(Number(vol))?fmtCompact(Number(vol)):"—";
+    $("favoriteButton").classList.toggle("active",watchlist.includes(item.id));
+    $("favoriteButton").textContent=watchlist.includes(item.id)?"★":"☆";
+    document.title=item.ticker+" | BYBORA Market Desk";
+  }
+
+  function updateWatchlist() {
+    const host=$("watchlist");host.innerHTML="";
+    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||
+      (activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold"));
+    visible.forEach(item=>{
+      const row=document.createElement("button");row.className="watch-row"+(item.id===activeSymbol?" active":"");
+      row.innerHTML='<span class="watch-symbol-icon"></span><span class="watch-meta"><strong></strong><small></small></span><i class="watch-state"></i>';
+      row.querySelector(".watch-symbol-icon").textContent=item.ticker.slice(0,2);
+      row.querySelector(".watch-meta strong").textContent=item.ticker;
+      row.querySelector(".watch-meta small").textContent=item.name;
+      row.querySelector(".watch-state").classList.toggle("ready",item.type!=="bist"||!!getIstfinKey());
+      row.addEventListener("click",()=>selectSymbol(item.id));
+      host.appendChild(row);
+    });
+    if (!visible.length) {
+      const empty=document.createElement("div");empty.className="subtle-copy";empty.textContent="Bu kategoride izleme sembolü yok.";host.appendChild(empty);
+    }
+  }
+
+  function renderSearchResults(query) {
+    const host=$("searchResults");host.innerHTML="";
+    const q=query.toLocaleLowerCase("tr-TR").trim();
+    if (!q) {host.hidden=true;return;}
+    const matches=symbols.filter(s=>(s.ticker+" "+s.name+" "+s.id).toLocaleLowerCase("tr-TR").includes(q)).slice(0,8);
+    matches.forEach(item=>{
+      const b=document.createElement("button");b.type="button";b.className="search-result";
+      b.innerHTML='<span><strong></strong><small></small></span><em></em>';
+      b.querySelector("strong").textContent=item.ticker;b.querySelector("small").textContent=item.name;b.querySelector("em").textContent=item.exchange;
+      b.addEventListener("click",()=>selectSymbol(item.id));
+      host.appendChild(b);
+    });
+    if (!matches.length) {
+      const hint=document.createElement("div");hint.className="subtle-copy";hint.style.padding="10px";hint.textContent="Bu sembol listede yok. BIST sembolü için API bağlantısı ve sembol kodu kontrol edilmeli.";
+      host.appendChild(hint);
+    }
+    host.hidden=false;
+  }
+
+  function renderLayouts() {
+    const host=$("savedLayouts");host.innerHTML="";
+    if (!layouts.length) {const e=document.createElement("span");e.className="subtle-copy";e.textContent="Henüz kayıtlı düzen yok.";host.appendChild(e);return;}
+    layouts.forEach((layout,index)=>{
+      const item=document.createElement("div");item.className="saved-layout";
+      const label=document.createElement("span");label.textContent=layout.name;
+      const load=document.createElement("button");load.textContent="Yükle";load.addEventListener("click",()=>loadLayout(index));
+      const del=document.createElement("button");del.className="delete";del.textContent="Sil";del.addEventListener("click",()=>deleteLayout(index));
+      item.append(label,load,del);host.appendChild(item);
+    });
+  }
+
+  function saveLayout() {
+    const name=$("layoutName").value.trim();
+    if (!name) {toast("Önce düzenine bir isim ver.");return;}
+    const layout={name,symbol:activeSymbol,interval:activeInterval,chartType,studies:[...activeStudies],drawings:drawingLines.map(d=>JSON.parse(JSON.stringify(({...d,_runtimeId:undefined})) ))};
+    const index=layouts.findIndex(x=>x.name.toLocaleLowerCase("tr-TR")===name.toLocaleLowerCase("tr-TR"));
+    if (index>=0) layouts[index]=layout;else layouts.unshift(layout);
+    layouts=layouts.slice(0,40);saveLayouts();renderLayouts();toast("Grafik düzeni kaydedildi.");
+  }
+
+  function loadLayout(index) {
+    const layout=layouts[index];if(!layout)return;
+    activeInterval=layout.interval;chartType=layout.chartType;activeStudies=[...layout.studies];drawingLines=layout.drawings||[];
+    saveStudies();saveDrawings();selectSymbol(layout.symbol,true);
+    document.querySelectorAll(".timeframe-group button").forEach(b=>b.classList.toggle("active",b.dataset.interval===activeInterval));
+    toast(layout.name+" yüklendi.");
+  }
+
+  function deleteLayout(index) {
+    layouts.splice(index,1);saveLayouts();renderLayouts();toast("Düzen silindi.");
+  }
+
+  async function selectSymbol(id,keepSettings=false) {
+    if (!instrument(id)) return;
+    activeSymbol=id;
+    activeStudies=loadStudies(id);
+    drawingLines=loadDrawings(id);
+    document.querySelectorAll(".timeframe-group button").forEach(b=>b.classList.toggle("active",b.dataset.interval===activeInterval));
+    updateWatchlist();
+    await loadChart();
+  }
+
+  async function loadChart() {
+    if (isLoading) return;
+    const item=instrument();
+    if (!item) return;
+    if (!createChartIfNeeded()) {
+      setMessage("Grafik motoru yüklenemedi","Grafik kitaplığı internetten alınamadı. İnternet bağlantısını kontrol edip yeniden dene.");
+      setStatus("GRAFİK MOTORU YOK","warn");return;
+    }
+    isLoading=true;
+    setMessage("Piyasa verisi getiriliyor",item.type==="bist"?"BIST mum verisi doğrulanıyor.":"Seçili sembol için mumlar yükleniyor.");
+    setStatus("VERİ YÜKLENİYOR","warn");
+    $("chartSource").textContent=item.type==="bist"?"istfin API":item.type==="gold"?"Binance PAXG/TRY":"Binance";
+    $("chartTicker").textContent=item.ticker;
+    try {
+      const result=await getMarketData(item,activeInterval);
+      bars=result.bars;
+      if (!bars.length) throw new Error("Seçili sembol ve zaman aralığı için mum verisi bulunamadı.");
+      ensureMainSeries();
+      if (chartType==="candles") candleSeries.setData(bars);
+      else lineSeries.setData(bars.map(b=>({time:b.time,value:b.close})));
+      volumeSeries.setData(bars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
+      renderStudies();
+      drawingLines=loadDrawings(activeSymbol);
+      restoreDrawingLines();renderDrawingList();
+      chart.timeScale().fitContent();
+      renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
+      $("chartSource").textContent=result.source;
+      $("dataDelay").textContent=result.delay;
+      $("lastUpdate").textContent="Son güncelleme "+fmtTime();
+      $("chartStatusText").textContent="GRAFİK AKTİF";
+      $("chartLiveStatus").classList.add("ready");
+      $("chartOverlay").hidden=true;
+      setStatus(item.type==="bist"?"BIST · 15 DK GECİKMELİ":item.type==="gold"?"PAXG/TRY · SPOT REFERANSI":"KRİPTO · AKTİF","good");
+      renderWatchlist();
+      scheduleRefresh();
+    } catch(error) {
+      const keyMissing=error.code==="BIST_API_KEY_REQUIRED";
+      if (keyMissing) {
+        setMessage("BIST veri bağlantısı gerekli","PETKM ve BIST endeksleri için uygulama içinde kendi mum motorumuzu kullanıyoruz. Lisanslı 15 dk gecikmeli istfin API anahtarını ekle; Investing ve TradingView sayfasına yönlendirme yapılmaz.",true);
+        setStatus("BIST VERİ ANAHTARI GEREKLİ","warn");
+      } else {
+        setMessage("Grafik verisi alınamadı",error.message||"Veri sağlayıcıya ulaşılamadı. Daha sonra tekrar dene.");
+        setStatus("VERİ HATASI","warn");
+      }
+      $("chartSource").textContent=item.type==="bist"?"istfin API · bağlantı gerekli":item.type==="gold"?"Binance PAXG/TRY":"Binance";
+      $("dataDelay").textContent="Veri doğrulanamadı";
+    } finally {
+      isLoading=false;
+    }
+  }
+
+  function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer=setTimeout(async()=>{
+      if (!document.hidden) await loadChart();
+    }, instrument()?.type==="bist"?60000:30000);
+  }
+
+  function selectInterval(interval) {
+    if (!intervals.includes(interval)) return;
+    activeInterval=interval;
+    document.querySelectorAll("#timeframes button").forEach(b=>b.classList.toggle("active",b.dataset.interval===interval));
+    loadChart();
+  }
+
+  function setChartType(type) {
+    if (type===chartType) return;
+    chartType=type;
+    $("candlesButton").classList.toggle("active",type==="candles");
+    $("lineButton").classList.toggle("active",type==="line");
+    if (bars.length) {
+      ensureMainSeries();
+      if (type==="candles") candleSeries.setData(bars);
+      else lineSeries.setData(bars.map(b=>({time:b.time,value:b.close})));
+      volumeSeries.setData(bars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
+      renderStudies();
+      restoreDrawingLines();
+    }
+  }
+
+  function toggleFavorite() {
+    if (watchlist.includes(activeSymbol)) watchlist=watchlist.filter(x=>x!==activeSymbol);
+    else watchlist.unshift(activeSymbol);
+    watchlist=watchlist.slice(0,30);saveWatchlist();updateWatchlist();
+    $("favoriteButton").classList.toggle("active",watchlist.includes(activeSymbol));
+    $("favoriteButton").textContent=watchlist.includes(activeSymbol)?"★":"☆";
+  }
+
+  async function verifyIstfinKey(key) {
+    const response=await fetch(ISTFIN+"/bars/PETKM?interval=15m&limit=3",{
+      cache:"no-store",headers:{Authorization:"Bearer "+key,Accept:"application/json"}
+    });
+    const body=await response.json().catch(()=>({}));
+    if (!response.ok) throw new Error(body?.error?.message||"API anahtarı doğrulanamadı ("+response.status+").");
+    if (!Array.isArray(body.data)||!body.data.length) throw new Error("Anahtar çalışıyor ancak PETKM için mum verisi bulunamadı.");
+    return true;
+  }
+
+  async function saveApiKey() {
+    const key=$("istfinApiKey").value.trim();
+    if (!key) {setSettingsMessage("API anahtarı boş bırakılamaz.",true);return;}
+    $("saveApiKey").disabled=true;$("saveApiKey").textContent="Kontrol ediliyor…";
+    try {
+      await verifyIstfinKey(key);
+      localStorage.setItem(ISTFIN_KEY,key);
+      $("istfinState").textContent="BAĞLANDI";$("istfinState").classList.add("ready");
+      setSettingsMessage("Bağlantı doğrulandı. Anahtar bu telefona kaydedildi.");
+      toast("BIST veri bağlantısı hazır.");
+      if (instrument()?.type==="bist") await loadChart();
+      updateWatchlist();
+    } catch(error) {
+      setSettingsMessage(error.message,true);
+    } finally {
+      $("saveApiKey").disabled=false;$("saveApiKey").textContent="Bağlantıyı doğrula ve kaydet";
+    }
+  }
+
+  function setSettingsMessage(message,error=false) {
+    $("settingsMessage").textContent=message;
+    $("settingsMessage").classList.toggle("error",error);
+  }
+
+  function openSettings() {
+    $("settingsBackdrop").hidden=false;
+    $("istfinApiKey").value=getIstfinKey();
+    $("istfinState").textContent=getIstfinKey()?"KAYITLI":"AYARLANMADI";
+    $("istfinState").classList.toggle("ready",!!getIstfinKey());
+  }
+
+  function closeSettings() { $("settingsBackdrop").hidden=true; }
+
+  function bindEvents() {
+    $("timeframes").addEventListener("click",e=>{
+      const b=e.target.closest("[data-interval]");if(b)selectInterval(b.dataset.interval);
+    });
+    $("symbolSearch").addEventListener("input",e=>renderSearchResults(e.target.value));
+    $("symbolSearch").addEventListener("keydown",e=>{
+      if(e.key==="Enter"){
+        const id=resolveSymbol(e.target.value);
+        if(id){selectSymbol(id);e.target.value="";$("searchResults").hidden=true;}
+      }
+      if(e.key==="Escape")$("searchResults").hidden=true;
+    });
+    document.addEventListener("click",e=>{if(!e.target.closest(".symbol-search"))$("searchResults").hidden=true;});
+    document.addEventListener("keydown",e=>{if(e.key==="/"&&!["INPUT","TEXTAREA"].includes(document.activeElement.tagName)){e.preventDefault();$("symbolSearch").focus();}});
+    $("watchlist").addEventListener("click",e=>{const row=e.target.closest(".watch-row");if(row){}});
+    document.querySelectorAll("[data-watch-filter]").forEach(b=>b.addEventListener("click",()=>{
+      activeFilter=b.dataset.watchFilter;document.querySelectorAll("[data-watch-filter]").forEach(x=>x.classList.toggle("active",x===b));updateWatchlist();
+    }));
+    $("favoriteButton").addEventListener("click",toggleFavorite);
+    document.querySelectorAll("[data-study]").forEach(b=>b.addEventListener("click",()=>toggleStudy(b.dataset.study)));
+    document.querySelectorAll("[data-deck]").forEach(b=>b.addEventListener("click",()=>{
+      const deck=b.dataset.deck;
+      document.querySelectorAll("[data-deck]").forEach(x=>x.classList.toggle("active",x===b));
+      $("indicatorDeck").hidden=deck!=="indicators";$("drawingDeck").hidden=deck!=="drawings";$("layoutDeck").hidden=deck!=="layouts";
+    }));
+    document.querySelectorAll("[data-drawing]").forEach(b=>b.addEventListener("click",()=>beginDrawing(b.dataset.drawing)));
+    $("candlesButton").addEventListener("click",()=>setChartType("candles"));
+    $("lineButton").addEventListener("click",()=>setChartType("line"));
+    $("drawButton").addEventListener("click",()=>document.querySelector('[data-deck="drawings"]').click());
+    $("indicatorButton").addEventListener("click",()=>document.querySelector('[data-deck="indicators"]').click());
+    $("layoutButton").addEventListener("click",()=>document.querySelector('[data-deck="layouts"]').click());
+    $("refreshButton").addEventListener("click",()=>loadChart());
+    $("saveLayout").addEventListener("click",saveLayout);
+    $("saveState").addEventListener("click",()=>{saveStudies();saveDrawings();toast("Grafik ayarları otomatik kaydedildi.");});
+    $("openSettings").addEventListener("click",openSettings);
+    $("closeSettings").addEventListener("click",closeSettings);
+    $("settingsBackdrop").addEventListener("click",e=>{if(e.target===$("settingsBackdrop"))closeSettings();});
+    $("saveApiKey").addEventListener("click",saveApiKey);
+    $("clearApiKey").addEventListener("click",()=>{
+      localStorage.removeItem(ISTFIN_KEY);$("istfinApiKey").value="";
+      $("istfinState").textContent="AYARLANMADI";$("istfinState").classList.remove("ready");
+      setSettingsMessage("API anahtarı bu cihazdan silindi.");updateWatchlist();
+    });
+    $("toggleKeyVisibility").addEventListener("click",()=>{
+      $("istfinApiKey").type=$("istfinApiKey").type==="password"?"text":"password";
+    });
+    $("chartMessageAction").addEventListener("click",openSettings);
+    $("mobileNav").addEventListener("click",()=>document.body.classList.add("sidebar-open"));
+    $("closeSidebar").addEventListener("click",()=>document.body.classList.remove("sidebar-open"));
+    $("sidebarScrim").addEventListener("click",()=>document.body.classList.remove("sidebar-open"));
+    $("fullscreenButton").addEventListener("click",()=>{
+      $("chartWorkspace").classList.toggle("expanded");
+      $("chartContainer").style.height=$("chartWorkspace").classList.contains("expanded")?"72vh":"";
+      if(chart){setTimeout(()=>chart.timeScale().fitContent(),100);}
+    });
+    $("chartContainer").addEventListener("click",()=>{});
   }
 
   function updateClock() {
-    const value = new Intl.DateTimeFormat("tr-TR", {
-      timeZone: "Europe/Istanbul",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    }).format(new Date());
-    $("turkeyClock").textContent = value + " TRT";
-  }
-
-  function bindEvents() {
-    const search = $("symbolSearch");
-    $("symbolSearchForm").addEventListener("submit", event => {
-      event.preventDefault();
-      const value = search.value.trim();
-      if (!value) return;
-      setActiveSymbol(value);
-    });
-    search.addEventListener("input", () => showSuggestions(search.value));
-    search.addEventListener("focus", () => {
-      if (search.value.trim()) showSuggestions(search.value);
-    });
-    document.addEventListener("click", event => {
-      if (!event.target.closest(".search-box")) $("searchSuggestions").hidden = true;
-    });
-    search.addEventListener("keydown", event => {
-      if (event.key === "Escape") $("searchSuggestions").hidden = true;
-      if (event.key === "ArrowDown") {
-        const options = [...$("searchSuggestions").querySelectorAll(".suggestion")];
-        if (options.length) {
-          event.preventDefault();
-          suggestionIndex = (suggestionIndex + 1) % options.length;
-          options.forEach((option, i) => option.classList.toggle("keyboard-active", i === suggestionIndex));
-        }
-      }
-      if (event.key === "Enter" && suggestionIndex >= 0) {
-        const option = $("searchSuggestions").querySelectorAll(".suggestion")[suggestionIndex];
-        if (option) { event.preventDefault(); option.click(); }
-      }
-    });
-    document.addEventListener("keydown", event => {
-      if (event.key === "/" && !["INPUT","TEXTAREA"].includes(document.activeElement.tagName)) {
-        event.preventDefault();
-        search.focus();
-      }
-    });
-    $("marketCategories").addEventListener("click", event => {
-      const button = event.target.closest("[data-category]");
-      if (!button) return;
-      activeCategory = button.dataset.category;
-      document.querySelectorAll(".category-button").forEach(el => el.classList.toggle("active", el === button));
-      renderWatchlist();
-    });
-    $("timeframes").addEventListener("click", event => {
-      const button = event.target.closest("[data-interval]");
-      if (button) chooseInterval(button);
-    });
-    $("addCurrentToWatch").addEventListener("click", addCurrentToWatchlist);
-    $("addStudyBtn").addEventListener("click", addStudy);
-    $("saveStudyPreset").addEventListener("click", saveStudyPreset);
-    $("loadStudyPreset").addEventListener("click", applyStudyPreset);
-    $("deleteStudyPreset").addEventListener("click", deleteStudyPreset);
-    $("studyPresetName").addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        saveStudyPreset();
-      }
-    });
-    $("favoriteCurrent").addEventListener("click", addCurrentToWatchlist);
-    $("copySymbol").addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(activeSymbol);
-        $("copySymbol").innerHTML = "✓ <span>Kopyalandı</span>";
-        setTimeout(() => { $("copySymbol").innerHTML = "⧉ <span>Kodu kopyala</span>"; }, 1300);
-      } catch {
-        window.prompt("Sembolü kopyala:", activeSymbol);
-      }
-    });
-    document.querySelectorAll("[data-symbol]").forEach(button => {
-      button.addEventListener("click", () => setActiveSymbol(button.dataset.symbol));
-    });
-    $("menuToggle").addEventListener("click", openMobileMenu);
-    $("menuClose").addEventListener("click", closeMobileMenu);
-    $("mobileScrim").addEventListener("click", closeMobileMenu);
-    window.addEventListener("resize", () => {
-      if (window.innerWidth > 900) closeMobileMenu();
-    });
+    $("clock").textContent=fmtTime();
   }
 
   function init() {
     bindEvents();
-    renderInstrument();
-    renderWatchlist();
-    renderTickerTape();
-    renderStudyManager();
-    renderChart();
-    updateClock();
-    window.setInterval(updateClock, 1000);
+    updateWatchlist();
+    renderLayouts();
+    renderStudyChips();
+    const key=getIstfinKey();
+    $("istfinApiKey").value=key;
+    $("istfinState").textContent=key?"KAYITLI":"AYARLANMADI";
+    $("istfinState").classList.toggle("ready",!!key);
+    const item=instrument();
+    renderInstrumentHeader(item,null,null);
+    if (window.LightweightCharts) loadChart();
+    else {
+      setStatus("GRAFİK MOTORU YÜKLENİYOR","warn");
+      let tries=0;
+      const timer=setInterval(()=>{
+        tries++;
+        if(window.LightweightCharts){clearInterval(timer);loadChart();}
+        else if(tries>30){clearInterval(timer);setMessage("Grafik motoru yüklenemedi","İnternet bağlantını kontrol et. Grafik kitaplığı CDN üzerinden yüklenemedi.");setStatus("GRAFİK MOTORU YOK","warn");}
+      },300);
+    }
+    updateClock();setInterval(updateClock,1000);
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadChart();});
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+  document.addEventListener("DOMContentLoaded",init);
 })();
