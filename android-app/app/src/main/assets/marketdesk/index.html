@@ -8,6 +8,7 @@
   <title>BYBORA Market Desk</title>
   <link rel="preconnect" href="https://unpkg.com">
   <link rel="preconnect" href="https://data-api.binance.vision">
+  <link rel="preconnect" href="https://query1.finance.yahoo.com">
   <link rel="preconnect" href="https://api.istfin.com">
   <link rel="stylesheet" href="./styles.css">
   <script defer src="./lightweight-charts.js"></script>
@@ -156,8 +157,15 @@
               <button class="indicator-chip" data-study="BB"><b>BB</b><span>Bollinger</span></button>
               <button class="indicator-chip" data-study="VWAP"><b>VWAP</b></button>
               <button class="indicator-chip" data-study="RSI14"><b>RSI</b><span>14</span></button>
-              <button class="indicator-chip" data-study="MACD"><b>MACD</b></button>
+              <button class="indicator-chip" data-study="MACD"><b>MACD</b><span>12/175/9</span></button>
               <button class="indicator-chip" data-study="STOCH"><b>STOCH</b></button>
+            </div>
+            <div class="macd-parameter-row">
+              <span class="macd-parameter-title">MACD PARAMETRELERİ</span>
+              <label>Hızlı <input id="macdFast" type="number" min="1" max="500" value="12"></label>
+              <label>Yavaş <input id="macdSlow" type="number" min="2" max="1000" value="175"></label>
+              <label>Sinyal <input id="macdSignal" type="number" min="1" max="100" value="9"></label>
+              <button id="applyMacdParams" class="secondary-button" type="button">Uygula / Kaydet</button>
             </div>
             <div class="active-study-list" id="activeStudyList"><span class="subtle-copy">Henüz gösterge eklenmedi.</span></div>
           </div>
@@ -199,13 +207,13 @@
         <div class="provider-card">
           <div class="provider-icon bist-icon">B</div>
           <div class="provider-copy">
-            <strong>Borsa İstanbul · istfin API</strong>
-            <span>Lisanslı BIST veri planı. 1 dakikadan aylık OHLCV barları; temel plan 15 dk gecikmeli.</span>
-            <small>API anahtarı ve veri aboneliği gerekir. Güncel plan/ücret sağlayıcıdan kontrol edilir.</small>
+            <strong>Yahoo Finance · BIST gecikmeli veri</strong>
+            <span>PETKM.IS, XU100.IS ve Yahoo Finance üzerinde bulunan diğer BIST sembolleri uygulama içindeki mum motoruna aktarılır.</span>
+            <small>Yahoo’nun herkese açık grafik uç noktası resmî API değildir; gecikmeli olabilir, zaman zaman sınırlandırılabilir veya değişebilir. İsteğe bağlı istfin anahtarı yedek olarak kullanılabilir.</small>
           </div>
           <span class="provider-state" id="istfinState">AYARLANMADI</span>
         </div>
-        <label class="field-label" for="istfinApiKey">istfin API anahtarı</label>
+        <label class="field-label" for="istfinApiKey">İsteğe bağlı istfin yedek API anahtarı</label>
         <div class="secret-input">
           <input id="istfinApiKey" type="password" autocomplete="off" placeholder="istfin_live_...">
           <button id="toggleKeyVisibility" type="button" aria-label="Anahtarı göster">◉</button>
