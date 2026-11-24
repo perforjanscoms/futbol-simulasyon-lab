@@ -52,3 +52,10 @@ The app includes Yahoo Finance FX symbols such as `USDTRY=X`, `EURTRY=X`, `EURUS
 
 ### Chart range levels
 The main chart shows the highest high, lowest low and average typical price of the currently visible candle range. The average is the mean of each candle's `(high + low + close) / 3`. These recalculate when symbol, timeframe, or visible chart range changes. Watchlist quote typography uses a lighter font weight.
+
+
+### Market indices
+Nasdaq Composite (`^IXIC`), S&P 500 (`^GSPC`) and ICE US Dollar Index / DXY (`DX-Y.NYB`) are included through Yahoo Finance chart data. Yahoo's Nasdaq Composite reference is delayed; other index availability and delay can vary by feed.
+
+### Price alerts and Android notifications
+One-shot above/below price alerts can be created for the currently selected instrument. Alerts are stored locally, checked about every 20 seconds while the app is in the foreground, and use the native Android notification channel after notification permission is granted. The app does not include a persistent background monitoring service, so alerts are not guaranteed while the app is backgrounded or closed.
