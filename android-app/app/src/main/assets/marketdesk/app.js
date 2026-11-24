@@ -64,6 +64,7 @@
   let toastTimer = null;
   let activeFilter = "all";
   let isLoading = false;
+  let pendingReload = false;
 
   function instrument(id = activeSymbol) {
     return symbols.find(s => s.id === id) || null;
@@ -133,6 +134,23 @@
 
   function saveLayouts() {
     try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layouts)); } catch {}
+  }
+
+  function rangeStorageKey(symbol = activeSymbol, interval = activeInterval) {
+    return "bybora_visible_range_" + symbol + "_" + interval;
+  }
+
+  function readSavedRange(symbol = activeSymbol, interval = activeInterval) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(rangeStorageKey(symbol, interval)) || "null");
+      if (saved && Number.isFinite(saved.from) && Number.isFinite(saved.to) && saved.from < saved.to) return saved;
+    } catch {}
+    return null;
+  }
+
+  function saveVisibleRange(range) {
+    if (!range || !Number.isFinite(range.from) || !Number.isFinite(range.to) || range.from >= range.to) return;
+    try { localStorage.setItem(rangeStorageKey(), JSON.stringify(range)); } catch {}
   }
 
   function getIstfinKey() {
@@ -227,6 +245,9 @@
         rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
       },
       localization:{locale:"tr-TR"}
+    });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (!isLoading && range) saveVisibleRange(range);
     });
     $("chartOverlay").hidden = true;
     return true;
@@ -587,9 +608,13 @@
       const item=document.createElement("span");item.className="active-study-pill";
       const text=document.createElement("span");text.textContent=label+(d.price?" · "+fmtPrice(d.price,instrument()?.decimals||2):"");
       const btn=document.createElement("button");btn.textContent="×";btn.addEventListener("click",()=>{
-        if (d.type==="horizontal") candleSeries?.removePriceLine(d._runtimeId);
-        if (d.type==="fib") d._runtimeId?.forEach(x=>candleSeries?.removePriceLine(x));
-        if (d.type==="trend" && d._runtimeId) chart?.removeSeries(d._runtimeId);
+        const priceSeries=activePriceSeries();
+        if (d.type==="horizontal" && d._runtimeId && priceSeries) priceSeries.removePriceLine(d._runtimeId);
+        if (d.type==="fib" && priceSeries) d._runtimeId?.forEach(x=>priceSeries.removePriceLine(x));
+        if (d.type==="trend" && d._runtimeId) {
+          try { chart?.removeSeries(d._runtimeId); } catch {}
+          drawingSeriesRuntime=drawingSeriesRuntime.filter(x=>x!==d._runtimeId);
+        }
         drawingLines.splice(i,1);saveDrawings();renderDrawingList();
       });
       item.append(text,btn);host.appendChild(item);
@@ -657,8 +682,8 @@
       (bars.length>1?((bars[bars.length-1].close/bars[bars.length-2].close)-1)*100:null);
     $("priceChange").textContent=Number.isFinite(change)?(change>=0?"+":"")+change.toFixed(2)+"%":"—";
     $("priceChange").className="quote-change"+(change>0?" up":change<0?" down":"");
-    const hi = quote?.dayHigh ?? quote?.highPrice ?? lastBar?.high;
-    const lo = quote?.dayLow ?? quote?.lowPrice ?? lastBar?.low;
+    const hi = quote?.dayHigh ?? quote?.highPrice ?? quote?.high ?? lastBar?.high;
+    const lo = quote?.dayLow ?? quote?.lowPrice ?? quote?.low ?? lastBar?.low;
     const vol = quote?.volume ?? quote?.volume24h ?? lastBar?.volume;
     $("dayHigh").textContent=Number.isFinite(Number(hi))?fmtPrice(Number(hi),item.decimals):"—";
     $("dayLow").textContent=Number.isFinite(Number(lo))?fmtPrice(Number(lo),item.decimals):"—";
@@ -759,9 +784,13 @@
     await loadChart();
   }
 
-  async function loadChart() {
-    if (isLoading) return;
+  async function loadChart(preserveView = false) {
+    if (isLoading) {
+      pendingReload = true;
+      return;
+    }
     const item=instrument();
+    const savedRange = preserveView && chart ? chart.timeScale().getVisibleLogicalRange() : readSavedRange();
     if (!item) return;
     if (!createChartIfNeeded()) {
       setMessage("Grafik motoru yüklenemedi","Grafik kitaplığı internetten alınamadı. İnternet bağlantısını kontrol edip yeniden dene.");
@@ -784,7 +813,13 @@
       renderStudies();
       drawingLines=loadDrawings(activeSymbol);
       restoreDrawingLines();renderDrawingList();
-      chart.timeScale().fitContent();
+      const rangeToRestore = savedRange || (!preserveView ? readSavedRange() : null);
+      if (rangeToRestore) {
+        try { chart.timeScale().setVisibleLogicalRange(rangeToRestore); }
+        catch { chart.timeScale().fitContent(); }
+      } else {
+        chart.timeScale().fitContent();
+      }
       renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
       $("chartSource").textContent=result.source;
       $("dataDelay").textContent=result.delay;
@@ -808,13 +843,17 @@
       $("dataDelay").textContent="Veri doğrulanamadı";
     } finally {
       isLoading=false;
+      if (pendingReload) {
+        pendingReload=false;
+        setTimeout(() => loadChart(), 0);
+      }
     }
   }
 
   function scheduleRefresh() {
     clearTimeout(refreshTimer);
     refreshTimer=setTimeout(async()=>{
-      if (!document.hidden) await loadChart();
+      if (!document.hidden) await loadChart(true);
     }, instrument()?.type==="bist"?60000:30000);
   }
 
