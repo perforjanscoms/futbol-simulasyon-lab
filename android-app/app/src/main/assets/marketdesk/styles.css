@@ -354,3 +354,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
  .watch-quote strong{font-size:10px}
  .watch-quote small{font-size:8.5px}
 }
+
+
+/* Custom indicator parameters */
+.overlay-parameter-row{margin-top:7px}
+.overlay-parameter-row input,.stochrsi-parameter-row input{width:62px}
+@media(max-width:640px){
+ .overlay-parameter-row label{font-size:7px}
+ .overlay-parameter-row input,.stochrsi-parameter-row input{width:58px}
+}
+/* Long-press sorting for the watchlist */
+.watch-reorder-hint{display:inline-block;margin-top:4px;color:#8da2ba;font-size:7px}
+.watch-row{cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.watch-row.reorder-active{position:relative;z-index:3;cursor:grabbing;border-color:rgba(69,214,195,.7);background:rgba(69,214,195,.16);box-shadow:0 5px 16px rgba(0,0,0,.3);transform:scale(1.015);touch-action:none}
+.watchlist.reordering{overflow-y:auto;overscroll-behavior:contain}
+.watchlist.reordering .watch-row{touch-action:none}

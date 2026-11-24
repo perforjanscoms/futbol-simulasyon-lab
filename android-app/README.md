@@ -59,3 +59,10 @@ Nasdaq Composite (`^IXIC`), S&P 500 (`^GSPC`) and ICE US Dollar Index / DXY (`DX
 
 ### Price alerts and Android notifications
 One-shot above/below price alerts can be created for the currently selected instrument. Alerts are stored locally, checked about every 20 seconds while the app is in the foreground, and use the native Android notification channel after notification permission is granted. The app does not include a persistent background monitoring service, so alerts are not guaranteed while the app is backgrounded or closed.
+
+
+### Custom indicator parameters · Android 1.9.0
+The new defaults are MACD 97/74/175 (fast/slow/signal) and Stoch RSI 125/54/4/324 (RSI length/stochastic length/%K/%D). MACD fast and slow periods are independently configurable and need not be ordered.
+SMA and Bollinger Bands are added to each existing symbol's default study set. Their periods are configurable in the indicator panel (SMA period; Bollinger period and standard-deviation multiplier). The application does not impose a maximum active-indicator count.
+The main chart price scale uses adaptive precision for low-priced crypto assets: prices below 1 use at least five decimal places, with more precision for smaller prices.
+The watchlist can be reordered by pressing and holding a row for about half a second, then dragging it up or down. The order is saved locally on the device.

@@ -12,7 +12,9 @@
   const MACD_KEY = "bybora_macd_params_v1";
   const MACD_MIGRATION_KEY = "bybora_macd175_migrated_symbols_v1";
   const STUDY_MIGRATION_KEY = "bybora_study_catalog_migrated_v2";
+  const OVERLAY_STUDY_MIGRATION_KEY = "bybora_sma_bb_default_migrated_v1";
   const STOCH_RSI_KEY = "bybora_stochrsi_params_v1";
+  const OVERLAY_PARAMS_KEY = "bybora_overlay_params_v1";
   const MARKET_CATALOG_KEY = "bybora_market_catalogs_v2";
   const MARKET_CATALOG_TTL = 12 * 60 * 60 * 1000;
   const ALERTS_KEY = "bybora_price_alerts_v1";
@@ -134,22 +136,41 @@
     {id:"STOCH",label:"Stochastic",type:"lower"}
   ];
 
-  function loadMacdParams() {
-    try {
-      const value = JSON.parse(localStorage.getItem(MACD_KEY) || "null");
-      const fast = Math.max(1, Math.min(500, Math.round(Number(value?.fast) || 12)));
-      const slow = Math.max(fast + 1, Math.min(1000, Math.round(Number(value?.slow) || 175)));
-      const signal = Math.max(1, Math.min(100, Math.round(Number(value?.signal) || 9)));
-      return {fast, slow, signal};
-    } catch { return {fast:12, slow:175, signal:9}; }
+  function loadMacdParams(){
+    const defaults={fast:97,slow:74,signal:175};
+    try{
+      const value=JSON.parse(localStorage.getItem(MACD_KEY)||"null");
+      const oldDefaults=!value||(Number(value.fast)===12&&Number(value.slow)===175&&Number(value.signal)===9);
+      if(oldDefaults){localStorage.setItem(MACD_KEY,JSON.stringify(defaults));return defaults;}
+      const bounded=(v,fallback)=>Math.max(1,Math.min(1000,Math.round(Number.isFinite(Number(v))?Number(v):fallback)));
+      return {fast:bounded(value.fast,defaults.fast),slow:bounded(value.slow,defaults.slow),signal:bounded(value.signal,defaults.signal)};
+    }catch{return defaults;}
   }
-  let macdParams = loadMacdParams();
+  let macdParams=loadMacdParams();
+
   function loadStochRsiParams(){
-    try{const v=JSON.parse(localStorage.getItem(STOCH_RSI_KEY)||"null");return {rsi:Math.max(2,Math.min(200,Math.round(Number(v?.rsi)||14))),stoch:Math.max(2,Math.min(200,Math.round(Number(v?.stoch)||14))),k:Math.max(1,Math.min(50,Math.round(Number(v?.k)||3))),d:Math.max(1,Math.min(50,Math.round(Number(v?.d)||3)))};}
-    catch{return {rsi:14,stoch:14,k:3,d:3};}
+    const defaults={rsi:125,stoch:54,k:4,d:324};
+    try{
+      const value=JSON.parse(localStorage.getItem(STOCH_RSI_KEY)||"null");
+      const oldDefaults=!value||(Number(value.rsi)===14&&Number(value.stoch)===14&&Number(value.k)===3&&Number(value.d)===3);
+      if(oldDefaults){localStorage.setItem(STOCH_RSI_KEY,JSON.stringify(defaults));return defaults;}
+      const bounded=(v,min,max,fallback)=>Math.max(min,Math.min(max,Math.round(Number.isFinite(Number(v))?Number(v):fallback)));
+      return {rsi:bounded(value.rsi,2,500,defaults.rsi),stoch:bounded(value.stoch,2,500,defaults.stoch),k:bounded(value.k,1,200,defaults.k),d:bounded(value.d,1,500,defaults.d)};
+    }catch{return defaults;}
   }
   let stochRsiParams=loadStochRsiParams();
-  let marketCatalogPromise=null,marketCatalogLoaded=false,watchQuoteBusy=false,watchQuoteTimer=null,candleCountdownTimer=null;
+
+  function loadOverlayParams(){
+    const defaults={sma:200,bb:20,deviation:2};
+    try{
+      const value=JSON.parse(localStorage.getItem(OVERLAY_PARAMS_KEY)||"null");
+      if(!value)return defaults;
+      return {sma:Math.max(2,Math.min(2000,Math.round(Number(value.sma)||defaults.sma))),bb:Math.max(2,Math.min(1000,Math.round(Number(value.bb)||defaults.bb))),deviation:Math.max(.1,Math.min(10,Number(value.deviation)||defaults.deviation))};
+    }catch{return defaults;}
+  }
+  let overlayParams=loadOverlayParams();
+
+    let marketCatalogPromise=null,marketCatalogLoaded=false,watchQuoteBusy=false,watchQuoteTimer=null,candleCountdownTimer=null;
 
   let activeSymbol = "BINANCE:BTCUSDT";
   let activeInterval = "15m";
@@ -231,17 +252,26 @@
   }
 
   function loadStudies(symbol){
-    const defaults=["EMA20","EMA50","STOCHRSI","MACD"];
+    const defaults=["EMA20","EMA50","STOCHRSI","MACD","SMA200","BB"];
     try{
-      const v=JSON.parse(localStorage.getItem("bybora_studies_"+symbol)||"null");
-      let selected=Array.isArray(v)?[...new Set(v.map(id=>id==="RSI14"?"STOCHRSI":id).filter(id=>studies.some(s=>s.id===id)))]:defaults.slice();
+      const storageKey="bybora_studies_"+symbol;
+      const value=JSON.parse(localStorage.getItem(storageKey)||"null");
+      let selected=Array.isArray(value)?[...new Set(value.map(id=>id==="RSI14"?"STOCHRSI":id).filter(id=>studies.some(s=>s.id===id)))]:defaults.slice();
       let migrated=[];try{migrated=JSON.parse(localStorage.getItem(STUDY_MIGRATION_KEY)||"[]");}catch{}
       if(!Array.isArray(migrated))migrated=[];
       if(!migrated.includes(symbol)){
         if(!selected.includes("MACD"))selected.push("MACD");
         if(!selected.includes("STOCHRSI"))selected.push("STOCHRSI");
-        localStorage.setItem("bybora_studies_"+symbol,JSON.stringify(selected));
+        localStorage.setItem(storageKey,JSON.stringify(selected));
         migrated.push(symbol);localStorage.setItem(STUDY_MIGRATION_KEY,JSON.stringify(migrated));
+      }
+      let overlayMigrated=[];try{overlayMigrated=JSON.parse(localStorage.getItem(OVERLAY_STUDY_MIGRATION_KEY)||"[]");}catch{}
+      if(!Array.isArray(overlayMigrated))overlayMigrated=[];
+      if(!overlayMigrated.includes(symbol)){
+        if(!selected.includes("SMA200"))selected.push("SMA200");
+        if(!selected.includes("BB"))selected.push("BB");
+        localStorage.setItem(storageKey,JSON.stringify(selected));
+        overlayMigrated.push(symbol);localStorage.setItem(OVERLAY_STUDY_MIGRATION_KEY,JSON.stringify(overlayMigrated));
       }
       return selected;
     }catch{return defaults.slice();}
@@ -674,9 +704,16 @@
     return interval;
   }
 
+  function chartPriceDecimals(item,price){
+    if(item?.type==="crypto"&&Number.isFinite(Number(price))&&Number(price)>0&&Number(price)<1)return Math.min(8,Math.max(5,Math.ceil(-Math.log10(Number(price)))+3));
+    return Math.max(0,Math.min(8,Math.round(Number(item?.decimals)||2)));
+  }
+
   function ensureMainSeries() {
     if (!chart) return;
     const L = window.LightweightCharts;
+    const precision=chartPriceDecimals(instrument(),bars[bars.length-1]?.close);
+    const chartPriceFormat={type:"price",precision,minMove:Math.pow(10,-precision)};
     if (candleSeries) { chart.removeSeries(candleSeries); candleSeries = null; }
     if (lineSeries) { chart.removeSeries(lineSeries); lineSeries = null; }
     if (volumeSeries) { chart.removeSeries(volumeSeries); volumeSeries = null; }
@@ -685,11 +722,11 @@
         upColor:"#28cda0",downColor:"#f06479",
         borderUpColor:"#28cda0",borderDownColor:"#f06479",
         wickUpColor:"#28cda0",wickDownColor:"#f06479",
-        priceLineVisible:true,lastValueVisible:true
+        priceFormat:chartPriceFormat,priceLineVisible:true,lastValueVisible:true
       });
     } else {
       lineSeries = chart.addSeries(L.LineSeries,{
-        color:"#55c9e8",lineWidth:2,priceLineVisible:true,lastValueVisible:true,
+        color:"#55c9e8",lineWidth:2,priceFormat:chartPriceFormat,priceLineVisible:true,lastValueVisible:true,
         crosshairMarkerVisible:true
       });
     }
@@ -788,6 +825,8 @@
   function studyTitle(id){
     if(id==="MACD")return "MACD ("+macdParams.fast+","+macdParams.slow+","+macdParams.signal+")";
     if(id==="STOCHRSI")return "Stoch RSI ("+stochRsiParams.rsi+","+stochRsiParams.stoch+","+stochRsiParams.k+","+stochRsiParams.d+")";
+    if(id==="SMA200")return "SMA ("+overlayParams.sma+")";
+    if(id==="BB")return "BB ("+overlayParams.bb+", "+overlayParams.deviation+")";
     return studies.find(s=>s.id===id)?.label||id;
   }
   function simpleAverage(points,period){const out=[];for(let i=period-1;i<points.length;i++){let sum=0;for(let j=i-period+1;j<=i;j++)sum+=points[j].value;out.push({time:points[i].time,value:sum/period});}return out;}
@@ -798,14 +837,22 @@
   }
   function applyStochRsiParams(){
     const rsiPeriod=Math.round(Number($("stochRsiLength").value)),stochPeriod=Math.round(Number($("stochRsiWindow").value)),smoothK=Math.round(Number($("stochRsiK").value)),smoothD=Math.round(Number($("stochRsiD").value));
-    if(![rsiPeriod,stochPeriod,smoothK,smoothD].every(Number.isInteger)||rsiPeriod<2||rsiPeriod>200||stochPeriod<2||stochPeriod>200||smoothK<1||smoothK>50||smoothD<1||smoothD>50){toast("Stoch RSI periyotları geçersiz.");return;}
+    if(![rsiPeriod,stochPeriod,smoothK,smoothD].every(Number.isInteger)||rsiPeriod<2||rsiPeriod>500||stochPeriod<2||stochPeriod>500||smoothK<1||smoothK>200||smoothD<1||smoothD>500){toast("Stoch RSI periyotları geçersiz. RSI/Stoch 2–500, K 1–200, D 1–500 olmalı.");return;}
     stochRsiParams={rsi:rsiPeriod,stoch:stochPeriod,k:smoothK,d:smoothD};try{localStorage.setItem(STOCH_RSI_KEY,JSON.stringify(stochRsiParams));}catch{}
     if(!activeStudies.includes("STOCHRSI")){activeStudies.push("STOCHRSI");saveStudies();}
     renderStudies();toast("Stoch RSI ayarları kaydedildi: "+rsiPeriod+"/"+stochPeriod+"/"+smoothK+"/"+smoothD);
   }
+  function applyOverlayParams(){
+    const smaPeriod=Math.round(Number($("smaPeriod").value)),bbPeriod=Math.round(Number($("bbPeriod").value)),deviation=Number($("bbDeviation").value);
+    if(!Number.isInteger(smaPeriod)||smaPeriod<2||smaPeriod>2000||!Number.isInteger(bbPeriod)||bbPeriod<2||bbPeriod>1000||!Number.isFinite(deviation)||deviation<.1||deviation>10){toast("SMA 2–2000, BB periyodu 2–1000 ve sapma 0,1–10 aralığında olmalı.");return;}
+    overlayParams={sma:smaPeriod,bb:bbPeriod,deviation};try{localStorage.setItem(OVERLAY_PARAMS_KEY,JSON.stringify(overlayParams));}catch{}
+    if(!activeStudies.includes("SMA200"))activeStudies.push("SMA200");
+    if(!activeStudies.includes("BB"))activeStudies.push("BB");
+    saveStudies();renderStudies();toast("SMA "+smaPeriod+" · Bollinger "+bbPeriod+"/"+deviation+" ayarları kaydedildi.");
+  }
   function applyMacdParams(){
     const fast=Math.round(Number($("macdFast").value)),slow=Math.round(Number($("macdSlow").value)),signal=Math.round(Number($("macdSignal").value));
-    if(!Number.isInteger(fast)||!Number.isInteger(slow)||!Number.isInteger(signal)||fast<1||fast>500||slow<=fast||slow>1000||signal<1||signal>100){toast("MACD değerleri geçersiz. Hızlı < yavaş olmalı.");return;}
+    if(!Number.isInteger(fast)||!Number.isInteger(slow)||!Number.isInteger(signal)||fast<1||fast>1000||slow<1||slow>1000||signal<1||signal>1000){toast("MACD periyotları 1–1000 arasında olmalı.");return;}
     macdParams={fast,slow,signal};try{localStorage.setItem(MACD_KEY,JSON.stringify(macdParams));}catch{}
     if(!activeStudies.includes("MACD")){activeStudies.push("MACD");saveStudies();}
     renderStudies();toast("MACD ayarları kaydedildi: "+fast+"/"+slow+"/"+signal);
@@ -828,9 +875,9 @@
     const close = bars;
     if (activeStudies.includes("EMA20")) addOverlayLine(ema(close,20),"#f0bd62","EMA 20");
     if (activeStudies.includes("EMA50")) addOverlayLine(ema(close,50),"#6bb8ff","EMA 50");
-    if (activeStudies.includes("SMA200")) addOverlayLine(sma(close,200),"#c58cff","SMA 200");
+    if (activeStudies.includes("SMA200")) addOverlayLine(sma(close,overlayParams.sma),"#c58cff","SMA "+overlayParams.sma);
     if (activeStudies.includes("BB")) {
-      const bb=bollinger(close,20,2);
+      const bb=bollinger(close,overlayParams.bb,overlayParams.deviation);
       addOverlayLine(bb.upper,"rgba(132,157,190,.8)","BB Upper",1);
       addOverlayLine(bb.mid,"rgba(132,157,190,.55)","BB Mid",1);
       addOverlayLine(bb.lower,"rgba(132,157,190,.8)","BB Lower",1);
@@ -892,6 +939,10 @@
 
   function renderStudyChips() {
     document.querySelectorAll("[data-study]").forEach(button=>button.classList.toggle("active",activeStudies.includes(button.dataset.study)));
+    const smaChip=document.querySelector('[data-study="SMA200"] span');if(smaChip)smaChip.textContent=String(overlayParams.sma);
+    const bbChip=document.querySelector('[data-study="BB"] span');if(bbChip)bbChip.textContent=overlayParams.bb+"/"+overlayParams.deviation;
+    const macdChip=document.querySelector('[data-study="MACD"] span');if(macdChip)macdChip.textContent=macdParams.fast+"/"+macdParams.slow+"/"+macdParams.signal;
+    const stochChip=document.querySelector('[data-study="STOCHRSI"] span');if(stochChip)stochChip.textContent=stochRsiParams.rsi+"/"+stochRsiParams.stoch+"/"+stochRsiParams.k+"/"+stochRsiParams.d;
     const host=$("activeStudyList");host.innerHTML="";
     if (!activeStudies.length) {
       const span=document.createElement("span");span.className="subtle-copy";span.textContent="Henüz gösterge eklenmedi.";host.appendChild(span);return;
@@ -1039,6 +1090,45 @@
     document.title=item.ticker+" | BYBORA Market Desk";
   }
 
+  let watchPressTimer=null,watchDragState=null,watchClickSuppressUntil=0;
+  function startWatchlistPointer(e){
+    const row=e.target.closest(".watch-row");if(!row||!$("watchlist").contains(row))return;
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    clearTimeout(watchPressTimer);
+    watchDragState={row,id:row.dataset.symbol,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,dragging:false};
+    watchPressTimer=setTimeout(()=>{
+      if(!watchDragState||watchDragState.row!==row)return;
+      watchDragState.dragging=true;row.classList.add("reorder-active");$("watchlist").classList.add("reordering");
+      try{row.setPointerCapture(e.pointerId);}catch{}
+      if(typeof navigator!=="undefined"&&typeof navigator.vibrate==="function")navigator.vibrate(18);
+      toast("Sıralama açık · öğeyi yukarı veya aşağı taşı.");
+    },480);
+  }
+  function moveWatchlistPointer(e){
+    const state=watchDragState;if(!state)return;
+    if(!state.dragging){
+      if(Math.hypot(e.clientX-state.startX,e.clientY-state.startY)>14){clearTimeout(watchPressTimer);watchPressTimer=null;watchDragState=null;}
+      return;
+    }
+    e.preventDefault();
+    const target=document.elementFromPoint(e.clientX,e.clientY)?.closest(".watch-row"),host=$("watchlist");
+    if(!target||target===state.row||target.parentElement!==host)return;
+    const rect=target.getBoundingClientRect();
+    if(e.clientY<rect.top+rect.height/2)host.insertBefore(state.row,target);
+    else host.insertBefore(state.row,target.nextElementSibling);
+  }
+  function finishWatchlistPointer(){
+    const state=watchDragState;clearTimeout(watchPressTimer);watchPressTimer=null;if(!state)return;
+    if(state.dragging){
+      const host=$("watchlist"),visibleIds=Array.from(host.querySelectorAll(".watch-row")).map(row=>row.dataset.symbol),visibleSet=new Set(visibleIds);
+      let next=0;watchlist=watchlist.map(id=>visibleSet.has(id)?visibleIds[next++]:id);saveWatchlist();
+      watchClickSuppressUntil=Date.now()+700;toast("İzleme listesi sırası kaydedildi.");
+    }
+    state.row.classList.remove("reorder-active");$("watchlist").classList.remove("reordering");
+    try{if(state.row.hasPointerCapture?.(state.pointerId))state.row.releasePointerCapture(state.pointerId);}catch{}
+    watchDragState=null;
+  }
+
   function updateWatchlist(){
     const host=$("watchlist");host.innerHTML="";
     const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||(activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold")||(activeFilter==="forex"&&item.type==="forex")||(activeFilter==="commodity"&&item.type==="commodity")||(activeFilter==="index"&&item.type==="index"));
@@ -1046,7 +1136,7 @@
       const row=document.createElement("button");row.className="watch-row"+(item.id===activeSymbol?" active":"");row.dataset.symbol=item.id;
       row.innerHTML='<span class="watch-symbol-icon"></span><span class="watch-meta"><strong></strong><small></small></span><span class="watch-quote"><strong data-quote-price>—</strong><small data-quote-change>—</small></span><i class="watch-state ready"></i>';
       row.querySelector(".watch-symbol-icon").textContent=item.ticker.slice(0,2);row.querySelector(".watch-meta strong").textContent=item.ticker;row.querySelector(".watch-meta small").textContent=item.name;
-      row.addEventListener("click",()=>selectSymbol(item.id));host.appendChild(row);
+      row.addEventListener("click",()=>{if(Date.now()<watchClickSuppressUntil)return;selectSymbol(item.id);});host.appendChild(row);
     });
     if(!visible.length){const empty=document.createElement("div");empty.className="subtle-copy";empty.textContent="Bu kategoride izleme sembolü yok.";host.appendChild(empty);}
     refreshWatchlistQuotes();
@@ -1320,7 +1410,10 @@
     });
     document.addEventListener("click",e=>{if(!e.target.closest(".symbol-search"))$("searchResults").hidden=true;});
     document.addEventListener("keydown",e=>{if(e.key==="/"&&!["INPUT","TEXTAREA"].includes(document.activeElement.tagName)){e.preventDefault();$("symbolSearch").focus();}});
-    $("watchlist").addEventListener("click",e=>{const row=e.target.closest(".watch-row");if(row){}});
+    $("watchlist").addEventListener("pointerdown",startWatchlistPointer);
+    $("watchlist").addEventListener("pointermove",moveWatchlistPointer,{passive:false});
+    $("watchlist").addEventListener("pointerup",finishWatchlistPointer);
+    $("watchlist").addEventListener("pointercancel",finishWatchlistPointer);
     document.querySelectorAll("[data-watch-filter]").forEach(b=>b.addEventListener("click",()=>{
       activeFilter=b.dataset.watchFilter;document.querySelectorAll("[data-watch-filter]").forEach(x=>x.classList.toggle("active",x===b));updateWatchlist();
     }));
@@ -1347,6 +1440,7 @@
     $("saveState").addEventListener("click",()=>{saveStudies();saveDrawings();toast("Grafik ayarları otomatik kaydedildi.");});
     $("applyMacdParams").addEventListener("click",applyMacdParams);
     $("applyStochRsiParams").addEventListener("click",applyStochRsiParams);
+    $("applyOverlayParams").addEventListener("click",applyOverlayParams);
     $("applyStochRsiParams").addEventListener("click",applyStochRsiParams);
     $("openSettings").addEventListener("click",openSettings);
     $("closeSettings").addEventListener("click",closeSettings);
@@ -1513,6 +1607,9 @@
     $("stochRsiWindow").value=stochRsiParams.stoch;
     $("stochRsiK").value=stochRsiParams.k;
     $("stochRsiD").value=stochRsiParams.d;
+    $("smaPeriod").value=overlayParams.sma;
+    $("bbPeriod").value=overlayParams.bb;
+    $("bbDeviation").value=overlayParams.deviation;
     const key=getIstfinKey();
     $("istfinApiKey").value=key;
     $("istfinState").textContent=key?"KAYITLI":"AYARLANMADI";
