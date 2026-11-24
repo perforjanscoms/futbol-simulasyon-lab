@@ -25,6 +25,7 @@ import androidx.webkit.WebViewAssetLoader;
 public final class MainActivity extends Activity {
     private static final String APP_START_URL =
             "https://appassets.androidplatform.net/assets/marketdesk/index.html";
+    private static final String WEBVIEW_STATE_KEY = "bybora_marketdesk_webview_state";
 
     private WebView webView;
     private FrameLayout root;
@@ -45,10 +46,10 @@ public final class MainActivity extends Activity {
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.rgb(8, 15, 29));
         setContentView(root);
-        createWebView();
+        createWebView(savedInstanceState);
     }
 
-    private void createWebView() {
+    private void createWebView(Bundle savedInstanceState) {
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(8, 15, 29));
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
@@ -132,7 +133,34 @@ public final class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
 
-        webView.loadUrl(APP_START_URL);
+        boolean restored = false;
+        if (savedInstanceState != null) {
+            Bundle webState = savedInstanceState.getBundle(WEBVIEW_STATE_KEY);
+            if (webState != null) {
+                restored = webView.restoreState(webState) != null;
+            }
+        }
+        if (!restored) {
+            webView.loadUrl(APP_START_URL);
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        if (webView != null) {
+            Bundle webState = new Bundle();
+            if (webView.saveState(webState) != null) {
+                outState.putBundle(WEBVIEW_STATE_KEY, webState);
+            }
+        }
+        CookieManager.getInstance().flush();
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onPause() {
+        CookieManager.getInstance().flush();
+        super.onPause();
     }
 
     private void openExternal(Uri uri) {
