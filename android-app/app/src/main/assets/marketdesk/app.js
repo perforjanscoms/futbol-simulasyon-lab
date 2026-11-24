@@ -1,8 +1,6 @@
 (() => {
   "use strict";
 
-  const TV_CHART_SCRIPT = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-  const TV_TICKER_SCRIPT = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
   const STORAGE_KEY = "bybora-market-desk-watchlist-v1";
 
   const catalog = [
@@ -28,7 +26,7 @@
     {symbol:"FX_IDC:EURTRY",name:"Euro / Türk Lirası",short:"EURTRY",category:"forex",venue:"FX_IDC",description:"Euro / TL · Döviz",aliases:["eurtry","euro tl","euro/tl","eur try"]},
     {symbol:"FX_IDC:EURUSD",name:"Euro / ABD Doları",short:"EURUSD",category:"forex",venue:"FX_IDC",description:"EUR/USD · Forex",aliases:["eurusd","eur/usd","euro dolar"]},
     {symbol:"FX_IDC:GBPUSD",name:"İngiliz Sterlini / ABD Doları",short:"GBPUSD",category:"forex",venue:"FX_IDC",description:"GBP/USD · Forex",aliases:["gbpusd","gbp/usd","sterlin dolar"]},
-    {symbol:"ICE:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"FX_IDC",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","altin tl","altın tl","gram"]},
+    {symbol:"ICE:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"ICE",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","altin tl","altın tl","gram"]},
     {symbol:"OANDA:XAUUSD",name:"Altın / ABD Doları",short:"XAUUSD",category:"metals",venue:"OANDA",description:"Ons altın · XAU/USD",aliases:["xauusd","ons altın","ons altin","altın ons","gold","gold usd"]},
     {symbol:"OANDA:XAGUSD",name:"Gümüş / ABD Doları",short:"XAGUSD",category:"metals",venue:"OANDA",description:"Ons gümüş · XAG/USD",aliases:["xagusd","ons gümüş","ons gumus","silver"]},
     {symbol:"TVC:USOIL",name:"WTI Ham Petrol",short:"USOIL",category:"metals",venue:"TVC",description:"Ham petrol · WTI",aliases:["usoil","petrol","wti","ham petrol"]},
@@ -115,88 +113,11 @@
     };
   }
 
-  function renderWidgetScript(container, src, options) {
-    const widgetRoot = document.createElement("div");
-    widgetRoot.className = "tradingview-widget-container__widget";
-    widgetRoot.style.width = "100%";
-    widgetRoot.style.height = src === TV_CHART_SCRIPT ? "calc(100% - 32px)" : "100%";
-    container.appendChild(widgetRoot);
-
-    const script = document.createElement("script");
-    script.type = "text/javascript";
-    script.src = src;
-    script.async = true;
-    script.textContent = JSON.stringify(options);
-    container.appendChild(script);
-    script.addEventListener("error", () => {
-      if (src !== TV_CHART_SCRIPT) return;
-      const errorBox = document.createElement("div");
-      errorBox.className = "chart-load-error";
-      const title = document.createElement("strong");
-      title.textContent = "TradingView grafiği yüklenemedi";
-      const detail = document.createElement("span");
-      detail.textContent = "Bağlantıyı kontrol et veya grafiğin sol üstündeki arama alanından farklı bir TradingView sembolü dene.";
-      errorBox.append(title, detail);
-      widgetRoot.replaceChildren(errorBox);
-    });
-  }
-
-  function renderTickerTape() {
-    const mount = $("tickerTape");
-    if (!mount) return;
-    mount.innerHTML = "";
-    const container = document.createElement("div");
-    container.className = "tradingview-widget-container";
-    container.style.width = "100%";
-    container.style.height = "100%";
-    mount.appendChild(container);
-    renderWidgetScript(container, TV_TICKER_SCRIPT, {
-      symbols: [
-        {proName:"BIST:XU100",title:"BIST 100"},
-        {proName:"BIST:PETKM",title:"PETKM"},
-        {proName:"ICE:XAUTRYG",title:"Gram Altın"},
-        {proName:"BINANCE:BTCUSDT",title:"Bitcoin"},
-        {proName:"FX_IDC:USDTRY",title:"USD/TRY"},
-        {proName:"OANDA:XAUUSD",title:"Ons Altın"}
-      ],
-      showSymbolLogo: false,
-      isTransparent: true,
-      displayMode: "adaptive",
-      colorTheme: "dark",
-      locale: "tr"
-    });
-  }
-
-  function renderChart() {
-    const host = $("chartMount");
-    if (!host) return;
-    host.innerHTML = "";
-    const container = document.createElement("div");
-    container.className = "tradingview-widget-container";
-    container.style.width = "100%";
-    container.style.height = "100%";
-    host.appendChild(container);
-
-    renderWidgetScript(container, TV_CHART_SCRIPT, {
-      autosize: true,
-      symbol: activeSymbol,
-      interval: activeInterval,
-      timezone: "Europe/Istanbul",
-      theme: "dark",
-      style: "1",
-      locale: "tr",
-      enable_publishing: false,
-      allow_symbol_change: true,
-      withdateranges: true,
-      hide_side_toolbar: false,
-      hide_top_toolbar: false,
-      hide_legend: false,
-      save_image: true,
-      details: true,
-      calendar: false,
-      hotlist: false,
-      support_host: "https://www.tradingview.com"
-    });
+  function tradingViewChartUrl(symbol, interval) {
+    const url = new URL("https://www.tradingview.com/chart/");
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("interval", interval || activeInterval);
+    return url.toString();
   }
 
   function renderInstrument() {
@@ -212,7 +133,10 @@
     $("exchangeTag").textContent = item.venue;
     $("instrumentLogo").textContent = (item.short || item.name || "?").slice(0, 2).toUpperCase();
     $("instrumentLogo").dataset.category = item.category;
-    $("openTradingView").href = "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(activeSymbol);
+    const chartUrl = tradingViewChartUrl(activeSymbol, activeInterval);
+    $("openTradingView").href = chartUrl;
+    $("launchChartNow").href = chartUrl;
+    $("launchChartNow").innerHTML = item.short.toLocaleUpperCase("tr-TR") + " GRAFİĞİNİ AÇ <span>↗</span>";
     $("favoriteCurrent").classList.toggle("is-active", watchlist.includes(activeSymbol));
     $("favoriteCurrent").textContent = watchlist.includes(activeSymbol) ? "★" : "☆";
     $("favoriteCurrent").setAttribute("aria-label", watchlist.includes(activeSymbol) ? "Favorilerden çıkar" : "Favorilere ekle");
@@ -274,12 +198,16 @@
     const resolved = resolveSymbol(symbol);
     if (!resolved) return;
     activeSymbol = resolved;
+    try { localStorage.setItem("bybora-market-desk-last-symbol", activeSymbol); } catch {}
     renderInstrument();
     renderWatchlist();
-    renderChart();
     $("symbolSearch").value = "";
     $("searchSuggestions").hidden = true;
     closeMobileMenu();
+
+    // Open TradingView's first-party Supercharts page, not the limited cross-origin embed.
+    // This is where account sign-in, chart layouts and indicator templates can be saved.
+    window.location.assign(tradingViewChartUrl(activeSymbol, activeInterval));
   }
 
   function addCurrentToWatchlist() {
@@ -339,7 +267,8 @@
   function chooseInterval(button) {
     activeInterval = button.dataset.interval;
     document.querySelectorAll("#timeframes button").forEach(el => el.classList.toggle("active", el === button));
-    renderChart();
+    renderInstrument();
+    window.location.assign(tradingViewChartUrl(activeSymbol, activeInterval));
   }
 
   function closeMobileMenu() {
@@ -434,8 +363,6 @@
     bindEvents();
     renderInstrument();
     renderWatchlist();
-    renderTickerTape();
-    renderChart();
     updateClock();
     window.setInterval(updateClock, 1000);
   }
