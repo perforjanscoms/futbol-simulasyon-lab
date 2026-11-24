@@ -97,8 +97,8 @@
   function loadWatchlist() {
     try {
       const v = JSON.parse(localStorage.getItem(WATCH_KEY) || "null");
-      return Array.isArray(v) ? [...new Set(v.filter(id => symbols.some(s => s.id === id)))].slice(0,30) :
-        ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
+      if (!Array.isArray(v)) return ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
+      return [...new Set(v.filter(id => !!ensureInstrument(id)))].slice(0,30);
     } catch {
       return ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
     }
@@ -236,6 +236,8 @@
     };
     if (aliases[q]) return aliases[q];
     const compact = q.toUpperCase().replace(/\s+/g,"");
+    if (/^BIST:[A-Z0-9]{3,8}$/.test(compact)) return compact;
+    if (/^BINANCE:[A-Z0-9]{4,24}$/.test(compact)) return compact;
     if (/^[A-Z]{2,18}USDT$/.test(compact)) return "BINANCE:" + compact;
     if (/^[A-Z]{4,6}$/.test(compact)) return "BIST:" + compact;
     return null;
@@ -810,6 +812,7 @@
 
   function loadLayout(index) {
     const layout=layouts[index];if(!layout)return;
+    if (!ensureInstrument(layout.symbol)) { toast("Kayıtlı sembol bu sürümde tanınmıyor."); return; }
     clearDrawingRuntime();
     activeSymbol=layout.symbol;
     activeInterval=layout.interval;
