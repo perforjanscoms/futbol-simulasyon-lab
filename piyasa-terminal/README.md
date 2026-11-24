@@ -17,7 +17,7 @@ https://perforjanscoms.github.io/futbol-simulasyon-lab/piyasa-terminal/
 ## Sembol örnekleri
 - Petkim: `BIST:PETKM`
 - BIST 100: `BIST:XU100`
-- Gram altın: `FX_IDC:XAUTRYG`
+- Gram altın: `ICE:XAUTRYG`
 - Dolar/TL: `FX_IDC:USDTRY`
 - Bitcoin: `BINANCE:BTCUSDT`
 - Ons altın: `OANDA:XAUUSD`
