@@ -45,3 +45,10 @@ The GitHub Actions workflow `.github/workflows/android-apk.yml` builds an instal
 Download the APK on Android, open it, and allow installation from the browser or file manager when prompted.
 
 Minimum Android version: Android 7.0 (API 24). Keep Android System WebView or Chrome up to date. Internet is required for market data. The chart engine is bundled in the APK. No chart provider opens in an external app or browser.
+
+
+### Forex and commodities
+The app includes Yahoo Finance FX symbols such as `USDTRY=X`, `EURTRY=X`, `EURUSD=X`, and `GBPUSD=X`, plus continuous commodity futures such as Brent `BZ=F`, WTI `CL=F`, gold `GC=F`, silver `SI=F`, copper `HG=F`, platinum `PL=F`, palladium `PA=F`, and natural gas `NG=F`. These are Yahoo Finance reference feeds; futures are not physical spot/dealer quotes and availability/intraday history can vary by symbol.
+
+### Chart range levels
+The main chart shows the highest high, lowest low and average typical price of the currently visible candle range. The average is the mean of each candle's `(high + low + close) / 3`. These recalculate when symbol, timeframe, or visible chart range changes. Watchlist quote typography uses a lighter font weight.
