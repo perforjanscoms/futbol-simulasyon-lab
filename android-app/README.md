@@ -25,7 +25,7 @@ The symbol picker accepts short aliases such as `PETKM`, `Petkim`, `gram altın`
 The GitHub Actions workflow `.github/workflows/android-apk.yml` builds an installable debug-signed APK whenever the Android project or bundled terminal files change. It uploads the APK as an Actions artifact and attaches it to a GitHub Release.
 
 ## Install
-Download the APK on Android, open it, and allow installation from the browser or file manager when prompted.
+Download the APK on Android, open it, and allow installation from the browser or file manager when prompted. If Android rejects installation over a previous debug-signed build because its signing certificate differs, uninstall the older build once and install 1.1.0. The workflow now caches the debug signing key so subsequent APK updates use the same signature.
 
 Minimum Android version: Android 7.0 (API 24). Keep Android System WebView or Chrome up to date. Chart data and TradingView sign-in require an internet connection.
 
