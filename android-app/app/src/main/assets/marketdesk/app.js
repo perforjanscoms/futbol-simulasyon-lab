@@ -377,6 +377,16 @@
     const currency = document.createTextNode(item.category === "crypto" ? "Kripto parite" : item.category === "bist" || item.category === "indices" ? "Türk Lirası" : item.description);
     $("instrumentSymbol").append(symbolText, dot, currency);
     $("exchangeTag").textContent = item.venue;
+    const symbolWarning = $("symbolWarning");
+    if (symbolWarning) {
+      if (activeSymbol === "BIST:PETKM") {
+        symbolWarning.hidden = false;
+        symbolWarning.textContent = "PETKM TradingView'de listelenir; ancak TradingView, bazı sembolleri gömülü grafik widget'larında göstermeye izin vermiyor. “This symbol is only available on TradingView” mesajı çıkarsa bunu uygulama ayarıyla aşmak mümkün değil; PETKM için ayrı bir BIST veri sağlayıcısı gerekir.";
+      } else {
+        symbolWarning.hidden = true;
+        symbolWarning.textContent = "";
+      }
+    }
     $("instrumentLogo").textContent = (item.short || item.name || "?").slice(0, 2).toUpperCase();
     $("instrumentLogo").dataset.category = item.category;
     $("openTradingView").href = "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(activeSymbol);
