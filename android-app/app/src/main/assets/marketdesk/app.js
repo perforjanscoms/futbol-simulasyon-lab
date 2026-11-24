@@ -3,8 +3,11 @@
 
   const $ = id => document.getElementById(id);
   const BINANCE = "https://data-api.binance.vision/api/v3";
+  const YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart";
   const ISTFIN = "https://api.istfin.com/v1";
   const ISTFIN_KEY = "bybora_istfin_key_v1";
+  const MACD_KEY = "bybora_macd_params_v1";
+  const MACD_MIGRATION_KEY = "bybora_macd175_migrated_symbols_v1";
   const WATCH_KEY = "bybora_watchlist_v3";
   const LAYOUT_KEY = "bybora_layouts_v3";
   const TROY_OUNCE_GRAMS = 31.1034768;
@@ -38,9 +41,20 @@
     {id:"BB",label:"Bollinger Bands",type:"overlay"},
     {id:"VWAP",label:"VWAP",type:"overlay"},
     {id:"RSI14",label:"RSI 14",type:"lower"},
-    {id:"MACD",label:"MACD",type:"lower"},
+    {id:"MACD",label:"MACD 12 / 175 / 9",type:"lower"},
     {id:"STOCH",label:"Stochastic",type:"lower"}
   ];
+
+  function loadMacdParams() {
+    try {
+      const value = JSON.parse(localStorage.getItem(MACD_KEY) || "null");
+      const fast = Math.max(1, Math.min(500, Math.round(Number(value?.fast) || 12)));
+      const slow = Math.max(fast + 1, Math.min(1000, Math.round(Number(value?.slow) || 175)));
+      const signal = Math.max(1, Math.min(100, Math.round(Number(value?.signal) || 9)));
+      return {fast, slow, signal};
+    } catch { return {fast:12, slow:175, signal:9}; }
+  }
+  let macdParams = loadMacdParams();
 
   let activeSymbol = "BINANCE:BTCUSDT";
   let activeInterval = "15m";
@@ -109,10 +123,21 @@
   }
 
   function loadStudies(symbol) {
+    const defaults = ["EMA20","EMA50","RSI14","MACD"];
     try {
       const v = JSON.parse(localStorage.getItem("bybora_studies_" + symbol) || "null");
-      return Array.isArray(v) ? [...new Set(v.filter(id => studies.some(s => s.id === id)))] : ["EMA20","EMA50","RSI14"];
-    } catch { return ["EMA20","EMA50","RSI14"]; }
+      let selected = Array.isArray(v) ? [...new Set(v.filter(id => studies.some(s => s.id === id)))] : defaults.slice();
+      let migrated = [];
+      try { migrated = JSON.parse(localStorage.getItem(MACD_MIGRATION_KEY) || "[]"); } catch {}
+      if (!Array.isArray(migrated)) migrated = [];
+      if (!migrated.includes(symbol)) {
+        if (!selected.includes("MACD")) selected.push("MACD");
+        localStorage.setItem("bybora_studies_" + symbol, JSON.stringify(selected));
+        migrated.push(symbol);
+        localStorage.setItem(MACD_MIGRATION_KEY, JSON.stringify(migrated));
+      }
+      return selected;
+    } catch { return defaults.slice(); }
   }
 
   function saveStudies() {
@@ -334,6 +359,68 @@
     })).filter(x => Number.isFinite(x.time) && Number.isFinite(x.close)).sort((a,b)=>a.time-b.time);
   }
 
+
+  function yahooRequestConfig(interval) {
+    const config={
+      "1m":{source:"1m",range:"5d"},"5m":{source:"5m",range:"30d"},
+      "15m":{source:"15m",range:"60d"},"30m":{source:"15m",range:"60d",bucket:1800},
+      "1h":{source:"60m",range:"730d"},"4h":{source:"60m",range:"730d",bucket:14400},
+      "1d":{source:"1d",range:"5y"},"1w":{source:"1wk",range:"10y"},"1M":{source:"1mo",range:"max"}
+    };
+    return config[interval]||config["15m"];
+  }
+  function aggregateYahooBars(rows,seconds){
+    const groups=new Map();
+    for(const row of rows){
+      const shifted=row.time+3*3600;
+      const start=Math.floor(shifted/seconds)*seconds-3*3600;
+      const existing=groups.get(start);
+      if(!existing)groups.set(start,{...row,time:start});
+      else{existing.high=Math.max(existing.high,row.high);existing.low=Math.min(existing.low,row.low);existing.close=row.close;existing.volume+=row.volume||0;}
+    }
+    return [...groups.values()].sort((a,b)=>a.time-b.time);
+  }
+  async function fetchYahooBars(ticker,interval){
+    const config=yahooRequestConfig(interval);
+    const url=new URL(YAHOO+"/"+encodeURIComponent(ticker));
+    url.searchParams.set("range",config.range);url.searchParams.set("interval",config.source);url.searchParams.set("events","history");
+    const response=await fetch(url.toString(),{cache:"no-store",headers:{Accept:"application/json"}});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(body?.chart?.error?.description||"Yahoo Finance yanıt vermedi ("+response.status+").");
+    const result=body?.chart?.result?.[0];
+    if(!result||!Array.isArray(result.timestamp))throw new Error(body?.chart?.error?.description||ticker+" için Yahoo Finance mum verisi bulunamadı.");
+    const q=result.indicators?.quote?.[0]||{},safe=n=>n==null?NaN:Number(n);
+    const rows=result.timestamp.map((timestamp,i)=>{
+      const close=safe(q.close?.[i]),open=safe(q.open?.[i]),high=safe(q.high?.[i]),low=safe(q.low?.[i]);
+      if(!Number.isFinite(timestamp)||!Number.isFinite(close))return null;
+      return {time:Number(timestamp),open:Number.isFinite(open)?open:close,high:Number.isFinite(high)?high:close,low:Number.isFinite(low)?low:close,close,volume:safe(q.volume?.[i])||0};
+    }).filter(Boolean).sort((a,b)=>a.time-b.time);
+    const bars=config.bucket?aggregateYahooBars(rows,config.bucket):rows;
+    if(!bars.length)throw new Error(ticker+" için kullanılabilir mum bulunamadı.");
+    const meta=result.meta||{},last=bars[bars.length-1],previous=bars.length>1?bars[bars.length-2].close:null;
+    const price=safe(meta.regularMarketPrice),prior=safe(meta.chartPreviousClose??meta.previousClose);
+    const dayHigh=safe(meta.regularMarketDayHigh),dayLow=safe(meta.regularMarketDayLow),vol=safe(meta.regularMarketVolume);
+    const quote={
+      lastPrice:String(Number.isFinite(price)?price:last.close),
+      highPrice:Number.isFinite(dayHigh)?dayHigh:last.high,lowPrice:Number.isFinite(dayLow)?dayLow:last.low,
+      volume:Number.isFinite(vol)?vol:last.volume,
+      priceChangePercent:Number.isFinite(price)&&Number.isFinite(prior)&&prior!==0?((price/prior)-1)*100:(previous?((last.close/previous)-1)*100:0)
+    };
+    return {bars,quote,meta};
+  }
+  async function fetchYahooGoldBars(interval){
+    const [gold,fx]=await Promise.all([fetchYahooBars("GC=F",interval),fetchYahooBars("USDTRY=X",interval)]);
+    let fxIndex=0,lastFx=null;const grams=[];
+    for(const b of gold.bars){
+      while(fxIndex<fx.bars.length&&fx.bars[fxIndex].time<=b.time)lastFx=fx.bars[fxIndex++];
+      const f=lastFx||fx.bars[0];if(!f||Math.abs(b.time-f.time)>3*86400)continue;
+      grams.push({time:b.time,open:b.open*f.open/TROY_OUNCE_GRAMS,high:b.high*f.high/TROY_OUNCE_GRAMS,low:b.low*f.low/TROY_OUNCE_GRAMS,close:b.close*f.close/TROY_OUNCE_GRAMS,volume:b.volume||0});
+    }
+    if(!grams.length)throw new Error("Ons altın ve USD/TRY verileri eşleştirilemedi.");
+    const last=grams[grams.length-1],prior=grams.length>1?grams[grams.length-2].close:null;
+    return {bars:grams,quote:{lastPrice:String(last.close),highPrice:last.high,lowPrice:last.low,volume:last.volume,priceChangePercent:prior?((last.close/prior)-1)*100:0},source:"Yahoo Finance · GC=F × USDTRY=X ÷ 31,1034768",delay:"Hesaplanan gram altın referansı · kuyumcu alış/satış fiyatı değildir"};
+  }
+
   async function fetchQuote(symbol) {
     const item = instrument(symbol);
     if (!item) return null;
@@ -354,28 +441,22 @@
     return await response.json();
   }
 
-  async function getMarketData(item, interval) {
-    if (item.type === "bist") {
-      const [history, quote] = await Promise.all([
-        fetchIstfinBars(item.pair, interval),
-        fetchQuote(item.id).catch(()=>null)
-      ]);
-      return {bars:history,quote,source:"istfin · 15 dk gecikmeli",delay:"BIST lisanslı · 15 dk gecikmeli"};
-    }
-    const history = await fetchBinanceBars(item.pair,mapChartInterval(item,interval));
-    const quote = await fetchQuote(item.id).catch(()=>null);
-    if (item.type === "gold") {
-      const factor = 1 / TROY_OUNCE_GRAMS;
-      history.forEach(bar => {
-        bar.open*=factor;bar.high*=factor;bar.low*=factor;bar.close*=factor;
-      });
-      if (quote) {
-        quote.lastPrice = String(Number(quote.lastPrice)*factor);
-        quote.highPrice = String(Number(quote.highPrice)*factor);
-        quote.lowPrice = String(Number(quote.lowPrice)*factor);
+  async function getMarketData(item,interval){
+    if(item.type==="bist"){
+      try{
+        const r=await fetchYahooBars(item.ticker+".IS",interval);
+        return {bars:r.bars,quote:r.quote,source:"Yahoo Finance · "+item.ticker+".IS",delay:"BIST · Yahoo Finance gecikmeli veri (resmî olmayan endpoint)"};
+      }catch(yahooError){
+        if(getIstfinKey()){
+          const [history,quote]=await Promise.all([fetchIstfinBars(item.pair,interval),fetchQuote(item.id).catch(()=>null)]);
+          return {bars:history,quote,source:"istfin API · yedek bağlantı",delay:"BIST · istfin abonelik planına bağlı"};
+        }
+        throw new Error("Yahoo Finance "+item.ticker+".IS verisini alamadı. "+(yahooError.message||"Bağlantıyı kontrol edip yeniden dene.")+" Yahoo verisi geçici olarak engellenmiş veya limitlenmiş olabilir.");
       }
-      return {bars:history,quote,source:"Binance PAXGTRY ÷ 31,1034768",delay:"Altın destekli token · TRY spot referansı"};
     }
+    if(item.type==="gold")return await fetchYahooGoldBars(interval);
+    const history=await fetchBinanceBars(item.pair,mapChartInterval(item,interval));
+    const quote=await fetchQuote(item.id).catch(()=>null);
     return {bars:history,quote,source:"Binance public market data",delay:"Kripto · gerçek zamanlı"};
   }
 
@@ -488,12 +569,20 @@
     return out;
   }
 
-  function macd(values) {
-    const e12=ema(values,12),e26=ema(values,26),signal=[];
-    const line=e12.map((v,i)=>({time:v.time,value:v.value-e26[i].value}));
-    const k=2/10;let s=null;const hist=[];
+  function macd(values,fast=macdParams.fast,slow=macdParams.slow,signalPeriod=macdParams.signal){
+    const fastEma=ema(values,fast),slowEma=ema(values,slow),signal=[];
+    const line=fastEma.map((v,i)=>({time:v.time,value:v.value-slowEma[i].value}));
+    const k=2/(signalPeriod+1);let s=null;const hist=[];
     line.forEach(v=>{s=s===null?v.value:v.value*k+s*(1-k);signal.push({time:v.time,value:s});hist.push({time:v.time,value:v.value-s});});
     return {line,signal,hist};
+  }
+  function studyTitle(id){return id==="MACD"?"MACD ("+macdParams.fast+","+macdParams.slow+","+macdParams.signal+")":(studies.find(s=>s.id===id)?.label||id);}
+  function applyMacdParams(){
+    const fast=Math.round(Number($("macdFast").value)),slow=Math.round(Number($("macdSlow").value)),signal=Math.round(Number($("macdSignal").value));
+    if(!Number.isInteger(fast)||!Number.isInteger(slow)||!Number.isInteger(signal)||fast<1||fast>500||slow<=fast||slow>1000||signal<1||signal>100){toast("MACD değerleri geçersiz. Hızlı < yavaş olmalı.");return;}
+    macdParams={fast,slow,signal};try{localStorage.setItem(MACD_KEY,JSON.stringify(macdParams));}catch{}
+    if(!activeStudies.includes("MACD")){activeStudies.push("MACD");saveStudies();}
+    renderStudies();toast("MACD ayarları kaydedildi: "+fast+"/"+slow+"/"+signal);
   }
 
   function stochastic(values,period=14) {
@@ -538,7 +627,7 @@
       wrap.className="lower-chart-wrap";
       const title=document.createElement("div");
       title.className="lower-chart-title";
-      title.textContent=studies.find(s=>s.id===id).label;
+      title.textContent=studyTitle(id);
       const mount=document.createElement("div");
       mount.className="lower-indicator-chart";
       wrap.append(title,mount);
@@ -581,7 +670,7 @@
     }
     activeStudies.forEach(id=>{
       const item=studies.find(x=>x.id===id);if(!item)return;
-      const pill=document.createElement("span");pill.className="active-study-pill";pill.append(document.createTextNode(item.label));
+      const pill=document.createElement("span");pill.className="active-study-pill";pill.append(document.createTextNode(studyTitle(id)));
       const remove=document.createElement("button");remove.type="button";remove.textContent="×";remove.addEventListener("click",()=>toggleStudy(id));
       pill.appendChild(remove);host.appendChild(pill);
     });
@@ -698,7 +787,7 @@
 
   function renderInstrumentHeader(item,quote,lastBar) {
     $("instrumentAvatar").textContent=item.ticker.slice(0,2);
-    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · PAXG/TRY SPOT REFERANSI":"KRİPTO · SPOT";
+    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":"KRİPTO · SPOT";
     $("instrumentName").textContent=item.name;
     $("instrumentSymbol").textContent=item.id+" · "+item.currency;
     $("exchangeBadge").textContent=item.exchange;
@@ -732,7 +821,7 @@
       row.querySelector(".watch-symbol-icon").textContent=item.ticker.slice(0,2);
       row.querySelector(".watch-meta strong").textContent=item.ticker;
       row.querySelector(".watch-meta small").textContent=item.name;
-      row.querySelector(".watch-state").classList.toggle("ready",item.type!=="bist"||!!getIstfinKey());
+      row.querySelector(".watch-state").classList.toggle("ready",true);
       row.addEventListener("click",()=>selectSymbol(item.id));
       host.appendChild(row);
     });
@@ -860,7 +949,7 @@
     isLoading=true;
     setMessage("Piyasa verisi getiriliyor",item.type==="bist"?"BIST mum verisi doğrulanıyor.":"Seçili sembol için mumlar yükleniyor.");
     setStatus("VERİ YÜKLENİYOR","warn");
-    $("chartSource").textContent=item.type==="bist"?"istfin API":item.type==="gold"?"Binance PAXG/TRY":"Binance";
+    $("chartSource").textContent=item.type==="bist"?"Yahoo Finance · "+item.ticker+".IS":item.type==="gold"?"Yahoo Finance · GC=F × USDTRY=X":"Binance";
     $("chartTicker").textContent=item.ticker;
     try {
       const result=await getMarketData(item,activeInterval);
@@ -888,7 +977,7 @@
       $("chartStatusText").textContent="GRAFİK AKTİF";
       $("chartLiveStatus").classList.add("ready");
       $("chartOverlay").hidden=true;
-      setStatus(item.type==="bist"?"BIST · 15 DK GECİKMELİ":item.type==="gold"?"PAXG/TRY · SPOT REFERANSI":"KRİPTO · AKTİF","good");
+      setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":"KRİPTO · AKTİF","good");
       renderWatchlist();
       scheduleRefresh();
     } catch(error) {
@@ -900,7 +989,7 @@
         setMessage("Grafik verisi alınamadı",error.message||"Veri sağlayıcıya ulaşılamadı. Daha sonra tekrar dene.");
         setStatus("VERİ HATASI","warn");
       }
-      $("chartSource").textContent=item.type==="bist"?"istfin API · bağlantı gerekli":item.type==="gold"?"Binance PAXG/TRY":"Binance";
+      $("chartSource").textContent=item.type==="bist"?"Yahoo Finance · bağlantı hatası":item.type==="gold"?"Yahoo Finance · altın/kur":"Binance";
       $("dataDelay").textContent="Veri doğrulanamadı";
     } finally {
       isLoading=false;
@@ -1031,6 +1120,7 @@
     $("refreshButton").addEventListener("click",()=>loadChart());
     $("saveLayout").addEventListener("click",saveLayout);
     $("saveState").addEventListener("click",()=>{saveStudies();saveDrawings();toast("Grafik ayarları otomatik kaydedildi.");});
+    $("applyMacdParams").addEventListener("click",applyMacdParams);
     $("openSettings").addEventListener("click",openSettings);
     $("closeSettings").addEventListener("click",closeSettings);
     $("settingsBackdrop").addEventListener("click",e=>{if(e.target===$("settingsBackdrop"))closeSettings();});
@@ -1064,6 +1154,9 @@
     updateWatchlist();
     renderLayouts();
     renderStudyChips();
+    $("macdFast").value=macdParams.fast;
+    $("macdSlow").value=macdParams.slow;
+    $("macdSignal").value=macdParams.signal;
     const key=getIstfinKey();
     $("istfinApiKey").value=key;
     $("istfinState").textContent=key?"KAYITLI":"AYARLANMADI";
