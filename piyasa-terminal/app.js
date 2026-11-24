@@ -87,9 +87,9 @@
     if (known) return known.symbol;
 
     const token = cleaned.toUpperCase().replace("/", "");
+    if (/^[A-Z]{6}$/.test(token) && /^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|TRY|SEK|NOK|CNY|CNH)/.test(token)) return "FX_IDC:" + token;
     if (/^[A-Z0-9]{2,24}(USDT|USDC|BUSD|FDUSD|TRY)$/.test(token)) return "BINANCE:" + token;
     if (/^(BTC|ETH|SOL|XRP|DOGE|ADA)USD$/.test(token)) return "COINBASE:" + token;
-    if (/^[A-Z]{6}$/.test(token) && /^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|TRY|SEK|NOK|CNY|CNH)/.test(token)) return "FX_IDC:" + token;
     if (/^[A-Z0-9._!-]{2,18}$/.test(token)) return "BIST:" + token;
     return cleaned.toUpperCase();
   }
@@ -128,6 +128,17 @@
     script.async = true;
     script.textContent = JSON.stringify(options);
     container.appendChild(script);
+    script.addEventListener("error", () => {
+      if (src !== TV_CHART_SCRIPT) return;
+      const errorBox = document.createElement("div");
+      errorBox.className = "chart-load-error";
+      const title = document.createElement("strong");
+      title.textContent = "TradingView grafiği yüklenemedi";
+      const detail = document.createElement("span");
+      detail.textContent = "Bağlantıyı kontrol et veya grafiğin sol üstündeki arama alanından farklı bir TradingView sembolü dene.";
+      errorBox.append(title, detail);
+      widgetRoot.replaceChildren(errorBox);
+    });
   }
 
   function renderTickerTape() {
