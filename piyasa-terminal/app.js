@@ -119,7 +119,7 @@
     const widgetRoot = document.createElement("div");
     widgetRoot.className = "tradingview-widget-container__widget";
     widgetRoot.style.width = "100%";
-    widgetRoot.style.height = "calc(100% - 32px)";
+    widgetRoot.style.height = src === TV_CHART_SCRIPT ? "calc(100% - 32px)" : "100%";
     container.appendChild(widgetRoot);
 
     const script = document.createElement("script");
