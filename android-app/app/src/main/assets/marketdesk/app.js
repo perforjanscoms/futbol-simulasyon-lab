@@ -38,6 +38,83 @@
     {id:"BIST:SISE", ticker:"SISE", name:"Şişecam", exchange:"BIST", type:"bist", pair:"SISE", currency:"TRY", decimals:2}
   ];
 
+
+  const yahooMarketSymbols = [
+    ["EURUSD=X","EURUSD","Euro / ABD Doları","USD","forex",5],
+    ["GBPUSD=X","GBPUSD","İngiliz Sterlini / ABD Doları","USD","forex",5],
+    ["USDJPY=X","USDJPY","ABD Doları / Japon Yeni","JPY","forex",3],
+    ["USDCHF=X","USDCHF","ABD Doları / İsviçre Frangı","CHF","forex",5],
+    ["USDCAD=X","USDCAD","ABD Doları / Kanada Doları","CAD","forex",5],
+    ["AUDUSD=X","AUDUSD","Avustralya Doları / ABD Doları","USD","forex",5],
+    ["NZDUSD=X","NZDUSD","Yeni Zelanda Doları / ABD Doları","USD","forex",5],
+    ["USDTRY=X","USDTRY","ABD Doları / Türk Lirası","TRY","forex",4],
+    ["EURTRY=X","EURTRY","Euro / Türk Lirası","TRY","forex",4],
+    ["GBPTRY=X","GBPTRY","Sterlin / Türk Lirası","TRY","forex",4],
+    ["CHFTRY=X","CHFTRY","İsviçre Frangı / Türk Lirası","TRY","forex",4],
+    ["JPYTRY=X","JPYTRY","Japon Yeni / Türk Lirası","TRY","forex",5],
+    ["EURJPY=X","EURJPY","Euro / Japon Yeni","JPY","forex",3],
+    ["GBPJPY=X","GBPJPY","Sterlin / Japon Yeni","JPY","forex",3],
+    ["EURGBP=X","EURGBP","Euro / Sterlin","GBP","forex",5],
+    ["EURCHF=X","EURCHF","Euro / İsviçre Frangı","CHF","forex",5],
+    ["EURCAD=X","EURCAD","Euro / Kanada Doları","CAD","forex",5],
+    ["EURAUD=X","EURAUD","Euro / Avustralya Doları","AUD","forex",5],
+    ["EURNZD=X","EURNZD","Euro / Yeni Zelanda Doları","NZD","forex",5],
+    ["GBPCHF=X","GBPCHF","Sterlin / İsviçre Frangı","CHF","forex",5],
+    ["GBPCAD=X","GBPCAD","Sterlin / Kanada Doları","CAD","forex",5],
+    ["GBPAUD=X","GBPAUD","Sterlin / Avustralya Doları","AUD","forex",5],
+    ["GBPNZD=X","GBPNZD","Sterlin / Yeni Zelanda Doları","NZD","forex",5],
+    ["AUDJPY=X","AUDJPY","Avustralya Doları / Japon Yeni","JPY","forex",3],
+    ["AUDCAD=X","AUDCAD","Avustralya Doları / Kanada Doları","CAD","forex",5],
+    ["AUDCHF=X","AUDCHF","Avustralya Doları / İsviçre Frangı","CHF","forex",5],
+    ["AUDNZD=X","AUDNZD","Avustralya Doları / Yeni Zelanda Doları","NZD","forex",5],
+    ["CADJPY=X","CADJPY","Kanada Doları / Japon Yeni","JPY","forex",3],
+    ["CADCHF=X","CADCHF","Kanada Doları / İsviçre Frangı","CHF","forex",5],
+    ["CHFJPY=X","CHFJPY","İsviçre Frangı / Japon Yeni","JPY","forex",3],
+    ["NZDJPY=X","NZDJPY","Yeni Zelanda Doları / Japon Yeni","JPY","forex",3],
+    ["NZDCAD=X","NZDCAD","Yeni Zelanda Doları / Kanada Doları","CAD","forex",5],
+    ["NZDCHF=X","NZDCHF","Yeni Zelanda Doları / İsviçre Frangı","CHF","forex",5],
+    ["USDMXN=X","USDMXN","ABD Doları / Meksika Pesosu","MXN","forex",4],
+    ["USDCNY=X","USDCNY","ABD Doları / Çin Yuanı","CNY","forex",4],
+    ["USDINR=X","USDINR","ABD Doları / Hindistan Rupisi","INR","forex",4],
+    ["USDBRL=X","USDBRL","ABD Doları / Brezilya Reali","BRL","forex",4],
+    ["USDZAR=X","USDZAR","ABD Doları / Güney Afrika Randı","ZAR","forex",4],
+    ["USDSEK=X","USDSEK","ABD Doları / İsveç Kronu","SEK","forex",4],
+    ["USDNOK=X","USDNOK","ABD Doları / Norveç Kronu","NOK","forex",4],
+    ["USDSGD=X","USDSGD","ABD Doları / Singapur Doları","SGD","forex",4],
+    ["USDHKD=X","USDHKD","ABD Doları / Hong Kong Doları","HKD","forex",4],
+    ["USDKRW=X","USDKRW","ABD Doları / Güney Kore Wonu","KRW","forex",2],
+    ["USDDKK=X","USDDKK","ABD Doları / Danimarka Kronu","DKK","forex",4],
+    ["USDPLN=X","USDPLN","ABD Doları / Polonya Zlotisi","PLN","forex",4],
+    ["USDRUB=X","USDRUB","ABD Doları / Rus Rublesi","RUB","forex",4],
+    ["USDCNH=X","USDCNH","ABD Doları / Offshore Yuan","CNH","forex",4],
+    ["XAUUSD=X","XAUUSD","Ons Altın / ABD Doları","USD","forex",2],
+    ["XAGUSD=X","XAGUSD","Ons Gümüş / ABD Doları","USD","forex",3],
+    ["BZ=F","BRENT","Brent Ham Petrol Vadeli","USD","commodity",2],
+    ["CL=F","WTI","WTI Ham Petrol Vadeli","USD","commodity",2],
+    ["NG=F","NATGAS","Doğal Gaz Vadeli","USD","commodity",3],
+    ["GC=F","GOLD","COMEX Altın Vadeli","USD","commodity",2],
+    ["SI=F","SILVER","COMEX Gümüş Vadeli","USD","commodity",3],
+    ["HG=F","COPPER","COMEX Bakır Vadeli","USD","commodity",3],
+    ["PL=F","PLATINUM","Platin Vadeli","USD","commodity",2],
+    ["PA=F","PALLADIUM","Paladyum Vadeli","USD","commodity",2],
+    ["ALI=F","ALUMINUM","Alüminyum Vadeli","USD","commodity",2],
+    ["HO=F","HEATINGOIL","Kalorifer Yakıtı Vadeli","USD","commodity",3],
+    ["RB=F","GASOLINE","RBOB Benzin Vadeli","USD","commodity",3],
+    ["ZC=F","CORN","Mısır Vadeli","USD","commodity",2],
+    ["ZW=F","WHEAT","Buğday Vadeli","USD","commodity",2],
+    ["ZS=F","SOYBEAN","Soya Fasulyesi Vadeli","USD","commodity",2],
+    ["KC=F","COFFEE","Kahve Vadeli","USD","commodity",2],
+    ["CC=F","COCOA","Kakao Vadeli","USD","commodity",2],
+    ["SB=F","SUGAR","Şeker Vadeli","USD","commodity",3],
+    ["CT=F","COTTON","Pamuk Vadeli","USD","commodity",3],
+    ["LE=F","LIVE CATTLE","Canlı Sığır Vadeli","USD","commodity",2],
+    ["HE=F","LEAN HOGS","Yağsız Domuz Eti Vadeli","USD","commodity",2]
+  ].map(([pair,ticker,name,currency,type,decimals]) => ({
+    id:"YAHOO:"+pair,ticker,name,exchange:type==="forex"?"FOREX":"FUTURES",
+    type,provider:"yahoo",pair,currency,decimals
+  }));
+  symbols.push(...yahooMarketSymbols);
+
   const intervals = ["1m","5m","15m","30m","1h","4h","1d","1w","1M"];
   const intervalIstfin = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"1h","4h":"4h","1d":"1d","1w":"1w","1M":"1mo"};
   const intervalBinance = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"1h","4h":"4h","1d":"1d","1w":"1w","1M":"1M"};
@@ -113,6 +190,13 @@
     if(id.startsWith("BINANCE:")){
       const pair=id.slice("BINANCE:".length).toUpperCase();if(!/^[A-Z0-9]{4,24}$/.test(pair))return null;
       const item={id,ticker:pair,name:remote?.name||pair.replace(/(USDT|USDC|BTC|ETH|TRY)$/," / $1"),exchange:"BINANCE SPOT",type:"crypto",provider:"binanceSpot",pair,currency:pair.endsWith("TRY")?"TRY":pair.endsWith("USDC")?"USDC":pair.endsWith("BTC")?"BTC":"USDT",decimals:remote?.pricePrecision||6};symbols.push(item);return item;
+    }
+    if(id.startsWith("YAHOO:")){
+      const pair=id.slice("YAHOO:".length).toUpperCase();
+      if(!/^[A-Z0-9.^_-]+(=X|=F)$/.test(pair))return null;
+      const forex=pair.endsWith("=X"),raw=pair.slice(0,-2);
+      const item={id,ticker:remote?.ticker||raw,name:remote?.name||(forex?raw.slice(0,3)+" / "+raw.slice(3):"Emtia · "+raw),exchange:forex?"FOREX":"FUTURES",type:forex?"forex":"commodity",provider:"yahoo",pair,currency:forex?raw.slice(3):"USD",decimals:forex?(raw.endsWith("JPY")?3:4):2};
+      symbols.push(item);return item;
     }
     if(id.startsWith("BIST:")){
       const ticker=id.slice("BIST:".length).toUpperCase();if(!/^[A-Z0-9]{3,8}$/.test(ticker))return null;
@@ -267,10 +351,25 @@
     const direct=symbols.find(s=>s.id.toLocaleLowerCase("tr-TR")===q||s.ticker.toLocaleLowerCase("tr-TR")===q||s.name.toLocaleLowerCase("tr-TR")===q||s.pair?.toLocaleLowerCase("tr-TR")===q);
     if(direct)return direct.id;
     const aliases={"petkim":"BIST:PETKM","petkm":"BIST:PETKM","gram altın":"GOLD:GRAM_TRY","gram altin":"GOLD:GRAM_TRY","xautryg":"GOLD:GRAM_TRY","paxgtry":"GOLD:GRAM_TRY","paxg/try":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100","bist 100":"BIST:XU100","bitcoin":"BINANCE:BTCUSDT","btc":"BINANCE:BTCUSDT","btc/usdt":"BINANCE:BTCUSDT","ethereum":"BINANCE:ETHUSDT","eth":"BINANCE:ETHUSDT"};
-    if(aliases[q])return aliases[q];
+    const yahooAliases={
+      "brent":"YAHOO:BZ=F","brent petrol":"YAHOO:BZ=F","uk oil":"YAHOO:BZ=F","ukoil":"YAHOO:BZ=F",
+      "wti":"YAHOO:CL=F","crude oil":"YAHOO:CL=F","us oil":"YAHOO:CL=F","usoil":"YAHOO:CL=F",
+      "silver":"YAHOO:SI=F","gümüş":"YAHOO:SI=F","gumus":"YAHOO:SI=F","xagusd":"YAHOO:SI=F",
+      "copper":"YAHOO:HG=F","bakır":"YAHOO:HG=F","bakir":"YAHOO:HG=F","xcuusd":"YAHOO:HG=F",
+      "gold futures":"YAHOO:GC=F","ons altın":"YAHOO:GC=F","platinum":"YAHOO:PL=F","platin":"YAHOO:PL=F",
+      "palladium":"YAHOO:PA=F","paladyum":"YAHOO:PA=F","natural gas":"YAHOO:NG=F","doğal gaz":"YAHOO:NG=F","dogal gaz":"YAHOO:NG=F",
+      "usdtry":"YAHOO:USDTRY=X","usd/try":"YAHOO:USDTRY=X","eurtry":"YAHOO:EURTRY=X","eur/try":"YAHOO:EURTRY=X",
+      "gbptry":"YAHOO:GBPTRY=X","gbp/try":"YAHOO:GBPTRY=X","eurusd":"YAHOO:EURUSD=X","eur/usd":"YAHOO:EURUSD=X"
+    };
+    if(yahooAliases[q])return yahooAliases[q];
     const match=symbols.find(s=>s.ticker.toUpperCase()===compact||s.pair?.toUpperCase()===compact);
     if(match)return match.id;
     if(/^BIST:[A-Z0-9]{3,8}$/.test(compact)||/^BINANCE:[A-Z0-9]{4,24}$/.test(compact)||/^BINANCE-FUTURES:[A-Z0-9]{4,24}$/.test(compact)||/^OKX:[A-Z0-9]+-[A-Z0-9]+(-SWAP)?$/.test(compact))return compact;
+    if(/^[A-Z0-9.^_-]+(=X|=F)$/.test(compact)){const id="YAHOO:"+compact;return ensureInstrument(id)?id:null;}
+    if(/^[A-Z]{6}$/.test(compact)){
+      const currencies=new Set(["USD","EUR","GBP","JPY","CHF","CAD","AUD","NZD","TRY","CNY","CNH","HKD","SGD","SEK","NOK","DKK","PLN","MXN","ZAR","INR","KRW","BRL","RUB","THB"]);
+      if(currencies.has(compact.slice(0,3))&&currencies.has(compact.slice(3))){const id="YAHOO:"+compact+"=X";return ensureInstrument(id)?id:null;}
+    }
     if(/^[A-Z0-9]{2,18}USDT$/.test(compact))return "BINANCE:"+compact;
     if(/^[A-Z0-9]{3,8}$/.test(compact))return "BIST:"+compact;
     return null;
@@ -357,6 +456,7 @@
     });
     chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
       if (!isLoading && range) saveVisibleRange(range);
+      if (range) updateMarketRangeLevels();
     });
     chart.subscribeClick(onChartClick);
     $("chartOverlay").hidden = true;
@@ -507,6 +607,7 @@
       }
     }
     if(item.type==="gold")return (await fetchYahooGoldBars("15m")).quote;
+    if(item.type==="forex"||item.type==="commodity")return (await fetchYahooBars(item.pair,"15m")).quote;
     if(item.provider==="okxSpot"||item.provider==="okxSwap"){
       const url=new URL(OKX+"/api/v5/market/ticker");url.searchParams.set("instId",item.pair);
       const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)return null;
@@ -535,6 +636,10 @@
       }
     }
     if(item.type==="gold")return await fetchYahooGoldBars(interval);
+    if(item.type==="forex"||item.type==="commodity"){
+      const r=await fetchYahooBars(item.pair,interval);
+      return {bars:r.bars,quote:r.quote,source:"Yahoo Finance · "+item.pair,delay:item.type==="forex"?"Forex · Yahoo Finance referans verisi":"Emtia vadeli kontratı · Yahoo Finance referans verisi"};
+    }
     const quotePromise=fetchQuote(item.id).catch(()=>null);
     if(item.provider==="binanceFutures"){
       const [history,quote]=await Promise.all([fetchBinanceFuturesBars(item.pair,interval),quotePromise]);
@@ -894,7 +999,7 @@
 
   function renderInstrumentHeader(item,quote,lastBar) {
     $("instrumentAvatar").textContent=item.ticker.slice(0,2);
-    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":"KRİPTO · SPOT";
+    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":"KRİPTO · SPOT";
     $("instrumentName").textContent=item.name;
     $("instrumentSymbol").textContent=item.id+" · "+item.currency;
     $("exchangeBadge").textContent=item.exchange;
@@ -1040,7 +1145,7 @@
     isLoading=true;
     setMessage("Piyasa verisi getiriliyor",item.type==="bist"?"BIST mum verisi doğrulanıyor.":"Seçili sembol için mumlar yükleniyor.");
     setStatus("VERİ YÜKLENİYOR","warn");
-    $("chartSource").textContent=item.type==="bist"?"Yahoo Finance · "+item.ticker+".IS":item.type==="gold"?"Yahoo Finance · GC=F × USDTRY=X":"Binance";
+    $("chartSource").textContent=item.type==="bist"?"Yahoo Finance · "+item.ticker+".IS":item.type==="gold"?"Yahoo Finance · GC=F × USDTRY=X":item.provider==="yahoo"?"Yahoo Finance · "+item.pair:item.provider==="okxSpot"||item.provider==="okxSwap"?"OKX":"Binance";
     $("chartTicker").textContent=item.ticker;
     try {
       const result=await getMarketData(item,activeInterval);
@@ -1061,6 +1166,7 @@
       } else {
         chart.timeScale().fitContent();
       }
+      updateMarketRangeLevels();
       renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
       $("chartSource").textContent=result.source;
       $("dataDelay").textContent=result.delay;
@@ -1068,7 +1174,7 @@
       $("chartStatusText").textContent="GRAFİK AKTİF";
       $("chartLiveStatus").classList.add("ready");
       $("chartOverlay").hidden=true;
-      setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":"KRİPTO · AKTİF","good");
+      setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":item.type==="forex"?"FOREX · YAHOO":item.type==="commodity"?"EMTİA · YAHOO":item.provider==="binanceFutures"?"KRİPTO VADELİ · AKTİF":item.provider?.startsWith("okx")?"OKX · AKTİF":"KRİPTO · AKTİF","good");
       updateWatchlist();
       scheduleRefresh();
     } catch(error) {
@@ -1080,7 +1186,7 @@
         setMessage("Grafik verisi alınamadı",error.message||"Veri sağlayıcıya ulaşılamadı. Daha sonra tekrar dene.");
         setStatus("VERİ HATASI","warn");
       }
-      $("chartSource").textContent=item.type==="bist"?"Yahoo Finance · bağlantı hatası":item.type==="gold"?"Yahoo Finance · altın/kur":"Binance";
+      $("chartSource").textContent=item.provider==="yahoo"?"Yahoo Finance · bağlantı hatası":item.provider?.startsWith("okx")?"OKX · bağlantı hatası":"Binance · bağlantı hatası";
       $("dataDelay").textContent="Veri doğrulanamadı";
     } finally {
       isLoading=false;
@@ -1119,6 +1225,7 @@
       renderStudies();
       drawingLines=loadDrawings(activeSymbol);
       restoreDrawingLines();
+      updateMarketRangeLevels();
     }
   }
 
@@ -1240,6 +1347,43 @@
     $("chartContainer").addEventListener("click",()=>{});
   }
 
+
+
+  function updateMarketRangeLevels(){
+    const tags=[
+      {id:"marketHighTag",valueId:"marketHighValue",kind:"high"},
+      {id:"marketAverageTag",valueId:"marketAverageValue",kind:"average"},
+      {id:"marketLowTag",valueId:"marketLowValue",kind:"low"}
+    ];
+    if(!bars.length||!chart){tags.forEach(t=>{const el=$(t.id);if(el)el.hidden=true;});return;}
+    const logical=chart.timeScale().getVisibleLogicalRange();
+    const start=logical?Math.max(0,Math.floor(logical.from)):0;
+    const end=logical?Math.min(bars.length-1,Math.ceil(logical.to)):bars.length-1;
+    const slice=bars.slice(start,end+1);
+    if(!slice.length)return;
+    let high=-Infinity,low=Infinity,sum=0;
+    for(const bar of slice){high=Math.max(high,bar.high);low=Math.min(low,bar.low);sum+=(bar.high+bar.low+bar.close)/3;}
+    const average=sum/slice.length;
+    const values={high,average,low};
+    const item=instrument(),series=chartType==="candles"?candleSeries:lineSeries,host=$("chartContainer"),height=host.clientHeight;
+    const placements=tags.map(t=>{
+      const value=values[t.kind],el=$(t.id),valueEl=$(t.valueId);
+      valueEl.textContent=fmtPrice(value,item?.decimals||2);
+      let y=series?.priceToCoordinate(value);
+      if(!Number.isFinite(y)){
+        const span=high-low||1;
+        y=10+(high-value)/span*Math.max(20,height-20);
+      }
+      return {el,y};
+    }).sort((a,b)=>a.y-b.y);
+    let previous=-100;
+    for(const itemPlacement of placements){
+      let y=Math.max(13,Math.min(height-13,itemPlacement.y));
+      if(y<previous+23)y=previous+23;
+      y=Math.min(height-13,y);
+      itemPlacement.el.style.top=y+"px";itemPlacement.el.hidden=false;previous=y;
+    }
+  }
 
   function zonedParts(date,timeZone){
     const parts=new Intl.DateTimeFormat("en-GB",{timeZone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(date),result={};
