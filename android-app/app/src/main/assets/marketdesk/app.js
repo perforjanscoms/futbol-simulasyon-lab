@@ -54,7 +54,7 @@
   };
   const defaultWatchlist = ["BIST:XU100","BIST:PETKM","ICE:XAUTRYG","BINANCE:BTCUSDT","FX_IDC:USDTRY"];
   let watchlist = loadWatchlist();
-  let activeSymbol = "BIST:PETKM";
+  let activeSymbol = "BIST:XU100";
   let activeInterval = "15";
   let activeCategory = "all";
   let activeStudies = loadActiveStudies();
@@ -379,9 +379,9 @@
     $("exchangeTag").textContent = item.venue;
     const symbolWarning = $("symbolWarning");
     if (symbolWarning) {
-      if (activeSymbol === "BIST:PETKM") {
+      if (activeSymbol === "BIST:PETKM" || activeSymbol === "ICE:XAUTRYG") {
         symbolWarning.hidden = false;
-        symbolWarning.textContent = "PETKM TradingView'de listelenir; ancak TradingView, bazı sembolleri gömülü grafik widget'larında göstermeye izin vermiyor. “This symbol is only available on TradingView” mesajı çıkarsa bunu uygulama ayarıyla aşmak mümkün değil; PETKM için ayrı bir BIST veri sağlayıcısı gerekir.";
+        symbolWarning.textContent = "Bu sembol Investing.com'un kendi mum grafiğinde açılır. Uygulamaya dönmek için Android geri tuşunu kullan.";
       } else {
         symbolWarning.hidden = true;
         symbolWarning.textContent = "";
@@ -389,7 +389,9 @@
     }
     $("instrumentLogo").textContent = (item.short || item.name || "?").slice(0, 2).toUpperCase();
     $("instrumentLogo").dataset.category = item.category;
-    $("openTradingView").href = "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(activeSymbol);
+    const alternativeUrl = alternativeChartUrl(activeSymbol);
+    $("openTradingView").href = alternativeUrl || ("https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(activeSymbol));
+    $("openTradingView").innerHTML = alternativeUrl ? "Alternatif grafiği aç <span>↗</span>" : "TradingView'de aç <span>↗</span>";
     $("favoriteCurrent").classList.toggle("is-active", watchlist.includes(activeSymbol));
     $("favoriteCurrent").textContent = watchlist.includes(activeSymbol) ? "★" : "☆";
     $("favoriteCurrent").setAttribute("aria-label", watchlist.includes(activeSymbol) ? "Favorilerden çıkar" : "Favorilere ekle");
@@ -447,16 +449,35 @@
     });
   }
 
+  function alternativeChartUrl(symbol) {
+    if (symbol === "BIST:PETKM") {
+      return "https://tr.investing.com/equities/petkim-candlestick";
+    }
+    if (symbol === "ICE:XAUTRYG" || symbol === "FX_IDC:XAUTRYG") {
+      return "https://tr.investing.com/currencies/gau-try-candlestick";
+    }
+    return null;
+  }
+
   function setActiveSymbol(symbol) {
     const resolved = resolveSymbol(symbol);
     if (!resolved) return;
     activeSymbol = resolved;
     renderInstrument();
     renderWatchlist();
-    renderChart();
     $("symbolSearch").value = "";
     $("searchSuggestions").hidden = true;
     closeMobileMenu();
+
+    // TradingView widgets block PETKM. Open the public Investing.com candlestick
+    // chart inside this Android WebView for PETKM and gram gold; other symbols
+    // continue using the original TradingView embedded chart and terminal controls.
+    const alternativeUrl = alternativeChartUrl(resolved);
+    if (alternativeUrl) {
+      window.location.assign(alternativeUrl);
+      return;
+    }
+    renderChart();
   }
 
   function addCurrentToWatchlist() {
