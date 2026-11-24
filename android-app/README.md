@@ -1,4 +1,4 @@
-# BYBORA Market Desk — Android 1.5.0
+# BYBORA Market Desk — Android 1.6.0
 
 BYBORA Market Desk is a native Android app with its own TradingView-style chart screen. It does **not** open TradingView or Investing.com chart pages. The in-app chart is drawn locally with TradingView Lightweight Charts™; all price data is fetched separately from the selected data source.
 
@@ -9,11 +9,14 @@ BYBORA Market Desk is a native Android app with its own TradingView-style chart 
 - Candlestick and line charts.
 - Timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w and 1M.
 - Pan, zoom, crosshair, price scale and volume histogram.
-- EMA 20/50, SMA 200, Bollinger Bands, VWAP, RSI, configurable MACD (default 12/175/9) and Stochastic.
+- EMA 20/50, SMA 200, Bollinger Bands, VWAP, RSI, configurable MACD (default 12/175/9) and configurable Stoch RSI (default 14/14/3/3).
 - Horizontal price lines, trend lines and Fibonacci retracement.
 - Per-symbol indicator selections and drawings saved on the device; MACD parameters are configurable and saved locally.
 - Named chart layouts save symbol, interval, chart style, indicators and drawings.
 - Watchlist and visible chart zoom are stored locally.
+- Searchable symbol catalogs load from Binance Spot, Binance USDⓈ-M perpetuals, OKX Spot/Swap and a daily-updated Borsa Istanbul active-stock list.
+- The watchlist displays last price and 24-hour change; BIST values may be delayed because Yahoo Finance's chart endpoint is unofficial.
+- A compact candle-close countdown is shown at the right edge of the main chart.
 - Supported Binance spot pairs can be entered in full form, for example `BINANCE:ADAUSDT`; BIST symbols are searchable through the provider symbol directory when the API key is configured.
 
 ## Data sources and limitations
@@ -27,7 +30,7 @@ The gram-equivalent chart uses Binance `PAXGTRY` candles divided by 31.1034768 g
 ### BIST stocks and indices (including PETKM and XU100)
 The default BIST feed uses Yahoo Finance's publicly reachable chart endpoint inside the app WebView proxy. Examples: `PETKM.IS` and `XU100.IS`. Yahoo data is commonly delayed for BIST symbols. It covers 1m, 5m, 15m, 30m, 1h, 4h (aggregated from hourly bars), daily, weekly and monthly intervals when Yahoo provides them.
 
-**Important limitation:** this is an unofficial, undocumented Yahoo Finance endpoint, not a guaranteed public API. Yahoo may rate-limit, block, change or remove access; intraday history is limited (especially 1m/5m) and symbol coverage is not universal. If Yahoo returns no data, the app shows the provider error rather than generating fake candles. An optional istfin API key can be configured as a fallback in Settings; it requires its own subscription and is not a Matriks subscription.
+**Important limitation:** this is an unofficial, undocumented Yahoo Finance endpoint, not a guaranteed public API. Yahoo may rate-limit, block, change or remove access; intraday history is limited (especially 1m/5m) and symbol coverage is not universal. The BIST symbol catalogue uses StockAnalysis' daily-updated active Borsa Istanbul list; it is a market-discovery list, not an official Borsa Istanbul data feed. If Yahoo returns no data, the app shows the provider error rather than generating fake candles. An optional istfin API key can be configured as a fallback in Settings; it requires its own subscription and is not a Matriks subscription.
 
 ### Gram gold
 The gram-gold chart is calculated from Yahoo Finance `GC=F` (COMEX gold futures, USD per troy ounce) and `USDTRY=X` (USD/TRY), using `(gold ounce × USD/TRY) ÷ 31.1034768`. This is a derived reference, not a physical jeweller/bank buy-sell quote; local premiums, spreads and costs are excluded.
