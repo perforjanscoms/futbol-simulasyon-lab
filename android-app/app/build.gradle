@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'com.bybora.marketdesk'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.bybora.marketdesk'
