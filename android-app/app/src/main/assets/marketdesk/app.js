@@ -28,7 +28,7 @@
     {symbol:"FX_IDC:EURTRY",name:"Euro / Türk Lirası",short:"EURTRY",category:"forex",venue:"FX_IDC",description:"Euro / TL · Döviz",aliases:["eurtry","euro tl","euro/tl","eur try"]},
     {symbol:"FX_IDC:EURUSD",name:"Euro / ABD Doları",short:"EURUSD",category:"forex",venue:"FX_IDC",description:"EUR/USD · Forex",aliases:["eurusd","eur/usd","euro dolar"]},
     {symbol:"FX_IDC:GBPUSD",name:"İngiliz Sterlini / ABD Doları",short:"GBPUSD",category:"forex",venue:"FX_IDC",description:"GBP/USD · Forex",aliases:["gbpusd","gbp/usd","sterlin dolar"]},
-    {symbol:"FX_IDC:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"FX_IDC",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","altin tl","altın tl","gram"]},
+    {symbol:"ICE:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"FX_IDC",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","altin tl","altın tl","gram"]},
     {symbol:"OANDA:XAUUSD",name:"Altın / ABD Doları",short:"XAUUSD",category:"metals",venue:"OANDA",description:"Ons altın · XAU/USD",aliases:["xauusd","ons altın","ons altin","altın ons","gold","gold usd"]},
     {symbol:"OANDA:XAGUSD",name:"Gümüş / ABD Doları",short:"XAGUSD",category:"metals",venue:"OANDA",description:"Ons gümüş · XAG/USD",aliases:["xagusd","ons gümüş","ons gumus","silver"]},
     {symbol:"TVC:USOIL",name:"WTI Ham Petrol",short:"USOIL",category:"metals",venue:"TVC",description:"Ham petrol · WTI",aliases:["usoil","petrol","wti","ham petrol"]},
@@ -40,7 +40,7 @@
   const categoryLabels = {
     all:"Tüm piyasalar",bist:"Borsa İstanbul",crypto:"Kripto",forex:"Döviz",metals:"Altın & emtia",indices:"Endeksler",global:"Global hisseler"
   };
-  const defaultWatchlist = ["BIST:XU100","BIST:PETKM","FX_IDC:XAUTRYG","BINANCE:BTCUSDT","FX_IDC:USDTRY"];
+  const defaultWatchlist = ["BIST:XU100","BIST:PETKM","ICE:XAUTRYG","BINANCE:BTCUSDT","FX_IDC:USDTRY"];
   let watchlist = loadWatchlist();
   let activeSymbol = "BIST:PETKM";
   let activeInterval = "15";
@@ -102,7 +102,7 @@
     if (venue === "BIST") category = "bist";
     else if (venue === "BINANCE" || venue === "BYBIT" || venue === "COINBASE" || venue === "OKX") category = "crypto";
     else if (venue === "FX_IDC" || venue === "OANDA" || venue === "FOREXCOM") category = "forex";
-    else if (venue === "TVC" || venue.includes("COMEX") || venue.includes("NYMEX")) category = "metals";
+    else if (venue === "ICE" || venue === "TVC" || venue.includes("COMEX") || venue.includes("NYMEX")) category = "metals";
     else if (ticker === "XU100" || ticker.startsWith("XU")) category = "indices";
     return {
       symbol,
@@ -154,7 +154,7 @@
       symbols: [
         {proName:"BIST:XU100",title:"BIST 100"},
         {proName:"BIST:PETKM",title:"PETKM"},
-        {proName:"FX_IDC:XAUTRYG",title:"Gram Altın"},
+        {proName:"ICE:XAUTRYG",title:"Gram Altın"},
         {proName:"BINANCE:BTCUSDT",title:"Bitcoin"},
         {proName:"FX_IDC:USDTRY",title:"USD/TRY"},
         {proName:"OANDA:XAUUSD",title:"Ons Altın"}
