@@ -87,8 +87,6 @@
     ["USDPLN=X","USDPLN","ABD Doları / Polonya Zlotisi","PLN","forex",4],
     ["USDRUB=X","USDRUB","ABD Doları / Rus Rublesi","RUB","forex",4],
     ["USDCNH=X","USDCNH","ABD Doları / Offshore Yuan","CNH","forex",4],
-    ["XAUUSD=X","XAUUSD","Ons Altın / ABD Doları","USD","forex",2],
-    ["XAGUSD=X","XAGUSD","Ons Gümüş / ABD Doları","USD","forex",3],
     ["BZ=F","BRENT","Brent Ham Petrol Vadeli","USD","commodity",2],
     ["CL=F","WTI","WTI Ham Petrol Vadeli","USD","commodity",2],
     ["NG=F","NATGAS","Doğal Gaz Vadeli","USD","commodity",3],
@@ -355,6 +353,7 @@
       "brent":"YAHOO:BZ=F","brent petrol":"YAHOO:BZ=F","uk oil":"YAHOO:BZ=F","ukoil":"YAHOO:BZ=F",
       "wti":"YAHOO:CL=F","crude oil":"YAHOO:CL=F","us oil":"YAHOO:CL=F","usoil":"YAHOO:CL=F",
       "silver":"YAHOO:SI=F","gümüş":"YAHOO:SI=F","gumus":"YAHOO:SI=F","xagusd":"YAHOO:SI=F",
+      "xauusd":"YAHOO:GC=F","ons altın":"YAHOO:GC=F","gold":"YAHOO:GC=F",
       "copper":"YAHOO:HG=F","bakır":"YAHOO:HG=F","bakir":"YAHOO:HG=F","xcuusd":"YAHOO:HG=F",
       "gold futures":"YAHOO:GC=F","ons altın":"YAHOO:GC=F","platinum":"YAHOO:PL=F","platin":"YAHOO:PL=F",
       "palladium":"YAHOO:PA=F","paladyum":"YAHOO:PA=F","natural gas":"YAHOO:NG=F","doğal gaz":"YAHOO:NG=F","dogal gaz":"YAHOO:NG=F",
@@ -1025,7 +1024,7 @@
 
   function updateWatchlist(){
     const host=$("watchlist");host.innerHTML="";
-    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||(activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold"));
+    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||(activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold")||(activeFilter==="forex"&&item.type==="forex")||(activeFilter==="commodity"&&item.type==="commodity"));
     visible.forEach(item=>{
       const row=document.createElement("button");row.className="watch-row"+(item.id===activeSymbol?" active":"");row.dataset.symbol=item.id;
       row.innerHTML='<span class="watch-symbol-icon"></span><span class="watch-meta"><strong></strong><small></small></span><span class="watch-quote"><strong data-quote-price>—</strong><small data-quote-change>—</small></span><i class="watch-state ready"></i>';
@@ -1069,7 +1068,11 @@
       if(requestId!==searchRequestId)return;
       symbols.filter(s=>symbolMatches(s,q)).slice(0,20).forEach(appendItem);
       const upper=q.toUpperCase().replace(/\s+/g,"");
-      if(/^[A-Z0-9]{3,8}$/.test(upper)&&!symbols.some(s=>s.id==="BIST:"+upper)){const item=ensureInstrument("BIST:"+upper);if(item)appendItem(item);}
+      const currencies=new Set(["USD","EUR","GBP","JPY","CHF","CAD","AUD","NZD","TRY","CNY","CNH","HKD","SGD","SEK","NOK","DKK","PLN","MXN","ZAR","INR","KRW","BRL","RUB","THB"]);
+      const isForex=/^[A-Z]{6}$/.test(upper)&&currencies.has(upper.slice(0,3))&&currencies.has(upper.slice(3));
+      if(isForex){const item=ensureInstrument("YAHOO:"+upper+"=X");if(item)appendItem(item);}
+      else if(/^[A-Z0-9]{3,8}$/.test(upper)&&!symbols.some(s=>s.id==="BIST:"+upper)){const item=ensureInstrument("BIST:"+upper);if(item)appendItem(item);}
+      if(/^[A-Z0-9.^_-]+(=X|=F)$/.test(upper)){const item=ensureInstrument("YAHOO:"+upper);if(item)appendItem(item);}
       if(/^[A-Z0-9]{2,18}USDT$/.test(upper)&&!symbols.some(s=>s.ticker===upper)){const item=ensureInstrument("BINANCE-FUTURES:"+upper);if(item)appendItem(item);}
     }
     if(!host.querySelector(".search-result")){const hint=document.createElement("div");hint.className="subtle-copy";hint.style.padding="10px";hint.textContent=q.length>=2?"Sembol bulunamadı. Tam kodu veya borsa önekini deneyebilirsin.":"En az 2 karakter yaz.";host.appendChild(hint);}
