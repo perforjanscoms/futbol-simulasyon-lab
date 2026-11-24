@@ -37,7 +37,7 @@
     <div class="workspace">
       <aside class="market-sidebar" id="marketSidebar">
         <div class="sidebar-heading">
-          <div><span class="eyebrow">PİYASA TAKİBİ</span><h2>İzleme listem</h2></div>
+          <div><span class="eyebrow">PİYASA TAKİBİ</span><h2>İzleme listem</h2><small class="watchlist-price-heading">SON FİYAT · 24S DEĞİŞİM</small></div>
           <button class="sidebar-close" id="closeSidebar" aria-label="Kapat">×</button>
         </div>
 
@@ -121,6 +121,7 @@
 
           <div class="chart-container" id="chartContainer">
             <div id="priceChart" class="price-chart"></div>
+            <div class="candle-countdown" id="candleCountdown" title="Seçili zaman dilimindeki mumun kapanmasına kalan süre"><span>MUM KAPANIŞ</span><strong id="candleCountdownValue">--:--:--</strong></div>
             <div id="chartOverlay" class="chart-overlay">
               <div class="chart-message">
                 <span class="message-symbol">◈</span>
@@ -156,7 +157,7 @@
               <button class="indicator-chip" data-study="SMA200"><b>SMA</b><span>200</span></button>
               <button class="indicator-chip" data-study="BB"><b>BB</b><span>Bollinger</span></button>
               <button class="indicator-chip" data-study="VWAP"><b>VWAP</b></button>
-              <button class="indicator-chip" data-study="RSI14"><b>RSI</b><span>14</span></button>
+              <button class="indicator-chip" data-study="STOCHRSI"><b>STOCH RSI</b><span>14/14/3/3</span></button>
               <button class="indicator-chip" data-study="MACD"><b>MACD</b><span>12/175/9</span></button>
               <button class="indicator-chip" data-study="STOCH"><b>STOCH</b></button>
             </div>
@@ -166,6 +167,14 @@
               <label>Yavaş <input id="macdSlow" type="number" min="2" max="1000" value="175"></label>
               <label>Sinyal <input id="macdSignal" type="number" min="1" max="100" value="9"></label>
               <button id="applyMacdParams" class="secondary-button" type="button">Uygula / Kaydet</button>
+            </div>
+            <div class="stochrsi-parameter-row macd-parameter-row">
+              <span class="macd-parameter-title">STOCH RSI PARAMETRELERİ</span>
+              <label>RSI <input id="stochRsiLength" type="number" min="2" max="200" value="14"></label>
+              <label>Stoch <input id="stochRsiWindow" type="number" min="2" max="200" value="14"></label>
+              <label>%K <input id="stochRsiK" type="number" min="1" max="50" value="3"></label>
+              <label>%D <input id="stochRsiD" type="number" min="1" max="50" value="3"></label>
+              <button id="applyStochRsiParams" class="secondary-button" type="button">Uygula / Kaydet</button>
             </div>
             <div class="active-study-list" id="activeStudyList"><span class="subtle-copy">Henüz gösterge eklenmedi.</span></div>
           </div>
