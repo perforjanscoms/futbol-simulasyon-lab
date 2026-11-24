@@ -284,3 +284,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 .macd-parameter-row input{width:49px;height:26px;padding:0 5px;border:1px solid var(--line2);border-radius:5px;background:#0a1422;color:#e0ebf6;font:600 9px 'DM Mono',monospace}
 .macd-parameter-row .secondary-button{min-height:26px;padding:0 9px;font-size:8px}
 @media(max-width:640px){.macd-parameter-row{gap:6px}.macd-parameter-title{width:100%}.macd-parameter-row .secondary-button{flex:1}}
+
+.watchlist-price-heading{display:block;margin-top:4px;color:#667b94;font:600 7px 'DM Mono',monospace;letter-spacing:.06em}
+.watch-quote{flex:0 0 76px;min-width:76px;text-align:right}
+.watch-quote strong{display:block;color:#d8e5f3;font:600 9px 'DM Mono',monospace;white-space:nowrap}
+.watch-quote small{display:block;margin-top:3px;color:#8093aa;font:500 8px 'DM Mono',monospace;white-space:nowrap}
+.watch-quote small.up{color:#45d6a0}.watch-quote small.down{color:#ff7186}
+.watch-row{gap:7px;padding-left:6px;padding-right:6px}
+.watch-symbol-icon{width:25px;height:25px;flex-basis:25px;font-size:8px}
+.watch-meta strong{font-size:9px}.watch-meta small{font-size:7px}
+.candle-countdown{position:absolute;z-index:6;top:7px;right:2px;display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:58px;padding:2px 3px;border-radius:3px;background:rgba(8,18,31,.72);pointer-events:none;text-align:right}
+.candle-countdown span{color:#7f94ac;font:500 6px 'DM Mono',monospace;letter-spacing:.06em}
+.candle-countdown strong{color:#d6e4f4;font:500 8px 'DM Mono',monospace;letter-spacing:.02em}
+@media(max-width:700px){.watch-quote{flex-basis:66px;min-width:66px}.watch-quote strong{font-size:8px}.watch-quote small{font-size:7px}}
