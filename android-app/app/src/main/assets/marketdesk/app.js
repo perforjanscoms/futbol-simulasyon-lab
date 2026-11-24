@@ -56,6 +56,7 @@
   let lowerCharts = [];
   let bars = [];
   let drawingLines = [];
+  let drawingSeriesRuntime = [];
   let drawingMode = null;
   let firstDrawPoint = null;
   let quoteTimer = null;
@@ -100,8 +101,27 @@
     } catch { return []; }
   }
 
+  function serializableDrawings() {
+    return drawingLines.map(d => {
+      const copy = {...d};
+      delete copy._runtimeId;
+      return copy;
+    });
+  }
+
   function saveDrawings() {
-    try { localStorage.setItem("bybora_drawings_" + activeSymbol, JSON.stringify(drawingLines)); } catch {}
+    try { localStorage.setItem("bybora_drawings_" + activeSymbol, JSON.stringify(serializableDrawings())); } catch {}
+  }
+
+  function activePriceSeries() {
+    return candleSeries || lineSeries;
+  }
+
+  function clearDrawingRuntime() {
+    for (const s of drawingSeriesRuntime) {
+      try { if (chart) chart.removeSeries(s); } catch {}
+    }
+    drawingSeriesRuntime = [];
   }
 
   function loadLayouts() {
@@ -525,34 +545,36 @@
   }
 
   function restoreDrawingLines() {
-    if (!chart || !candleSeries) return;
+    const priceSeries=activePriceSeries();
+    if (!chart || !priceSeries) return;
     drawingLines.forEach(d=>{
       if (d.type==="horizontal") {
-        const line=candleSeries.createPriceLine({price:d.price,color:d.color||"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:d.title||"Seviye"});
-        d._runtimeId = line;
+        d._runtimeId = priceSeries.createPriceLine({price:d.price,color:d.color||"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:d.title||"Seviye"});
       } else if (d.type==="trend" && d.points?.length===2) {
         const s=chart.addSeries(window.LightweightCharts.LineSeries,{color:d.color||"#e8bd68",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
         s.setData(d.points);
         d._runtimeId=s;
+        drawingSeriesRuntime.push(s);
       } else if (d.type==="fib" && Array.isArray(d.levels)) {
         d._runtimeId=[];
         d.levels.forEach(level=>{
-          d._runtimeId.push(candleSeries.createPriceLine({price:level.price,color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:level.label}));
+          d._runtimeId.push(priceSeries.createPriceLine({price:level.price,color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:level.label}));
         });
       }
     });
   }
 
   function clearDrawings() {
-    if (candleSeries) {
+    const priceSeries=activePriceSeries();
+    if (priceSeries) {
       drawingLines.forEach(d=>{
         try {
-          if (d.type==="horizontal") candleSeries.removePriceLine(d._runtimeId);
-          if (d.type==="fib") d._runtimeId?.forEach(l=>candleSeries.removePriceLine(l));
-          if (d.type==="trend" && d._runtimeId) chart.removeSeries(d._runtimeId);
+          if (d.type==="horizontal" && d._runtimeId) priceSeries.removePriceLine(d._runtimeId);
+          if (d.type==="fib") d._runtimeId?.forEach(l=>priceSeries.removePriceLine(l));
         } catch {}
       });
     }
+    clearDrawingRuntime();
     drawingLines=[];
     saveDrawings();
     renderDrawingList();
@@ -584,13 +606,14 @@
   }
 
   function onChartClick(param) {
-    if (!drawingMode || !param?.point || !param.time || !candleSeries) return;
-    const price=candleSeries.coordinateToPrice(param.point.y);
+    const priceSeries=activePriceSeries();
+    if (!drawingMode || !param?.point || !param.time || !priceSeries) return;
+    const price=priceSeries.coordinateToPrice(param.point.y);
     if (!Number.isFinite(price)) return;
     const point={time:param.time,price};
     if (drawingMode==="horizontal") {
       const item={type:"horizontal",price,color:"#e8bd68",title:"Seviye"};
-      item._runtimeId=candleSeries.createPriceLine({price,color:item.color,lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:"Seviye"});
+      item._runtimeId=priceSeries.createPriceLine({price,color:item.color,lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:"Seviye"});
       drawingLines.push(item);
       drawingMode=null;
     } else if (!firstDrawPoint) {
@@ -608,7 +631,7 @@
       const levels=[0,.236,.382,.5,.618,.786,1].map(r=>{
         const price=high-(high-low)*r;
         const item={price,label:(r*100).toFixed(1)+"%"};
-        item.runtime=candleSeries.createPriceLine({price,color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:item.label});
+        item.runtime=priceSeries.createPriceLine({price,color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:item.label});
         return item;
       });
       drawingLines.push({type:"fib",levels:levels.map(x=>({price:x.price,label:x.label})),_runtimeId:levels.map(x=>x.runtime)});
@@ -626,9 +649,11 @@
     $("instrumentSymbol").textContent=item.id+" · "+item.currency;
     $("exchangeBadge").textContent=item.exchange;
     $("chartTicker").textContent=item.ticker;
-    const price = item.type==="bist" && quote?.price ? Number(quote.price) : lastBar?.close;
+    const price = item.type==="bist" && quote?.price!=null ? Number(quote.price) :
+      quote?.lastPrice!=null ? Number(quote.lastPrice) : lastBar?.close;
     $("lastPrice").textContent=Number.isFinite(price)?fmtPrice(price,item.decimals):"—";
     const change = item.type==="bist" && quote?.changePercent!=null ? Number(quote.changePercent) :
+      quote?.priceChangePercent!=null ? Number(quote.priceChangePercent) :
       (bars.length>1?((bars[bars.length-1].close/bars[bars.length-2].close)-1)*100:null);
     $("priceChange").textContent=Number.isFinite(change)?(change>=0?"+":"")+change.toFixed(2)+"%":"—";
     $("priceChange").className="quote-change"+(change>0?" up":change<0?" down":"");
@@ -704,9 +729,18 @@
 
   function loadLayout(index) {
     const layout=layouts[index];if(!layout)return;
-    activeInterval=layout.interval;chartType=layout.chartType;activeStudies=[...layout.studies];drawingLines=layout.drawings||[];
-    saveStudies();saveDrawings();selectSymbol(layout.symbol,true);
-    document.querySelectorAll(".timeframe-group button").forEach(b=>b.classList.toggle("active",b.dataset.interval===activeInterval));
+    clearDrawingRuntime();
+    activeSymbol=layout.symbol;
+    activeInterval=layout.interval;
+    chartType=layout.chartType;
+    activeStudies=[...layout.studies];
+    drawingLines=Array.isArray(layout.drawings)?layout.drawings:[];
+    saveStudies();saveDrawings();
+    document.querySelectorAll("#timeframes button").forEach(b=>b.classList.toggle("active",b.dataset.interval===activeInterval));
+    $("candlesButton").classList.toggle("active",chartType==="candles");
+    $("lineButton").classList.toggle("active",chartType==="line");
+    updateWatchlist();
+    loadChart();
     toast(layout.name+" yüklendi.");
   }
 
@@ -716,9 +750,10 @@
 
   async function selectSymbol(id,keepSettings=false) {
     if (!instrument(id)) return;
+    clearDrawingRuntime();
     activeSymbol=id;
-    activeStudies=loadStudies(id);
-    drawingLines=loadDrawings(id);
+    activeStudies=keepSettings?activeStudies:loadStudies(id);
+    drawingLines=keepSettings?drawingLines:loadDrawings(id);
     document.querySelectorAll(".timeframe-group button").forEach(b=>b.classList.toggle("active",b.dataset.interval===activeInterval));
     updateWatchlist();
     await loadChart();
@@ -741,6 +776,7 @@
       const result=await getMarketData(item,activeInterval);
       bars=result.bars;
       if (!bars.length) throw new Error("Seçili sembol ve zaman aralığı için mum verisi bulunamadı.");
+      clearDrawingRuntime();
       ensureMainSeries();
       if (chartType==="candles") candleSeries.setData(bars);
       else lineSeries.setData(bars.map(b=>({time:b.time,value:b.close})));
@@ -795,11 +831,13 @@
     $("candlesButton").classList.toggle("active",type==="candles");
     $("lineButton").classList.toggle("active",type==="line");
     if (bars.length) {
+      clearDrawingRuntime();
       ensureMainSeries();
       if (type==="candles") candleSeries.setData(bars);
       else lineSeries.setData(bars.map(b=>({time:b.time,value:b.close})));
       volumeSeries.setData(bars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
       renderStudies();
+      drawingLines=loadDrawings(activeSymbol);
       restoreDrawingLines();
     }
   }
