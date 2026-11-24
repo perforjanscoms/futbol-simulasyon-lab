@@ -15,6 +15,7 @@
   const STOCH_RSI_KEY = "bybora_stochrsi_params_v1";
   const MARKET_CATALOG_KEY = "bybora_market_catalogs_v2";
   const MARKET_CATALOG_TTL = 12 * 60 * 60 * 1000;
+  const ALERTS_KEY = "bybora_price_alerts_v1";
   const WATCH_KEY = "bybora_watchlist_v3";
   const LAYOUT_KEY = "bybora_layouts_v3";
   const TROY_OUNCE_GRAMS = 31.1034768;
@@ -112,6 +113,12 @@
     type,provider:"yahoo",pair,currency,decimals
   }));
   symbols.push(...yahooMarketSymbols);
+  const yahooIndexSymbols=[
+    {id:"YAHOO:^IXIC",ticker:"NASDAQ",name:"NASDAQ Composite",exchange:"NASDAQ",type:"index",provider:"yahoo",pair:"^IXIC",currency:"USD",decimals:2},
+    {id:"YAHOO:^GSPC",ticker:"SP500",name:"S&P 500",exchange:"S&P",type:"index",provider:"yahoo",pair:"^GSPC",currency:"USD",decimals:2},
+    {id:"YAHOO:DX-Y.NYB",ticker:"DXY",name:"US Dollar Index (DXY)",exchange:"ICE",type:"index",provider:"yahoo",pair:"DX-Y.NYB",currency:"USD",decimals:2}
+  ];
+  symbols.push(...yahooIndexSymbols);
 
   const intervals = ["1m","5m","15m","30m","1h","4h","1d","1w","1M"];
   const intervalIstfin = {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"1h","4h":"4h","1d":"1d","1w":"1w","1M":"1mo"};
@@ -165,6 +172,9 @@
   let refreshTimer = null;
   let toastTimer = null;
   let activeFilter = "all";
+  let priceAlerts = loadPriceAlerts();
+  let alertPollBusy = false;
+  let alertPollTimer = null;
   let isLoading = false;
   let pendingReload = false;
   let symbolSearchTimer = null;
@@ -350,6 +360,9 @@
     if(direct)return direct.id;
     const aliases={"petkim":"BIST:PETKM","petkm":"BIST:PETKM","gram altın":"GOLD:GRAM_TRY","gram altin":"GOLD:GRAM_TRY","xautryg":"GOLD:GRAM_TRY","paxgtry":"GOLD:GRAM_TRY","paxg/try":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100","bist 100":"BIST:XU100","bitcoin":"BINANCE:BTCUSDT","btc":"BINANCE:BTCUSDT","btc/usdt":"BINANCE:BTCUSDT","ethereum":"BINANCE:ETHUSDT","eth":"BINANCE:ETHUSDT"};
     const yahooAliases={
+      "nasdaq":"YAHOO:^IXIC","nasdaq composite":"YAHOO:^IXIC","^ixic":"YAHOO:^IXIC",
+      "sp500":"YAHOO:^GSPC","s&p 500":"YAHOO:^GSPC","s p 500":"YAHOO:^GSPC","^gspc":"YAHOO:^GSPC",
+      "dxy":"YAHOO:DX-Y.NYB","dollar index":"YAHOO:DX-Y.NYB","us dollar index":"YAHOO:DX-Y.NYB",
       "brent":"YAHOO:BZ=F","brent petrol":"YAHOO:BZ=F","uk oil":"YAHOO:BZ=F","ukoil":"YAHOO:BZ=F",
       "wti":"YAHOO:CL=F","crude oil":"YAHOO:CL=F","us oil":"YAHOO:CL=F","usoil":"YAHOO:CL=F",
       "silver":"YAHOO:SI=F","gümüş":"YAHOO:SI=F","gumus":"YAHOO:SI=F","xagusd":"YAHOO:SI=F",
@@ -606,7 +619,7 @@
       }
     }
     if(item.type==="gold")return (await fetchYahooGoldBars("15m")).quote;
-    if(item.type==="forex"||item.type==="commodity")return (await fetchYahooBars(item.pair,"15m")).quote;
+    if(item.type==="forex"||item.type==="commodity"||item.type==="index")return (await fetchYahooBars(item.pair,"15m")).quote;
     if(item.provider==="okxSpot"||item.provider==="okxSwap"){
       const url=new URL(OKX+"/api/v5/market/ticker");url.searchParams.set("instId",item.pair);
       const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)return null;
@@ -635,6 +648,10 @@
       }
     }
     if(item.type==="gold")return await fetchYahooGoldBars(interval);
+    if(item.type==="index"){
+      const r=await fetchYahooBars(item.pair,interval);
+      return {bars:r.bars,quote:r.quote,source:"Yahoo Finance · "+item.pair,delay:item.ticker==="NASDAQ"?"NASDAQ Composite · Yahoo GIDS gecikmeli referans veri":"Endeks referans verisi · Yahoo Finance"};
+    }
     if(item.type==="forex"||item.type==="commodity"){
       const r=await fetchYahooBars(item.pair,interval);
       return {bars:r.bars,quote:r.quote,source:"Yahoo Finance · "+item.pair,delay:item.type==="forex"?"Forex · Yahoo Finance referans verisi":"Emtia vadeli kontratı · Yahoo Finance referans verisi"};
@@ -998,7 +1015,7 @@
 
   function renderInstrumentHeader(item,quote,lastBar) {
     $("instrumentAvatar").textContent=item.ticker.slice(0,2);
-    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":"KRİPTO · SPOT";
+    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":item.type==="index"?"ABD ENDEKSLERİ":"KRİPTO · SPOT";
     $("instrumentName").textContent=item.name;
     $("instrumentSymbol").textContent=item.id+" · "+item.currency;
     $("exchangeBadge").textContent=item.exchange;
@@ -1024,7 +1041,7 @@
 
   function updateWatchlist(){
     const host=$("watchlist");host.innerHTML="";
-    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||(activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold")||(activeFilter==="forex"&&item.type==="forex")||(activeFilter==="commodity"&&item.type==="commodity"));
+    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||(activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold")||(activeFilter==="forex"&&item.type==="forex")||(activeFilter==="commodity"&&item.type==="commodity")||(activeFilter==="index"&&item.type==="index"));
     visible.forEach(item=>{
       const row=document.createElement("button");row.className="watch-row"+(item.id===activeSymbol?" active":"");row.dataset.symbol=item.id;
       row.innerHTML='<span class="watch-symbol-icon"></span><span class="watch-meta"><strong></strong><small></small></span><span class="watch-quote"><strong data-quote-price>—</strong><small data-quote-change>—</small></span><i class="watch-state ready"></i>';
@@ -1177,7 +1194,7 @@
       $("chartStatusText").textContent="GRAFİK AKTİF";
       $("chartLiveStatus").classList.add("ready");
       $("chartOverlay").hidden=true;
-      setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":item.type==="forex"?"FOREX · YAHOO":item.type==="commodity"?"EMTİA · YAHOO":item.provider==="binanceFutures"?"KRİPTO VADELİ · AKTİF":item.provider?.startsWith("okx")?"OKX · AKTİF":"KRİPTO · AKTİF","good");
+      setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":item.type==="forex"?"FOREX · YAHOO":item.type==="commodity"?"EMTİA · YAHOO":item.type==="index"?"ENDEKS · YAHOO":item.provider==="binanceFutures"?"KRİPTO VADELİ · AKTİF":item.provider?.startsWith("okx")?"OKX · AKTİF":"KRİPTO · AKTİF","good");
       updateWatchlist();
       scheduleRefresh();
     } catch(error) {
@@ -1308,6 +1325,11 @@
       activeFilter=b.dataset.watchFilter;document.querySelectorAll("[data-watch-filter]").forEach(x=>x.classList.toggle("active",x===b));updateWatchlist();
     }));
     $("favoriteButton").addEventListener("click",toggleFavorite);
+    $("openPriceAlerts").addEventListener("click",openPriceAlerts);
+    $("closePriceAlerts").addEventListener("click",closePriceAlerts);
+    $("priceAlertBackdrop").addEventListener("click",e=>{if(e.target===$("priceAlertBackdrop"))closePriceAlerts();});
+    $("createPriceAlert").addEventListener("click",createPriceAlert);
+    $("enableAlertNotifications").addEventListener("click",requestAlertNotifications);
     document.querySelectorAll("[data-study]").forEach(b=>b.addEventListener("click",()=>toggleStudy(b.dataset.study)));
     document.querySelectorAll("[data-deck]").forEach(b=>b.addEventListener("click",()=>{
       const deck=b.dataset.deck;
@@ -1425,6 +1447,55 @@
     node.textContent=remaining==null?"—":countdownText(remaining);
   }
 
+
+  function loadPriceAlerts(){try{const v=JSON.parse(localStorage.getItem(ALERTS_KEY)||"[]");return Array.isArray(v)?v.filter(a=>a&&a.id&&a.symbol&&Number.isFinite(Number(a.target))):[];}catch{return [];}}
+  function savePriceAlerts(){try{localStorage.setItem(ALERTS_KEY,JSON.stringify(priceAlerts));}catch{}}
+  function updateAlertCount(){const n=$("alertCount");if(n)n.textContent=String(priceAlerts.filter(a=>a.active).length);}
+  function alertPriceText(a){return fmtPrice(Number(a.target),instrument(a.symbol)?.decimals||2);}
+  function renderPriceAlerts(){
+    const host=$("priceAlertList");if(!host)return;host.innerHTML="";
+    if(!priceAlerts.length){const empty=document.createElement("div");empty.className="alert-empty";empty.textContent="Henüz fiyat alarmı kurmadın.";host.appendChild(empty);}
+    priceAlerts.slice().sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0)).forEach(a=>{
+      const item=instrument(a.symbol),row=document.createElement("div");row.className="price-alert-row";
+      const copy=document.createElement("div");copy.className="price-alert-copy";
+      const title=document.createElement("strong");title.textContent=(a.ticker||item?.ticker||a.symbol)+" · "+(a.direction==="above"?"ÜZERİNE ÇIKARSA":"ALTINA DÜŞERSE");
+      const detail=document.createElement("small");detail.textContent=alertPriceText(a)+(a.triggered?" · TETİKLENDİ":a.active?" · AKTİF":" · DURAKLATILDI");copy.append(title,detail);
+      const actions=document.createElement("div");actions.className="price-alert-actions";
+      if(a.triggered||!a.active){const rearm=document.createElement("button");rearm.type="button";rearm.textContent="Yeniden kur";rearm.addEventListener("click",()=>{a.active=true;a.triggered=false;a.triggeredAt=null;savePriceAlerts();renderPriceAlerts();toast("Alarm yeniden kuruldu.");});actions.appendChild(rearm);}
+      const remove=document.createElement("button");remove.type="button";remove.className="alert-delete";remove.textContent="Sil";remove.addEventListener("click",()=>{priceAlerts=priceAlerts.filter(x=>x.id!==a.id);savePriceAlerts();renderPriceAlerts();});actions.appendChild(remove);
+      row.append(copy,actions);host.appendChild(row);
+    });
+    const summary=$("alertCountSummary");if(summary)summary.textContent=priceAlerts.filter(a=>a.active).length+" aktif";updateAlertCount();
+  }
+  function updateAlertPermissionStatus(){const n=$("alertPermissionStatus");if(!n)return;if(!window.ByboraNative){n.textContent="Android bildirim bileşeni bulunamadı.";return;}n.textContent=window.ByboraNative.hasNotificationPermission()?"Android bildirim izni açık. Tetiklenen alarmlar bildirim gönderebilir.":"Bildirim izni kapalı. Alarm tetiklenir ancak Android bildirimi gönderilemez.";}
+  function openPriceAlerts(){ $("priceAlertBackdrop").hidden=false;const item=instrument();$("alertSelectedSymbol").textContent=item?item.ticker+" · "+item.name:"Sembol seçilmedi";$("alertPrice").value="";renderPriceAlerts();updateAlertPermissionStatus();}
+  function closePriceAlerts(){$("priceAlertBackdrop").hidden=true;}
+  function requestAlertNotifications(){if(!window.ByboraNative){toast("Android bildirim desteği bulunamadı.");return;}window.ByboraNative.requestNotificationPermission();setTimeout(updateAlertPermissionStatus,500);setTimeout(updateAlertPermissionStatus,1400);}
+  function createPriceAlert(){
+    const item=instrument(),target=Number(String($("alertPrice").value).replace(",",".")),direction=$("alertDirection").value;
+    if(!item){toast("Önce alarm kuracağın sembolü aç.");return;}if(!Number.isFinite(target)||target<=0){toast("Geçerli bir fiyat seviyesi gir.");return;}
+    priceAlerts.unshift({id:Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8),symbol:item.id,ticker:item.ticker,name:item.name,direction,target,active:true,triggered:false,createdAt:Date.now()});
+    savePriceAlerts();renderPriceAlerts();$("alertPrice").value="";toast(item.ticker+" için fiyat alarmı kuruldu.");
+  }
+  async function checkPriceAlerts(){
+    if(alertPollBusy||document.hidden)return;const active=priceAlerts.filter(a=>a.active&&!a.triggered&&instrument(a.symbol));if(!active.length)return;alertPollBusy=true;
+    try{
+      const unique=[...new Set(active.map(a=>a.symbol))],quotes=await Promise.all(unique.map(async symbol=>({symbol,quote:await fetchQuote(symbol).catch(()=>null)})));let changed=false;
+      for(const entry of quotes){
+        const price=Number(entry.quote?.lastPrice??entry.quote?.price??entry.quote?.close);if(!Number.isFinite(price))continue;
+        for(const a of active.filter(x=>x.symbol===entry.symbol)){
+          const hit=a.direction==="above"?price>=Number(a.target):price<=Number(a.target);if(!hit)continue;
+          a.active=false;a.triggered=true;a.triggeredAt=Date.now();a.triggeredPrice=price;changed=true;
+          const item=instrument(a.symbol),message=(a.ticker||item?.ticker||a.symbol)+" "+(a.direction==="above"?"üstüne çıktı":"altına düştü")+" · Alarm: "+alertPriceText(a)+" · Son fiyat: "+fmtPrice(price,item?.decimals||2);
+          let sent=false;try{if(window.ByboraNative&&window.ByboraNative.hasNotificationPermission()){window.ByboraNative.showPriceAlertNotification(a.ticker||item?.ticker||a.symbol,message);sent=true;}}catch{}
+          toast(sent?"Fiyat alarmı tetiklendi · Android bildirimi gönderildi.":"Fiyat alarmı tetiklendi · Bildirim iznini kontrol et.");
+        }
+      }
+      if(changed){savePriceAlerts();renderPriceAlerts();}
+    }finally{alertPollBusy=false;}
+  }
+  function startPriceAlertPolling(){if(alertPollTimer)clearInterval(alertPollTimer);checkPriceAlerts().catch(()=>{});alertPollTimer=setInterval(()=>checkPriceAlerts().catch(()=>{}),20000);}
+
   function updateClock() {
     $("clock").textContent=fmtTime();
   }
@@ -1458,6 +1529,8 @@
       },300);
     }
     updateClock();setInterval(updateClock,1000);
+    renderPriceAlerts();startPriceAlertPolling();
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkPriceAlerts().catch(()=>{});});
     updateCandleCountdown();candleCountdownTimer=setInterval(updateCandleCountdown,1000);
     loadMarketCatalogs().catch(()=>{});
     refreshWatchlistQuotes().catch(()=>{});
