@@ -230,7 +230,7 @@
     if (direct) return direct.id;
     const aliases = {
       "petkim":"BIST:PETKM","petkm":"BIST:PETKM","gram altın":"GOLD:GRAM_TRY","gram altin":"GOLD:GRAM_TRY",
-      "xautryg":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100",
+      "xautryg":"GOLD:GRAM_TRY","paxgtry":"GOLD:GRAM_TRY","paxg/try":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100",
       "bist 100":"BIST:XU100","bitcoin":"BINANCE:BTCUSDT","btc":"BINANCE:BTCUSDT","btc/usdt":"BINANCE:BTCUSDT",
       "ethereum":"BINANCE:ETHUSDT","eth":"BINANCE:ETHUSDT"
     };
@@ -461,8 +461,10 @@
   }
 
   function vwap(values) {
-    let pv=0,v=0;const out=[];
+    let pv=0,v=0,session=null;const out=[];
     for(const row of values){
+      const key=new Date(row.time*1000).toISOString().slice(0,10);
+      if(key!==session){session=key;pv=0;v=0;}
       const volume=row.volume||0;const typical=(row.high+row.low+row.close)/3;
       pv+=typical*volume;v+=volume;
       if(v>0)out.push({time:row.time,value:pv/v});
