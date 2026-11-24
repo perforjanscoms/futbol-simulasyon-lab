@@ -1,4 +1,4 @@
-# BYBORA Market Desk — Android
+# BYBORA Market Desk — Android 1.5.0
 
 BYBORA Market Desk is a native Android app with its own TradingView-style chart screen. It does **not** open TradingView or Investing.com chart pages. The in-app chart is drawn locally with TradingView Lightweight Charts™; all price data is fetched separately from the selected data source.
 
@@ -9,9 +9,9 @@ BYBORA Market Desk is a native Android app with its own TradingView-style chart 
 - Candlestick and line charts.
 - Timeframes: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w and 1M.
 - Pan, zoom, crosshair, price scale and volume histogram.
-- EMA 20/50, SMA 200, Bollinger Bands, VWAP, RSI, MACD and Stochastic.
+- EMA 20/50, SMA 200, Bollinger Bands, VWAP, RSI, configurable MACD (default 12/175/9) and Stochastic.
 - Horizontal price lines, trend lines and Fibonacci retracement.
-- Per-symbol indicator selections and drawings saved on the device.
+- Per-symbol indicator selections and drawings saved on the device; MACD parameters are configurable and saved locally.
 - Named chart layouts save symbol, interval, chart style, indicators and drawings.
 - Watchlist and visible chart zoom are stored locally.
 - Supported Binance spot pairs can be entered in full form, for example `BINANCE:ADAUSDT`; BIST symbols are searchable through the provider symbol directory when the API key is configured.
@@ -24,14 +24,13 @@ Binance public spot market-data endpoints provide OHLCV candles and 24-hour quot
 ### Gram gold
 The gram-equivalent chart uses Binance `PAXGTRY` candles divided by 31.1034768 grams per troy ounce. This is a **PAX Gold token / TRY market reference converted to grams**, not a physical jeweller's gram-gold quote and not a jewellery buy/sell spread. No exchange page is opened.
 
-### BIST stocks (including PETKM and XU100)
-BIST has no free, general-purpose, licensed public OHLCV API that we can safely use for every intraday timeframe. Borsa İstanbul distributes its market data through licensed data vendors. BYBORA therefore uses the istfin REST API as an optional BIST feed:
-- 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w and 1mo bars.
-- Depending on the provider plan, quote/index data can be live or 15-minute delayed; the Basic plan is delayed.
-- An istfin account, a data plan and an API key with `market:read` permission are required. This is not a Matriks subscription.
-- Add the key in the in-app gear/settings panel. It is stored in this app's WebView local storage and sent only to `api.istfin.com` over HTTPS; it is not committed to GitHub.
-- With no BIST API key, the app will show a clear setup message instead of inventing PETKM or XU100 prices.
-- For access details and current pricing, see the [istfin API documentation](https://api.istfin.com/docs) and [OHLCV endpoint reference](https://api.istfin.com/docs/fiyat-barlari).
+### BIST stocks and indices (including PETKM and XU100)
+The default BIST feed uses Yahoo Finance's publicly reachable chart endpoint inside the app WebView proxy. Examples: `PETKM.IS` and `XU100.IS`. Yahoo data is commonly delayed for BIST symbols. It covers 1m, 5m, 15m, 30m, 1h, 4h (aggregated from hourly bars), daily, weekly and monthly intervals when Yahoo provides them.
+
+**Important limitation:** this is an unofficial, undocumented Yahoo Finance endpoint, not a guaranteed public API. Yahoo may rate-limit, block, change or remove access; intraday history is limited (especially 1m/5m) and symbol coverage is not universal. If Yahoo returns no data, the app shows the provider error rather than generating fake candles. An optional istfin API key can be configured as a fallback in Settings; it requires its own subscription and is not a Matriks subscription.
+
+### Gram gold
+The gram-gold chart is calculated from Yahoo Finance `GC=F` (COMEX gold futures, USD per troy ounce) and `USDTRY=X` (USD/TRY), using `(gold ounce × USD/TRY) ÷ 31.1034768`. This is a derived reference, not a physical jeweller/bank buy-sell quote; local premiums, spreads and costs are excluded.
 
 ## Chart engine
 The chart renderer is [TradingView Lightweight Charts™](https://tradingview.github.io/lightweight-charts/), an open-source charting library. Its pinned standalone bundle is downloaded during APK build and packaged into the app's local assets, so the chart engine itself is not fetched at launch. The UI, feed adapters, indicator calculations, drawing tools and local layout persistence are implemented in BYBORA Market Desk. The library itself does not provide market data; BYBORA fetches it from the providers noted above.
