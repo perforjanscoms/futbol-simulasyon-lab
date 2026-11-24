@@ -1502,6 +1502,7 @@
 
   function init() {
     bindEvents();
+    window.byBoraAlertPermissionChanged=updateAlertPermissionStatus;
     updateWatchlist();
     renderLayouts();
     renderStudyChips();
