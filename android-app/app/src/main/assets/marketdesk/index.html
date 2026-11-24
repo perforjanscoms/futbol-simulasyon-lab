@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#080f1d">
   <meta name="description" content="BIST, kripto, döviz ve emtia piyasalarını TradingView grafikleriyle izleyin.">
   <title>BYBORA Market Desk</title>
-  
+  <link rel="preconnect" href="https://s3.tradingview.com">
   <link rel="preconnect" href="https://www.tradingview.com">
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -21,14 +21,14 @@
       <div class="topbar-center"><span class="live-dot"></span><span>TRADINGVIEW PİYASA GRAFİKLERİ</span><i></i><span id="turkeyClock">--:--:-- TRT</span></div>
       <div class="topbar-actions">
         <span class="source-pill"><span></span> YAHOO FINANCE YOK</span>
-        <a class="top-link" href="https://www.tradingview.com/markets/">Piyasalar ↗</a>
+        <a class="top-link" href="https://www.tradingview.com/markets/" target="_blank" rel="noopener">Piyasalar ↗</a>
       </div>
     </header>
 
     <div class="ticker-strip">
-      <div class="ticker-label"><span class="pulse"></span> HIZLI SEMBOLLER</div>
+      <div class="ticker-label"><span class="pulse"></span> PİYASA AKIŞI</div>
       <div id="tickerTape" class="ticker-mount">
-        <div class="ticker-fallback">BIST:XU100 <b>·</b> BIST:PETKM <b>·</b> ICE:XAUTRYG <b>·</b> BINANCE:BTCUSDT <b>·</b> FX_IDC:USDTRY</div>
+        <div class="ticker-fallback">BIST:XU100 <b>·</b> BIST:PETKM <b>·</b> FX_IDC:XAUTRYG <b>·</b> BINANCE:BTCUSDT <b>·</b> FX_IDC:USDTRY</div>
       </div>
     </div>
 
@@ -68,7 +68,7 @@
 
         <div class="sidebar-bottom">
           <span class="shield">✓</span>
-          <div><strong>Veri kaynağı ayrıştırıldı</strong><small>Grafik ve piyasa verileri TradingView platformundan gelir.</small></div>
+          <div><strong>Veri kaynağı ayrıştırıldı</strong><small>Grafik ve piyasa verileri TradingView widget'ından gelir.</small></div>
         </div>
       </aside>
 
@@ -87,7 +87,7 @@
           <div class="instrument-actions">
             <button id="favoriteCurrent" class="favorite-button" aria-label="Favorilere ekle" title="Favorilere ekle">☆</button>
             <button id="copySymbol" class="small-action" title="Sembolü kopyala">⧉ <span>Kodu kopyala</span></button>
-            <a id="openTradingView" class="tv-open-button" href="https://www.tradingview.com/chart/?symbol=BIST%3APETKM" >TradingView tam ekran <span>↗</span></a>
+            <a id="openTradingView" class="tv-open-button" href="https://www.tradingview.com/chart/?symbol=BIST%3APETKM" target="_blank" rel="noopener">TradingView'de aç <span>↗</span></a>
           </div>
         </div>
 
@@ -103,30 +103,58 @@
             <button data-interval="W">1 hf</button>
             <button data-interval="M">1 ay</button>
           </div>
-          <div class="chart-controls"><span class="chart-status"><i></i> GRAFİK AKTİF</span><span class="toolbar-divider"></span><span class="chart-provider">TradingView Supercharts</span></div>
+          <div class="chart-controls"><span class="chart-status"><i></i> GRAFİK AKTİF</span><span class="toolbar-divider"></span><span class="chart-provider">TradingView Advanced Chart</span></div>
         </div>
 
-        <section class="chart-card chart-launch-card" aria-label="TradingView tam grafik ekranı">
-          <div class="chart-launch-content">
-            <div class="launch-logo">TV</div>
-            <span class="eyebrow">TRADINGVIEW SUPERCHARTS</span>
-            <h2>Tam grafik deneyimini aç.</h2>
-            <p>Gömülü önizleme yerine TradingView'in kendi grafik ekranını kullan. Gösterge ekleme, ayar değiştirme, çizim yapma ve grafik düzenini hesabına kaydetme özellikleri burada çalışır.</p>
-            <a id="launchChartNow" class="launch-chart-button" href="https://www.tradingview.com/chart/?symbol=BIST%3APETKM&interval=15">PETKM GRAFİĞİNİ AÇ <span>↗</span></a>
-            <div class="save-guide">
-              <div class="save-guide-icon">✓</div>
-              <div>
-                <strong>Gösterge ayarlarını kalıcı kaydet</strong>
-                <span>TradingView hesabınla giriş yap. Grafik ekranında <b>Düzenleri yönet → Otomatik kaydet</b> seçeneğini aç. İstersen düzen menüsünden elle de kaydedebilirsin.</span>
-              </div>
-            </div>
+        <section class="chart-card" aria-label="TradingView fiyat grafiği">
+          <div id="chartMount" class="chart-mount">
+            <div class="chart-loading"><span class="loader"></span><strong>TradingView grafiği hazırlanıyor</strong><small>Seçili sembol yükleniyor…</small></div>
           </div>
         </section>
 
         <div class="chart-foot">
-          <span><i class="tiny-check"></i> Grafik doğrudan TradingView'in kendi platformunda açılır.</span>
-          <span class="chart-foot-right">Uygulamaya dönmek için Android geri tuşunu kullan.</span>
+          <span><i class="tiny-check"></i> Grafik verisi TradingView üzerinden yüklenir.</span>
+          <span class="chart-foot-right">Sembol aramak için grafiğin sol üstündeki TradingView aramasını da kullanabilirsin.</span>
         </div>
+
+        <section class="indicator-manager panel">
+          <div class="indicator-manager-head">
+            <div>
+              <span class="eyebrow">KİŞİSEL GÖSTERGE DÜZENİN</span>
+              <h3>Gösterge setim</h3>
+              <p>Buradan eklediğin göstergeler sembol ve zaman dilimi değişince yeniden grafiğe eklenir.</p>
+            </div>
+            <span class="indicator-count" id="studyCount">0 GÖSTERGE</span>
+          </div>
+          <div class="indicator-add-row">
+            <select id="indicatorPicker" aria-label="Eklenecek gösterge">
+              <option value="STD;RSI">RSI</option>
+              <option value="STD;MACD">MACD</option>
+              <option value="STD;EMA">Üssel Hareketli Ortalama (EMA)</option>
+              <option value="STD;SMA">Basit Hareketli Ortalama (SMA)</option>
+              <option value="STD;BB">Bollinger Bantları</option>
+              <option value="STD;VWAP">VWAP</option>
+              <option value="STD;Stochastic">Stochastic</option>
+              <option value="STD;ATR">ATR</option>
+            </select>
+            <button id="addStudyBtn" class="button primary">＋ Gösterge ekle</button>
+          </div>
+          <div id="activeStudies" class="active-studies">
+            <span class="empty-studies">Henüz kayıtlı gösterge yok.</span>
+          </div>
+          <div class="indicator-save-row">
+            <input id="studyPresetName" type="text" maxlength="32" placeholder="Gösterge setine isim ver (örn. ByBora 15 dk)" aria-label="Gösterge seti adı">
+            <button id="saveStudyPreset" class="button subtle">Seti kaydet</button>
+          </div>
+          <div class="indicator-load-row">
+            <select id="studyPresetSelect" aria-label="Kayıtlı gösterge seti">
+              <option value="">Kayıtlı set seç...</option>
+            </select>
+            <button id="loadStudyPreset" class="button subtle">Yükle</button>
+            <button id="deleteStudyPreset" class="button subtle danger-button">Sil</button>
+          </div>
+          <p id="studyMessage" class="indicator-message" aria-live="polite">Gösterge listesi ve kayıtlı setler bu telefonda saklanır. Grafiğin içinden elle eklenen özel göstergeler veya değiştirilen parametreler iframe sınırı nedeniyle okunamaz; kalıcı set oluşturmak için bu paneli kullan.</p>
+        </section>
 
         <section class="below-grid">
           <article class="info-panel">
@@ -134,7 +162,7 @@
             <div class="shortcut-grid">
               <button data-symbol="BIST:PETKM"><strong>PETKM</strong><small>Petkim · BIST</small></button>
               <button data-symbol="BIST:XU100"><strong>XU100</strong><small>BIST 100</small></button>
-              <button data-symbol="ICE:XAUTRYG"><strong>GRAM ALTIN</strong><small>XAUTRYG · TRY</small></button>
+              <button data-symbol="FX_IDC:XAUTRYG"><strong>GRAM ALTIN</strong><small>XAUTRYG · TRY</small></button>
               <button data-symbol="BINANCE:BTCUSDT"><strong>BTCUSDT</strong><small>Bitcoin · Binance</small></button>
               <button data-symbol="FX_IDC:USDTRY"><strong>USDTRY</strong><small>Dolar / Türk Lirası</small></button>
               <button data-symbol="OANDA:XAUUSD"><strong>XAUUSD</strong><small>Ons altın · USD</small></button>
@@ -142,7 +170,7 @@
           </article>
           <article class="info-panel data-panel">
             <div class="panel-heading"><div><span class="eyebrow">VERİ ŞEFFAFLIĞI</span><h3>Veri nasıl geliyor?</h3></div><span class="panel-mark">ⓘ</span></div>
-            <p>Bu terminal Yahoo Finance kullanmaz. Grafikler TradingView'in tam platformunda açılır. TradingView hesabına giriş yaparak gösterge, çizim ve grafik düzenlerini kaydedebilirsin. Hisse verileri borsanın lisansına göre gecikmeli olabilir.</p>
+            <p>Bu terminal Yahoo Finance kullanmaz. Grafik, fiyat ve göstergeler TradingView'in kendi gömülü grafik bileşeninden gelir. Hisse verileri borsanın lisansına göre gecikmeli olabilir; forex ve kripto widget verileri genellikle gerçek zamanlıdır.</p>
             <a href="https://www.tradingview.com/widget-docs/faq/data/" target="_blank" rel="noopener">TradingView veri koşullarını incele ↗</a>
           </article>
         </section>
