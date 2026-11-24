@@ -40,7 +40,7 @@
     {symbol:"FX_IDC:EURTRY",name:"Euro / Türk Lirası",short:"EURTRY",category:"forex",venue:"FX_IDC",description:"Euro / TL · Döviz",aliases:["eurtry","euro tl","euro/tl","eur try"]},
     {symbol:"FX_IDC:EURUSD",name:"Euro / ABD Doları",short:"EURUSD",category:"forex",venue:"FX_IDC",description:"EUR/USD · Forex",aliases:["eurusd","eur/usd","euro dolar"]},
     {symbol:"FX_IDC:GBPUSD",name:"İngiliz Sterlini / ABD Doları",short:"GBPUSD",category:"forex",venue:"FX_IDC",description:"GBP/USD · Forex",aliases:["gbpusd","gbp/usd","sterlin dolar"]},
-    {symbol:"ICE:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"ICE",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","altin tl","altın tl","gram"]},
+    {symbol:"ICE:XAUTRYG",name:"Gram Altın / Türk Lirası",short:"XAUTRYG",category:"metals",venue:"ICE",description:"Gram altın · TRY",aliases:["gram altın","gram altin","xautryg","gau/try","gau try","altin tl","altın tl","gram"]},
     {symbol:"OANDA:XAUUSD",name:"Altın / ABD Doları",short:"XAUUSD",category:"metals",venue:"OANDA",description:"Ons altın · XAU/USD",aliases:["xauusd","ons altın","ons altin","altın ons","gold","gold usd"]},
     {symbol:"OANDA:XAGUSD",name:"Gümüş / ABD Doları",short:"XAGUSD",category:"metals",venue:"OANDA",description:"Ons gümüş · XAG/USD",aliases:["xagusd","ons gümüş","ons gumus","silver"]},
     {symbol:"TVC:USOIL",name:"WTI Ham Petrol",short:"USOIL",category:"metals",venue:"TVC",description:"Ham petrol · WTI",aliases:["usoil","petrol","wti","ham petrol"]},
@@ -319,8 +319,7 @@
     renderWidgetScript(container, TV_TICKER_SCRIPT, {
       symbols: [
         {proName:"BIST:XU100",title:"BIST 100"},
-        {proName:"BIST:PETKM",title:"PETKM"},
-        {proName:"ICE:XAUTRYG",title:"Gram Altın"},
+        {proName:"BIST:XU030",title:"BIST 30"},
         {proName:"BINANCE:BTCUSDT",title:"Bitcoin"},
         {proName:"FX_IDC:USDTRY",title:"USD/TRY"},
         {proName:"OANDA:XAUUSD",title:"Ons Altın"}
