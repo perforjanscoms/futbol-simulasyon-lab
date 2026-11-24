@@ -56,7 +56,14 @@
   function loadWatchlist() {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      return Array.isArray(stored) && stored.length ? [...new Set(stored)].slice(0, 40) : [...defaultWatchlist];
+      if (!Array.isArray(stored) || !stored.length) return [...defaultWatchlist];
+      const migrated = [...new Set(stored.map(symbol =>
+        symbol === "FX_IDC:XAUTRYG" ? "ICE:XAUTRYG" : symbol
+      ))].slice(0, 40);
+      if (JSON.stringify(migrated) !== JSON.stringify(stored)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      }
+      return migrated;
     } catch {
       return [...defaultWatchlist];
     }
