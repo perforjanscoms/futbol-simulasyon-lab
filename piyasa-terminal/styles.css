@@ -219,3 +219,11 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid var(-
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
 }
+/* Component controls inside the custom watchlist and symbol finder. */
+.watch-select{min-width:0;flex:1;display:flex;align-items:center;gap:9px;text-align:left;border:0;background:transparent;padding:0;cursor:pointer}
+.watch-empty{padding:12px 8px;color:#71839b;font-size:9px;line-height:1.6}
+.suggestion-hint{padding:10px 8px;color:#9aadc4;font-size:9px;line-height:1.6}
+.suggestion.keyboard-active{background:rgba(70,214,196,.12)}
+.chart-load-error{height:100%;min-height:470px;display:grid;place-items:center;padding:25px;text-align:center;color:#91a4bd;font-size:12px;line-height:1.8}
+.chart-load-error strong{display:block;color:#e2edf9;font-size:14px;margin-bottom:6px}
+@media(max-width:620px){.watch-empty{font-size:10px}.chart-load-error{min-height:430px}}
