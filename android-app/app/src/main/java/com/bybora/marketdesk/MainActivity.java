@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.view.View;
 import android.view.Window;
 import android.webkit.CookieManager;
@@ -67,7 +68,9 @@ public final class MainActivity extends Activity {
         settings.setAllowFileAccess(false);
         settings.setAllowContentAccess(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        settings.setSafeBrowsingEnabled(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            settings.setSafeBrowsingEnabled(true);
+        }
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         CookieManager cookies = CookieManager.getInstance();
@@ -76,11 +79,6 @@ public final class MainActivity extends Activity {
 
         webView.setWebChromeClient(new WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public WebResourceResponseCompatShim interceptAssetRequest(WebResourceRequest request) {
-                return null;
-            }
-
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(
                     WebView view, WebResourceRequest request) {
