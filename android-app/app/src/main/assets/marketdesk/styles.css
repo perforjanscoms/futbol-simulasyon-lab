@@ -310,3 +310,47 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 .watch-quote small{font-weight:400!important;letter-spacing:0;font-variant-numeric:tabular-nums}
 .watchlist-price-heading{font-weight:500}
 @media(max-width:700px){.market-level-tag{right:48px;max-width:104px;gap:4px;padding:2px 4px}.market-level-tag span{font-size:5px}.market-level-tag strong{font-size:7px}}
+
+
+/* NASDAQ / S&P 500 / DXY watchlist category */
+.watch-tabs{flex-wrap:wrap}
+.alert-top-icon{position:relative}
+.alert-top-icon span{position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;padding:0 3px;border:1px solid #0b1523;border-radius:10px;background:#1e8f80;color:#fff;font:600 8px 'DM Mono',monospace;line-height:13px}
+.alert-modal{width:min(100%,480px);max-height:min(88vh,760px);overflow:auto;padding:20px;border:1px solid var(--line2);border-radius:13px;background:linear-gradient(145deg,#142339,#0c1727);box-shadow:0 25px 70px rgba(0,0,0,.48)}
+.alert-selected-symbol{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025)}
+.alert-selected-symbol span{color:#71849d;font:600 7px 'DM Mono',monospace;letter-spacing:.1em}
+.alert-selected-symbol strong{color:#e5eff9;font-size:11px;font-weight:600}
+.alert-form{display:grid;grid-template-columns:1fr;gap:7px;margin-top:4px}
+.alert-form input,.alert-form select{height:39px;width:100%;padding:0 10px;border:1px solid var(--line2);border-radius:7px;outline:0;background:#081321;color:#e4edf8;font:500 11px 'DM Sans',sans-serif}
+.alert-form input:focus,.alert-form select:focus{border-color:rgba(69,214,195,.55)}
+.alert-form .field-label{margin:7px 0 0}
+.alert-form .primary-button{margin-top:5px;min-height:38px}
+.alert-notification-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;padding:11px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025)}
+.alert-notification-row strong,.alert-notification-row small{display:block}
+.alert-notification-row strong{color:#d9e6f4;font-size:9px}
+.alert-notification-row small{max-width:245px;margin-top:4px;color:#8296ae;font-size:8px;line-height:1.5}
+.alert-notification-row .secondary-button{flex:0 0 auto;min-height:30px;padding:0 9px;font-size:8px}
+.alert-note{margin:9px 0;color:#788ca4;font-size:8px;line-height:1.6}
+.alert-list-heading{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:9px 0 7px;border-top:1px solid var(--line);color:#dce8f4;font-size:9px}
+.alert-list-heading span{color:#71849d;font:500 8px 'DM Mono',monospace}
+.price-alert-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto}
+.alert-empty{padding:18px 10px;border:1px dashed var(--line2);border-radius:8px;color:#71849d;text-align:center;font-size:9px}
+.price-alert-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.025)}
+.price-alert-copy{min-width:0;display:flex;flex-direction:column;gap:4px}
+.price-alert-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce8f4;font-size:9px;font-weight:600}
+.price-alert-copy small{color:#8396ae;font:500 8px 'DM Mono',monospace}
+.price-alert-actions{display:flex;align-items:center;gap:5px;flex:0 0 auto}
+.price-alert-actions button{min-height:26px;padding:0 7px;border:1px solid var(--line2);border-radius:5px;background:rgba(255,255,255,.025);color:#9eb2c9;font-size:7px}
+.price-alert-actions button.alert-delete{color:#ed8795}
+/* Slightly larger, lighter watchlist prices for easier reading */
+.watch-quote{flex-basis:84px;min-width:84px}
+.watch-quote strong{font-size:10.5px;font-weight:450!important;letter-spacing:0}
+.watch-quote small{font-size:9px;font-weight:400!important}
+@media(max-width:760px){
+ .alert-modal{padding:15px;max-height:90vh}
+ .alert-notification-row{align-items:flex-start}
+ .alert-notification-row small{max-width:190px}
+ .watch-quote{flex-basis:77px;min-width:77px}
+ .watch-quote strong{font-size:10px}
+ .watch-quote small{font-size:8.5px}
+}
