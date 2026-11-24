@@ -97,7 +97,9 @@ public final class MainActivity extends Activity {
                     return false;
                 }
                 if (host != null && (host.equalsIgnoreCase("tradingview.com") ||
-                        host.toLowerCase().endsWith(".tradingview.com"))) {
+                        host.toLowerCase().endsWith(".tradingview.com") ||
+                        host.equalsIgnoreCase("investing.com") ||
+                        host.toLowerCase().endsWith(".investing.com"))) {
                     return false;
                 }
                 if ("https".equalsIgnoreCase(uri.getScheme()) ||
