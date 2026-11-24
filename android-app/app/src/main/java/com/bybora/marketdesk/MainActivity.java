@@ -83,7 +83,13 @@ public final class MainActivity extends Activity {
             @Override
             public android.webkit.WebResourceResponse shouldInterceptRequest(
                     WebView view, WebResourceRequest request) {
-                return assetLoader.shouldInterceptRequest(request.getUrl());
+                Uri requestUri = request.getUrl();
+                String host = requestUri.getHost();
+                if ("api.istfin.com".equalsIgnoreCase(host) ||
+                        "data-api.binance.vision".equalsIgnoreCase(host)) {
+                    return proxyMarketDataRequest(request);
+                }
+                return assetLoader.shouldInterceptRequest(requestUri);
             }
 
             @Override
@@ -160,6 +166,70 @@ public final class MainActivity extends Activity {
     protected void onPause() {
         CookieManager.getInstance().flush();
         super.onPause();
+    }
+
+    private android.webkit.WebResourceResponse proxyMarketDataRequest(
+            WebResourceRequest request) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Access-Control-Allow-Origin", "*");
+        headers.put("Access-Control-Allow-Methods", "GET, OPTIONS");
+        headers.put("Access-Control-Allow-Headers", "Authorization, Accept, Content-Type");
+        headers.put("Access-Control-Expose-Headers", "X-RateLimit-Remaining, X-Quota-Remaining, Retry-After");
+        headers.put("Access-Control-Max-Age", "600");
+        headers.put("Cache-Control", "no-store");
+
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return new android.webkit.WebResourceResponse(
+                    "application/json", "UTF-8", 204, "No Content",
+                    headers, new ByteArrayInputStream(new byte[0]));
+        }
+
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(request.getUrl().toString()).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(12000);
+            connection.setReadTimeout(20000);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("Accept", "application/json");
+            connection.setRequestProperty("Accept-Encoding", "identity");
+
+            Map<String, String> requestHeaders = request.getRequestHeaders();
+            String authorization = requestHeaders.get("Authorization");
+            if (authorization == null) authorization = requestHeaders.get("authorization");
+            if (authorization != null && !authorization.trim().isEmpty()) {
+                connection.setRequestProperty("Authorization", authorization);
+            }
+
+            int status = connection.getResponseCode();
+            InputStream responseStream = status >= 400 ?
+                    connection.getErrorStream() : connection.getInputStream();
+            if (responseStream == null) responseStream = new ByteArrayInputStream(new byte[0]);
+
+            final HttpURLConnection activeConnection = connection;
+            InputStream safeStream = new FilterInputStream(responseStream) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        activeConnection.disconnect();
+                    }
+                }
+            };
+
+            String reason = connection.getResponseMessage();
+            if (reason == null || reason.isEmpty()) reason = status >= 400 ? "Upstream Error" : "OK";
+
+            return new android.webkit.WebResourceResponse(
+                    "application/json", "UTF-8", status, reason, headers, safeStream);
+        } catch (Exception exception) {
+            if (connection != null) connection.disconnect();
+            String message = "{\"error\":{\"message\":\"Market data connection failed\"}}";
+            return new android.webkit.WebResourceResponse(
+                    "application/json", "UTF-8", 502, "Bad Gateway", headers,
+                    new ByteArrayInputStream(message.getBytes(StandardCharsets.UTF_8)));
+        }
     }
 
     private void openExternal(Uri uri) {
