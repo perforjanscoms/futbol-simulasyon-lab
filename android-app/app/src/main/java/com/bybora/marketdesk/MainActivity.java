@@ -96,15 +96,12 @@ public final class MainActivity extends Activity {
                 if ("appassets.androidplatform.net".equalsIgnoreCase(host)) {
                     return false;
                 }
-                if (host != null && (host.equalsIgnoreCase("tradingview.com") ||
-                        host.toLowerCase().endsWith(".tradingview.com") ||
-                        host.equalsIgnoreCase("investing.com") ||
-                        host.toLowerCase().endsWith(".investing.com"))) {
+                if ("https".equalsIgnoreCase(uri.getScheme()) ||
+                        "http".equalsIgnoreCase(uri.getScheme())) {
+                    // Keep web destinations inside the BYBORA app WebView.
                     return false;
                 }
-                if ("https".equalsIgnoreCase(uri.getScheme()) ||
-                        "http".equalsIgnoreCase(uri.getScheme()) ||
-                        "mailto".equalsIgnoreCase(uri.getScheme()) ||
+                if ("mailto".equalsIgnoreCase(uri.getScheme()) ||
                         "tel".equalsIgnoreCase(uri.getScheme())) {
                     openExternal(uri);
                     return true;
