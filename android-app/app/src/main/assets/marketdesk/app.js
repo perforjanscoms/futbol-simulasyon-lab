@@ -3,11 +3,18 @@
 
   const $ = id => document.getElementById(id);
   const BINANCE = "https://data-api.binance.vision/api/v3";
+  const BINANCE_FUTURES = "https://fapi.binance.com";
+  const OKX = "https://www.okx.com";
+  const STOCK_ANALYSIS = "https://stockanalysis.com/list/borsa-istanbul/";
   const YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart";
   const ISTFIN = "https://api.istfin.com/v1";
   const ISTFIN_KEY = "bybora_istfin_key_v1";
   const MACD_KEY = "bybora_macd_params_v1";
   const MACD_MIGRATION_KEY = "bybora_macd175_migrated_symbols_v1";
+  const STUDY_MIGRATION_KEY = "bybora_study_catalog_migrated_v2";
+  const STOCH_RSI_KEY = "bybora_stochrsi_params_v1";
+  const MARKET_CATALOG_KEY = "bybora_market_catalogs_v2";
+  const MARKET_CATALOG_TTL = 12 * 60 * 60 * 1000;
   const WATCH_KEY = "bybora_watchlist_v3";
   const LAYOUT_KEY = "bybora_layouts_v3";
   const TROY_OUNCE_GRAMS = 31.1034768;
@@ -40,7 +47,7 @@
     {id:"SMA200",label:"SMA 200",type:"overlay"},
     {id:"BB",label:"Bollinger Bands",type:"overlay"},
     {id:"VWAP",label:"VWAP",type:"overlay"},
-    {id:"RSI14",label:"RSI 14",type:"lower"},
+    {id:"STOCHRSI",label:"Stoch RSI",type:"lower"},
     {id:"MACD",label:"MACD 12 / 175 / 9",type:"lower"},
     {id:"STOCH",label:"Stochastic",type:"lower"}
   ];
@@ -55,6 +62,12 @@
     } catch { return {fast:12, slow:175, signal:9}; }
   }
   let macdParams = loadMacdParams();
+  function loadStochRsiParams(){
+    try{const v=JSON.parse(localStorage.getItem(STOCH_RSI_KEY)||"null");return {rsi:Math.max(2,Math.min(200,Math.round(Number(v?.rsi)||14))),stoch:Math.max(2,Math.min(200,Math.round(Number(v?.stoch)||14))),k:Math.max(1,Math.min(50,Math.round(Number(v?.k)||3))),d:Math.max(1,Math.min(50,Math.round(Number(v?.d)||3)))};}
+    catch{return {rsi:14,stoch:14,k:3,d:3};}
+  }
+  let stochRsiParams=loadStochRsiParams();
+  let marketCatalogPromise=null,marketCatalogLoaded=false,watchQuoteBusy=false,watchQuoteTimer=null,candleCountdownTimer=null;
 
   let activeSymbol = "BINANCE:BTCUSDT";
   let activeInterval = "15m";
@@ -86,29 +99,32 @@
     return symbols.find(s => s.id === id) || null;
   }
 
-  function ensureInstrument(id, remote = null) {
-    const existing = instrument(id);
-    if (existing) return existing;
-
-    if (id.startsWith("BINANCE:")) {
-      const pair = id.slice("BINANCE:".length).toUpperCase();
-      if (!/^[A-Z0-9]{4,24}$/.test(pair)) return null;
-      const item = {id,ticker:pair,name:pair.replace(/(USDT|USDC|BTC|ETH|TRY)$/," / $1"),exchange:"BINANCE",type:"crypto",pair,currency:pair.endsWith("TRY")?"TRY":pair.endsWith("USDC")?"USDC":pair.endsWith("BTC")?"BTC":"USDT",decimals:pair.endsWith("TRY")?2:6};
-      symbols.push(item);
-      return item;
+  function ensureInstrument(id,remote=null){
+    const existing=instrument(id);if(existing)return existing;
+    if(id.startsWith("BINANCE-FUTURES:")){
+      const pair=id.slice("BINANCE-FUTURES:".length).toUpperCase();if(!/^[A-Z0-9]{4,24}$/.test(pair))return null;
+      const item={id,ticker:pair,name:remote?.name||pair.replace(/USDT$/," / USDT")+" Perpetual",exchange:"BINANCE PERP",type:"crypto",provider:"binanceFutures",pair,currency:"USDT",decimals:8};symbols.push(item);return item;
     }
-
-    if (id.startsWith("BIST:")) {
-      const ticker = id.slice("BIST:".length).toUpperCase();
-      if (!/^[A-Z0-9]{3,8}$/.test(ticker)) return null;
-      const item = {id,ticker,name:remote?.name||ticker,exchange:"BIST",type:"bist",pair:ticker,currency:"TRY",decimals:2};
-      symbols.push(item);
-      return item;
+    if(id.startsWith("OKX:")){
+      const instId=id.slice(4).toUpperCase();if(!/^[A-Z0-9]+-[A-Z0-9]+(-SWAP)?$/.test(instId))return null;
+      const parts=instId.split("-"),isSwap=instId.endsWith("-SWAP");
+      const item={id,ticker:parts[0]+parts[1],name:remote?.name||parts[0]+"/"+parts[1]+(isSwap?" Perpetual":""),exchange:isSwap?"OKX PERP":"OKX SPOT",type:"crypto",provider:isSwap?"okxSwap":"okxSpot",pair:instId,currency:parts[1]||"USDT",decimals:8};symbols.push(item);return item;
+    }
+    if(id.startsWith("BINANCE:")){
+      const pair=id.slice("BINANCE:".length).toUpperCase();if(!/^[A-Z0-9]{4,24}$/.test(pair))return null;
+      const item={id,ticker:pair,name:remote?.name||pair.replace(/(USDT|USDC|BTC|ETH|TRY)$/," / $1"),exchange:"BINANCE SPOT",type:"crypto",provider:"binanceSpot",pair,currency:pair.endsWith("TRY")?"TRY":pair.endsWith("USDC")?"USDC":pair.endsWith("BTC")?"BTC":"USDT",decimals:remote?.pricePrecision||6};symbols.push(item);return item;
+    }
+    if(id.startsWith("BIST:")){
+      const ticker=id.slice("BIST:".length).toUpperCase();if(!/^[A-Z0-9]{3,8}$/.test(ticker))return null;
+      const item={id,ticker,name:remote?.name||ticker,exchange:"BIST",type:"bist",provider:"yahoo",pair:ticker,currency:"TRY",decimals:2};symbols.push(item);return item;
     }
     return null;
   }
+  function registerMarketSymbols(items){
+    for(const item of items){if(!item?.id)continue;const i=symbols.findIndex(s=>s.id===item.id);if(i>=0)symbols[i]={...symbols[i],...item};else symbols.push(item);}
+  }
 
-  function loadWatchlist() {
+    function loadWatchlist() {
     try {
       const v = JSON.parse(localStorage.getItem(WATCH_KEY) || "null");
       if (!Array.isArray(v)) return ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
@@ -122,25 +138,24 @@
     try { localStorage.setItem(WATCH_KEY, JSON.stringify(watchlist)); } catch {}
   }
 
-  function loadStudies(symbol) {
-    const defaults = ["EMA20","EMA50","RSI14","MACD"];
-    try {
-      const v = JSON.parse(localStorage.getItem("bybora_studies_" + symbol) || "null");
-      let selected = Array.isArray(v) ? [...new Set(v.filter(id => studies.some(s => s.id === id)))] : defaults.slice();
-      let migrated = [];
-      try { migrated = JSON.parse(localStorage.getItem(MACD_MIGRATION_KEY) || "[]"); } catch {}
-      if (!Array.isArray(migrated)) migrated = [];
-      if (!migrated.includes(symbol)) {
-        if (!selected.includes("MACD")) selected.push("MACD");
-        localStorage.setItem("bybora_studies_" + symbol, JSON.stringify(selected));
-        migrated.push(symbol);
-        localStorage.setItem(MACD_MIGRATION_KEY, JSON.stringify(migrated));
+  function loadStudies(symbol){
+    const defaults=["EMA20","EMA50","STOCHRSI","MACD"];
+    try{
+      const v=JSON.parse(localStorage.getItem("bybora_studies_"+symbol)||"null");
+      let selected=Array.isArray(v)?[...new Set(v.map(id=>id==="RSI14"?"STOCHRSI":id).filter(id=>studies.some(s=>s.id===id)))]:defaults.slice();
+      let migrated=[];try{migrated=JSON.parse(localStorage.getItem(STUDY_MIGRATION_KEY)||"[]");}catch{}
+      if(!Array.isArray(migrated))migrated=[];
+      if(!migrated.includes(symbol)){
+        if(!selected.includes("MACD"))selected.push("MACD");
+        if(!selected.includes("STOCHRSI"))selected.push("STOCHRSI");
+        localStorage.setItem("bybora_studies_"+symbol,JSON.stringify(selected));
+        migrated.push(symbol);localStorage.setItem(STUDY_MIGRATION_KEY,JSON.stringify(migrated));
       }
       return selected;
-    } catch { return defaults.slice(); }
+    }catch{return defaults.slice();}
   }
 
-  function saveStudies() {
+    function saveStudies() {
     try { localStorage.setItem("bybora_studies_" + activeSymbol, JSON.stringify(activeStudies)); } catch {}
   }
 
@@ -247,28 +262,71 @@
     return new Intl.DateTimeFormat("tr-TR",{timeZone:"Europe/Istanbul",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(date) + " TRT";
   }
 
-  function resolveSymbol(query) {
-    const q = String(query || "").trim().toLocaleLowerCase("tr-TR");
-    const direct = symbols.find(s => s.id.toLocaleLowerCase("tr-TR") === q ||
-      s.ticker.toLocaleLowerCase("tr-TR") === q ||
-      s.name.toLocaleLowerCase("tr-TR") === q);
-    if (direct) return direct.id;
-    const aliases = {
-      "petkim":"BIST:PETKM","petkm":"BIST:PETKM","gram altın":"GOLD:GRAM_TRY","gram altin":"GOLD:GRAM_TRY",
-      "xautryg":"GOLD:GRAM_TRY","paxgtry":"GOLD:GRAM_TRY","paxg/try":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100",
-      "bist 100":"BIST:XU100","bitcoin":"BINANCE:BTCUSDT","btc":"BINANCE:BTCUSDT","btc/usdt":"BINANCE:BTCUSDT",
-      "ethereum":"BINANCE:ETHUSDT","eth":"BINANCE:ETHUSDT"
-    };
-    if (aliases[q]) return aliases[q];
-    const compact = q.toUpperCase().replace(/\s+/g,"");
-    if (/^BIST:[A-Z0-9]{3,8}$/.test(compact)) return compact;
-    if (/^BINANCE:[A-Z0-9]{4,24}$/.test(compact)) return compact;
-    if (/^[A-Z]{2,18}USDT$/.test(compact)) return "BINANCE:" + compact;
-    if (/^[A-Z]{4,6}$/.test(compact)) return "BIST:" + compact;
+  function resolveSymbol(query){
+    const q=String(query||"").trim().toLocaleLowerCase("tr-TR"),compact=q.toUpperCase().replace(/\s+/g,"");
+    const direct=symbols.find(s=>s.id.toLocaleLowerCase("tr-TR")===q||s.ticker.toLocaleLowerCase("tr-TR")===q||s.name.toLocaleLowerCase("tr-TR")===q||s.pair?.toLocaleLowerCase("tr-TR")===q);
+    if(direct)return direct.id;
+    const aliases={"petkim":"BIST:PETKM","petkm":"BIST:PETKM","gram altın":"GOLD:GRAM_TRY","gram altin":"GOLD:GRAM_TRY","xautryg":"GOLD:GRAM_TRY","paxgtry":"GOLD:GRAM_TRY","paxg/try":"GOLD:GRAM_TRY","gau/try":"GOLD:GRAM_TRY","xu100":"BIST:XU100","bist100":"BIST:XU100","bist 100":"BIST:XU100","bitcoin":"BINANCE:BTCUSDT","btc":"BINANCE:BTCUSDT","btc/usdt":"BINANCE:BTCUSDT","ethereum":"BINANCE:ETHUSDT","eth":"BINANCE:ETHUSDT"};
+    if(aliases[q])return aliases[q];
+    const match=symbols.find(s=>s.ticker.toUpperCase()===compact||s.pair?.toUpperCase()===compact);
+    if(match)return match.id;
+    if(/^BIST:[A-Z0-9]{3,8}$/.test(compact)||/^BINANCE:[A-Z0-9]{4,24}$/.test(compact)||/^BINANCE-FUTURES:[A-Z0-9]{4,24}$/.test(compact)||/^OKX:[A-Z0-9]+-[A-Z0-9]+(-SWAP)?$/.test(compact))return compact;
+    if(/^[A-Z0-9]{2,18}USDT$/.test(compact))return "BINANCE:"+compact;
+    if(/^[A-Z0-9]{3,8}$/.test(compact))return "BIST:"+compact;
     return null;
   }
 
-  function createChartIfNeeded() {
+  async function fetchBinanceSpotCatalog(){
+    const response=await fetch(BINANCE+"/exchangeInfo?permissions=SPOT",{cache:"no-store"});if(!response.ok)throw new Error("Binance spot sembol kataloğu alınamadı.");
+    const body=await response.json();
+    return (body.symbols||[]).filter(s=>s.status==="TRADING"&&s.symbol).map(s=>({id:"BINANCE:"+s.symbol,ticker:s.symbol,name:(s.baseAsset||"")+"/"+(s.quoteAsset||"")+" · Spot",exchange:"BINANCE SPOT",type:"crypto",provider:"binanceSpot",pair:s.symbol,currency:s.quoteAsset||"USDT",decimals:Number(s.quotePrecision)||8,baseAsset:s.baseAsset,quoteAsset:s.quoteAsset}));
+  }
+  async function fetchBinanceFuturesCatalog(){
+    const response=await fetch(BINANCE_FUTURES+"/fapi/v1/exchangeInfo",{cache:"no-store"});if(!response.ok)throw new Error("Binance vadeli sembol kataloğu alınamadı.");
+    const body=await response.json();
+    return (body.symbols||[]).filter(s=>s.status==="TRADING"&&s.contractType==="PERPETUAL"&&s.symbol).map(s=>({id:"BINANCE-FUTURES:"+s.symbol,ticker:s.symbol,name:(s.baseAsset||"")+"/"+(s.quoteAsset||"USDT")+" · Perpetual",exchange:"BINANCE PERP",type:"crypto",provider:"binanceFutures",pair:s.symbol,currency:s.quoteAsset||"USDT",decimals:Number(s.pricePrecision)||8,baseAsset:s.baseAsset,quoteAsset:s.quoteAsset}));
+  }
+  async function fetchOkxCatalog(instType){
+    const url=new URL(OKX+"/api/v5/public/instruments");url.searchParams.set("instType",instType);
+    const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)throw new Error("OKX "+instType+" kataloğu alınamadı.");
+    const body=await response.json();if(body.code!=="0")throw new Error(body.msg||"OKX sembol listesi alınamadı.");
+    return (body.data||[]).filter(s=>s.state==="live"&&s.instId).map(s=>{
+      const swap=instType==="SWAP",quote=s.quoteCcy||s.settleCcy||"",base=s.baseCcy||s.instId.split("-")[0];
+      return {id:"OKX:"+s.instId,ticker:base+quote,name:base+"/"+quote+(swap?" · Perpetual":" · Spot"),exchange:swap?"OKX PERP":"OKX SPOT",type:"crypto",provider:swap?"okxSwap":"okxSpot",pair:s.instId,currency:quote,decimals:8,baseAsset:base,quoteAsset:quote};
+    });
+  }
+  async function fetchBistCatalog(){
+    const response=await fetch(STOCK_ANALYSIS,{cache:"no-store",headers:{Accept:"text/html,application/xhtml+xml"}});
+    if(!response.ok)throw new Error("BIST sembol kataloğu alınamadı.");
+    const markup=await response.text(),doc=new DOMParser().parseFromString(markup,"text/html"),found=new Map();
+    for(const row of Array.from(doc.querySelectorAll("table tbody tr"))){
+      const cells=Array.from(row.querySelectorAll("td")),links=Array.from(row.querySelectorAll("a"));
+      const symbolLink=links.find(a=>/^[A-Z0-9]{3,8}$/.test((a.textContent||"").trim().toUpperCase()));
+      const ticker=(symbolLink?.textContent||cells[1]?.textContent||"").trim().toUpperCase();
+      if(!/^[A-Z0-9]{3,8}$/.test(ticker))continue;
+      found.set(ticker,{id:"BIST:"+ticker,ticker,name:(cells[2]?.textContent||ticker).trim(),exchange:"BIST",type:"bist",provider:"yahoo",pair:ticker,currency:"TRY",decimals:2});
+    }
+    if(!found.size)throw new Error("BIST sembol tablosu çözümlenemedi.");return [...found.values()];
+  }
+  function cacheCatalogs(items){
+    try{localStorage.setItem(MARKET_CATALOG_KEY,JSON.stringify({updatedAt:Date.now(),items:items.map(s=>({id:s.id,ticker:s.ticker,name:s.name,exchange:s.exchange,type:s.type,provider:s.provider,pair:s.pair,currency:s.currency,decimals:s.decimals,baseAsset:s.baseAsset,quoteAsset:s.quoteAsset}))}));}catch{}
+  }
+  async function loadMarketCatalogs(){
+    if(marketCatalogLoaded)return;if(marketCatalogPromise)return marketCatalogPromise;
+    marketCatalogPromise=(async()=>{
+      let cache=null;try{cache=JSON.parse(localStorage.getItem(MARKET_CATALOG_KEY)||"null");}catch{}
+      if(Array.isArray(cache?.items)&&cache.items.length)registerMarketSymbols(cache.items);
+      if(cache?.updatedAt&&Date.now()-cache.updatedAt<MARKET_CATALOG_TTL){marketCatalogLoaded=true;return;}
+      const results=await Promise.allSettled([fetchBinanceSpotCatalog(),fetchBinanceFuturesCatalog(),fetchOkxCatalog("SPOT"),fetchOkxCatalog("SWAP"),fetchBistCatalog()]);
+      const items=[];results.forEach(r=>{if(r.status==="fulfilled")items.push(...r.value);});
+      if(items.length){registerMarketSymbols(items);cacheCatalogs(symbols.filter(s=>s.provider||s.type==="bist"));}
+      marketCatalogLoaded=true;
+    })().finally(()=>{marketCatalogPromise=null;});return marketCatalogPromise;
+  }
+  function symbolMatches(s,q){return (s.ticker+" "+s.name+" "+s.id+" "+(s.pair||"")).toLocaleLowerCase("tr-TR").includes(q);}
+  
+
+    function createChartIfNeeded() {
     if (chart) return true;
     if (!window.LightweightCharts) return false;
     const L = window.LightweightCharts;
@@ -327,6 +385,21 @@
       open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4]),
       volume:Number(row[5])||0
     }));
+  }
+
+  async function fetchBinanceFuturesBars(pair,interval){
+    const url=new URL(BINANCE_FUTURES+"/fapi/v1/klines");url.searchParams.set("symbol",pair);url.searchParams.set("interval",mapBinanceInterval(interval));url.searchParams.set("limit","1000");
+    const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)throw new Error("Binance vadeli mum verisi alınamadı ("+response.status+").");
+    const raw=await response.json();if(!Array.isArray(raw)||!raw.length)throw new Error(pair+" vadeli kontratı için mum bulunamadı.");
+    return raw.map(row=>({time:Math.floor(Number(row[0])/1000),open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4]),volume:Number(row[5])||0}));
+  }
+  function mapOkxInterval(interval){return {"1m":"1m","5m":"5m","15m":"15m","30m":"30m","1h":"1H","4h":"4H","1d":"1D","1w":"1W","1M":"1M"}[interval]||"15m";}
+  async function fetchOkxBars(instId,interval){
+    const url=new URL(OKX+"/api/v5/market/candles");url.searchParams.set("instId",instId);url.searchParams.set("bar",mapOkxInterval(interval));url.searchParams.set("limit","300");
+    const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)throw new Error("OKX mum verisi alınamadı ("+response.status+").");
+    const body=await response.json();if(body.code!=="0")throw new Error(body.msg||"OKX mum verisi bulunamadı.");
+    const rows=(body.data||[]).map(row=>({time:Math.floor(Number(row[0])/1000),open:Number(row[1]),high:Number(row[2]),low:Number(row[3]),close:Number(row[4]),volume:Number(row[5])||0})).filter(x=>Number.isFinite(x.time)&&Number.isFinite(x.close)).sort((a,b)=>a.time-b.time);
+    if(!rows.length)throw new Error(instId+" için OKX mum verisi bulunamadı.");return rows;
   }
 
   async function fetchIstfinBars(symbol, interval) {
@@ -421,24 +494,31 @@
     return {bars:grams,quote:{lastPrice:String(last.close),highPrice:last.high,lowPrice:last.low,volume:last.volume,priceChangePercent:prior?((last.close/prior)-1)*100:0},source:"Yahoo Finance · GC=F × USDTRY=X ÷ 31,1034768",delay:"Hesaplanan gram altın referansı · kuyumcu alış/satış fiyatı değildir"};
   }
 
-  async function fetchQuote(symbol) {
-    const item = instrument(symbol);
-    if (!item) return null;
-    if (item.type === "bist") {
-      const key = getIstfinKey();
-      if (!key) return null;
-      const url = new URL(ISTFIN + "/quotes");
-      url.searchParams.set("symbols", item.pair);
-      const response = await fetch(url.toString(),{cache:"no-store",headers:{Authorization:"Bearer "+key,Accept:"application/json"}});
-      if (!response.ok) return null;
-      const body = await response.json();
-      return (body.data || []).find(x => x.symbol === item.pair) || null;
+  async function fetchQuote(symbol){
+    const item=instrument(symbol);if(!item)return null;
+    if(item.type==="bist"){
+      try{return (await fetchYahooBars(item.ticker+".IS","15m")).quote;}
+      catch(yahooError){
+        const key=getIstfinKey();if(!key)return null;
+        const url=new URL(ISTFIN+"/quotes");url.searchParams.set("symbols",item.pair);
+        const response=await fetch(url.toString(),{cache:"no-store",headers:{Authorization:"Bearer "+key,Accept:"application/json"}});
+        if(!response.ok)return null;const row=(await response.json()).data?.find(x=>x.symbol===item.pair);if(!row)return null;
+        return {lastPrice:String(row.price??row.last??""),highPrice:row.high,lowPrice:row.low,volume:row.volume,priceChangePercent:Number(row.changePercent)||0};
+      }
     }
-    const url = new URL(BINANCE + "/ticker/24hr");
-    url.searchParams.set("symbol",item.pair);
-    const response = await fetch(url.toString(),{cache:"no-store"});
-    if (!response.ok) return null;
-    return await response.json();
+    if(item.type==="gold")return (await fetchYahooGoldBars("15m")).quote;
+    if(item.provider==="okxSpot"||item.provider==="okxSwap"){
+      const url=new URL(OKX+"/api/v5/market/ticker");url.searchParams.set("instId",item.pair);
+      const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)return null;
+      const row=(await response.json()).data?.[0];if(!row)return null;
+      const last=Number(row.last),open=Number(row.open24h);
+      return {lastPrice:String(last),highPrice:Number(row.high24h),lowPrice:Number(row.low24h),volume:Number(row.vol24h),priceChangePercent:open?((last/open)-1)*100:0};
+    }
+    const base=item.provider==="binanceFutures"?BINANCE_FUTURES+"/fapi/v1/ticker/24hr":BINANCE+"/ticker/24hr";
+    const url=new URL(base);url.searchParams.set("symbol",item.pair);
+    const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)return null;
+    const row=await response.json();
+    return {lastPrice:row.lastPrice,highPrice:row.highPrice,lowPrice:row.lowPrice,volume:row.volume,priceChangePercent:Number(row.priceChangePercent)||0};
   }
 
   async function getMarketData(item,interval){
@@ -455,12 +535,20 @@
       }
     }
     if(item.type==="gold")return await fetchYahooGoldBars(interval);
-    const history=await fetchBinanceBars(item.pair,mapChartInterval(item,interval));
-    const quote=await fetchQuote(item.id).catch(()=>null);
-    return {bars:history,quote,source:"Binance public market data",delay:"Kripto · gerçek zamanlı"};
+    const quotePromise=fetchQuote(item.id).catch(()=>null);
+    if(item.provider==="binanceFutures"){
+      const [history,quote]=await Promise.all([fetchBinanceFuturesBars(item.pair,interval),quotePromise]);
+      return {bars:history,quote,source:"Binance USDⓈ-M Perpetual",delay:"Kripto vadeli · gerçek zamanlı"};
+    }
+    if(item.provider==="okxSpot"||item.provider==="okxSwap"){
+      const [history,quote]=await Promise.all([fetchOkxBars(item.pair,interval),quotePromise]);
+      return {bars:history,quote,source:item.provider==="okxSwap"?"OKX Perpetual":"OKX Spot",delay:"OKX · gerçek zamanlı"};
+    }
+    const [history,quote]=await Promise.all([fetchBinanceBars(item.pair,mapChartInterval(item,interval)),quotePromise]);
+    return {bars:history,quote,source:"Binance public market data",delay:"Binance spot · gerçek zamanlı"};
   }
 
-  function mapChartInterval(item, interval) {
+    function mapChartInterval(item, interval) {
     if (item.type === "gold") return interval;
     return interval;
   }
@@ -576,7 +664,24 @@
     line.forEach(v=>{s=s===null?v.value:v.value*k+s*(1-k);signal.push({time:v.time,value:s});hist.push({time:v.time,value:v.value-s});});
     return {line,signal,hist};
   }
-  function studyTitle(id){return id==="MACD"?"MACD ("+macdParams.fast+","+macdParams.slow+","+macdParams.signal+")":(studies.find(s=>s.id===id)?.label||id);}
+  function studyTitle(id){
+    if(id==="MACD")return "MACD ("+macdParams.fast+","+macdParams.slow+","+macdParams.signal+")";
+    if(id==="STOCHRSI")return "Stoch RSI ("+stochRsiParams.rsi+","+stochRsiParams.stoch+","+stochRsiParams.k+","+stochRsiParams.d+")";
+    return studies.find(s=>s.id===id)?.label||id;
+  }
+  function simpleAverage(points,period){const out=[];for(let i=period-1;i<points.length;i++){let sum=0;for(let j=i-period+1;j<=i;j++)sum+=points[j].value;out.push({time:points[i].time,value:sum/period});}return out;}
+  function stochRsi(values,rsiLength=stochRsiParams.rsi,stochLength=stochRsiParams.stoch,smoothK=stochRsiParams.k,smoothD=stochRsiParams.d){
+    const rsiPoints=rsi(values,rsiLength),raw=[];
+    for(let i=stochLength-1;i<rsiPoints.length;i++){const window=rsiPoints.slice(i-stochLength+1,i+1),min=Math.min(...window.map(x=>x.value)),max=Math.max(...window.map(x=>x.value)),current=rsiPoints[i].value;raw.push({time:rsiPoints[i].time,value:max===min?50:((current-min)/(max-min))*100});}
+    const k=simpleAverage(raw,smoothK),d=simpleAverage(k,smoothD);return {k,d};
+  }
+  function applyStochRsiParams(){
+    const rsiPeriod=Math.round(Number($("stochRsiLength").value)),stochPeriod=Math.round(Number($("stochRsiWindow").value)),smoothK=Math.round(Number($("stochRsiK").value)),smoothD=Math.round(Number($("stochRsiD").value));
+    if(![rsiPeriod,stochPeriod,smoothK,smoothD].every(Number.isInteger)||rsiPeriod<2||rsiPeriod>200||stochPeriod<2||stochPeriod>200||smoothK<1||smoothK>50||smoothD<1||smoothD>50){toast("Stoch RSI periyotları geçersiz.");return;}
+    stochRsiParams={rsi:rsiPeriod,stoch:stochPeriod,k:smoothK,d:smoothD};try{localStorage.setItem(STOCH_RSI_KEY,JSON.stringify(stochRsiParams));}catch{}
+    if(!activeStudies.includes("STOCHRSI")){activeStudies.push("STOCHRSI");saveStudies();}
+    renderStudies();toast("Stoch RSI ayarları kaydedildi: "+rsiPeriod+"/"+stochPeriod+"/"+smoothK+"/"+smoothD);
+  }
   function applyMacdParams(){
     const fast=Math.round(Number($("macdFast").value)),slow=Math.round(Number($("macdSlow").value)),signal=Math.round(Number($("macdSignal").value));
     if(!Number.isInteger(fast)||!Number.isInteger(slow)||!Number.isInteger(signal)||fast<1||fast>500||slow<=fast||slow>1000||signal<1||signal>100){toast("MACD değerleri geçersiz. Hızlı < yavaş olmalı.");return;}
@@ -621,7 +726,7 @@
     lowerCharts=[];
     if (!bars.length || !window.LightweightCharts) return;
     const L=window.LightweightCharts;
-    const lower = activeStudies.filter(id=>["RSI14","MACD","STOCH"].includes(id));
+    const lower = activeStudies.filter(id=>["STOCHRSI","MACD","STOCH"].includes(id));
     lower.forEach(id=>{
       const wrap=document.createElement("div");
       wrap.className="lower-chart-wrap";
@@ -641,11 +746,13 @@
         crosshair:{mode:L.CrosshairMode.Normal}
       });
       lowerCharts.push(c);
-      if (id==="RSI14") {
-        const s=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-        s.setData(rsi(bars));
-        s.createPriceLine({price:70,color:"rgba(255,113,134,.6)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"70"});
-        s.createPriceLine({price:30,color:"rgba(69,214,195,.6)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"30"});
+      if (id==="STOCHRSI") {
+        const values=stochRsi(bars);
+        const k=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:"%K"});
+        const d=c.addSeries(L.LineSeries,{color:"#e9b968",lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:"%D"});
+        k.setData(values.k);d.setData(values.d);
+        k.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"80"});
+        k.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"20"});
       } else if (id==="MACD") {
         const m=macd(bars);
         const h=c.addSeries(L.HistogramSeries,{priceLineVisible:false,lastValueVisible:false});
@@ -811,76 +918,60 @@
     document.title=item.ticker+" | BYBORA Market Desk";
   }
 
-  function updateWatchlist() {
+  function updateWatchlist(){
     const host=$("watchlist");host.innerHTML="";
-    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||
-      (activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold"));
+    const visible=watchlist.map(id=>instrument(id)).filter(Boolean).filter(item=>activeFilter==="all"||(activeFilter==="bist"&&item.type==="bist")||(activeFilter==="crypto"&&item.type==="crypto")||(activeFilter==="gold"&&item.type==="gold"));
     visible.forEach(item=>{
-      const row=document.createElement("button");row.className="watch-row"+(item.id===activeSymbol?" active":"");
-      row.innerHTML='<span class="watch-symbol-icon"></span><span class="watch-meta"><strong></strong><small></small></span><i class="watch-state"></i>';
-      row.querySelector(".watch-symbol-icon").textContent=item.ticker.slice(0,2);
-      row.querySelector(".watch-meta strong").textContent=item.ticker;
-      row.querySelector(".watch-meta small").textContent=item.name;
-      row.querySelector(".watch-state").classList.toggle("ready",true);
-      row.addEventListener("click",()=>selectSymbol(item.id));
-      host.appendChild(row);
+      const row=document.createElement("button");row.className="watch-row"+(item.id===activeSymbol?" active":"");row.dataset.symbol=item.id;
+      row.innerHTML='<span class="watch-symbol-icon"></span><span class="watch-meta"><strong></strong><small></small></span><span class="watch-quote"><strong data-quote-price>—</strong><small data-quote-change>—</small></span><i class="watch-state ready"></i>';
+      row.querySelector(".watch-symbol-icon").textContent=item.ticker.slice(0,2);row.querySelector(".watch-meta strong").textContent=item.ticker;row.querySelector(".watch-meta small").textContent=item.name;
+      row.addEventListener("click",()=>selectSymbol(item.id));host.appendChild(row);
     });
-    if (!visible.length) {
-      const empty=document.createElement("div");empty.className="subtle-copy";empty.textContent="Bu kategoride izleme sembolü yok.";host.appendChild(empty);
-    }
+    if(!visible.length){const empty=document.createElement("div");empty.className="subtle-copy";empty.textContent="Bu kategoride izleme sembolü yok.";host.appendChild(empty);}
+    refreshWatchlistQuotes();
+  }
+  async function refreshWatchlistQuotes(){
+    if(watchQuoteBusy)return;watchQuoteBusy=true;
+    try{
+      const items=watchlist.map(id=>instrument(id)).filter(Boolean);
+      for(let i=0;i<items.length;i+=5){
+        const quotes=await Promise.all(items.slice(i,i+5).map(async item=>({item,quote:await fetchQuote(item.id).catch(()=>null)})));
+        for(const result of quotes){
+          const row=Array.from($("watchlist").querySelectorAll(".watch-row")).find(el=>el.dataset.symbol===result.item.id);if(!row||!result.quote)continue;
+          const value=Number(result.quote.lastPrice??result.quote.price??result.quote.close),change=Number(result.quote.priceChangePercent??result.quote.changePercent??0);
+          row.querySelector("[data-quote-price]").textContent=Number.isFinite(value)?fmtPrice(value,result.item.decimals):"—";
+          const label=row.querySelector("[data-quote-change]");label.textContent=Number.isFinite(change)?(change>=0?"+":"")+change.toFixed(2)+"%":"—";label.className=change>0?"up":change<0?"down":"";
+        }
+      }
+    }finally{watchQuoteBusy=false;}
   }
 
-  async function renderSearchResults(query) {
-    const host=$("searchResults");
-    host.innerHTML="";
-    const q=query.toLocaleLowerCase("tr-TR").trim();
-    if (!q) {host.hidden=true;return;}
-    const matches=symbols.filter(s=>(s.ticker+" "+s.name+" "+s.id).toLocaleLowerCase("tr-TR").includes(q)).slice(0,8);
+  
+
+    async function renderSearchResults(query){
+    const host=$("searchResults");host.innerHTML="";
+    const q=String(query||"").toLocaleLowerCase("tr-TR").trim();if(!q){host.hidden=true;return;}
     const requestId=++searchRequestId;
-
     const appendItem=item=>{
-      if ([...host.querySelectorAll(".search-result")].some(node=>node.dataset.symbol===item.id)) return;
-      const b=document.createElement("button");b.type="button";b.className="search-result";b.dataset.symbol=item.id;
-      b.innerHTML='<span><strong></strong><small></small></span><em></em>';
-      b.querySelector("strong").textContent=item.ticker;
-      b.querySelector("small").textContent=item.name;
-      b.querySelector("em").textContent=item.exchange;
-      b.addEventListener("click",()=>selectSymbol(item.id));
-      host.appendChild(b);
+      if([...host.querySelectorAll(".search-result")].some(node=>node.dataset.symbol===item.id))return;
+      const b=document.createElement("button");b.type="button";b.className="search-result";b.dataset.symbol=item.id;b.innerHTML='<span><strong></strong><small></small></span><em></em>';
+      b.querySelector("strong").textContent=item.ticker;b.querySelector("small").textContent=item.name;b.querySelector("em").textContent=item.exchange;
+      b.addEventListener("click",()=>{selectSymbol(item.id);$("symbolSearch").value="";host.hidden=true;});host.appendChild(b);
     };
-
-    matches.forEach(appendItem);
-
-    // Search the provider's official symbol directory when the user has a BIST data key.
-    if (getIstfinKey() && q.length>=2) {
-      try {
-        const url=new URL(ISTFIN+"/symbols");
-        url.searchParams.set("search",query.trim().toUpperCase());
-        const response=await fetch(url.toString(),{
-          cache:"no-store",
-          headers:{Authorization:"Bearer "+getIstfinKey(),Accept:"application/json"}
-        });
-        const body=await response.json().catch(()=>({}));
-        if (response.ok && requestId===searchRequestId) {
-          (body.data||[]).slice(0,12).forEach(row=>{
-            if (!row.symbol) return;
-            const id="BIST:"+row.symbol;
-            const item=ensureInstrument(id,row);
-            if (item) appendItem(item);
-          });
-        }
-      } catch {}
+    symbols.filter(s=>symbolMatches(s,q)).slice(0,15).forEach(appendItem);
+    if(q.length>=2){
+      try{await loadMarketCatalogs();}catch{}
+      if(requestId!==searchRequestId)return;
+      symbols.filter(s=>symbolMatches(s,q)).slice(0,20).forEach(appendItem);
+      const upper=q.toUpperCase().replace(/\s+/g,"");
+      if(/^[A-Z0-9]{3,8}$/.test(upper)&&!symbols.some(s=>s.id==="BIST:"+upper)){const item=ensureInstrument("BIST:"+upper);if(item)appendItem(item);}
+      if(/^[A-Z0-9]{2,18}USDT$/.test(upper)&&!symbols.some(s=>s.ticker===upper)){const item=ensureInstrument("BINANCE-FUTURES:"+upper);if(item)appendItem(item);}
     }
-
-    if (!host.querySelector(".search-result")) {
-      const hint=document.createElement("div");hint.className="subtle-copy";hint.style.padding="10px";
-      hint.textContent=q.length>=4?"Enter ile sembolü dene. BIST için lisanslı veri anahtarı gerekir.":"En az 2 harf yaz.";
-      host.appendChild(hint);
-    }
+    if(!host.querySelector(".search-result")){const hint=document.createElement("div");hint.className="subtle-copy";hint.style.padding="10px";hint.textContent=q.length>=2?"Sembol bulunamadı. Tam kodu veya borsa önekini deneyebilirsin.":"En az 2 karakter yaz.";host.appendChild(hint);}
     host.hidden=false;
   }
 
-  function renderLayouts() {
+    function renderLayouts() {
     const host=$("savedLayouts");host.innerHTML="";
     if (!layouts.length) {const e=document.createElement("span");e.className="subtle-copy";e.textContent="Henüz kayıtlı düzen yok.";host.appendChild(e);return;}
     layouts.forEach((layout,index)=>{
@@ -1091,10 +1182,12 @@
       const value=e.target.value;
       symbolSearchTimer=setTimeout(()=>renderSearchResults(value),220);
     });
-    $("symbolSearch").addEventListener("keydown",e=>{
+    $("symbolSearch").addEventListener("keydown",async e=>{
       if(e.key==="Enter"){
-        const id=resolveSymbol(e.target.value);
+        const query=e.target.value;try{await loadMarketCatalogs();}catch{}
+        const id=resolveSymbol(query);
         if(id){selectSymbol(id);e.target.value="";$("searchResults").hidden=true;}
+        else toast("Sembol bulunamadı. Borsa kodunu ve işlem türünü kontrol et.");
       }
       if(e.key==="Escape")$("searchResults").hidden=true;
     });
@@ -1121,6 +1214,8 @@
     $("saveLayout").addEventListener("click",saveLayout);
     $("saveState").addEventListener("click",()=>{saveStudies();saveDrawings();toast("Grafik ayarları otomatik kaydedildi.");});
     $("applyMacdParams").addEventListener("click",applyMacdParams);
+    $("applyStochRsiParams").addEventListener("click",applyStochRsiParams);
+    $("applyStochRsiParams").addEventListener("click",applyStochRsiParams);
     $("openSettings").addEventListener("click",openSettings);
     $("closeSettings").addEventListener("click",closeSettings);
     $("settingsBackdrop").addEventListener("click",e=>{if(e.target===$("settingsBackdrop"))closeSettings();});
@@ -1145,6 +1240,44 @@
     $("chartContainer").addEventListener("click",()=>{});
   }
 
+
+  function zonedParts(date,timeZone){
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(date),result={};
+    for(const p of parts)if(p.type!=="literal")result[p.type]=Number(p.value);return result;
+  }
+  function countdownText(milliseconds){
+    const total=Math.max(0,Math.ceil(milliseconds/1000)),h=Math.floor(total/3600),m=Math.floor((total%3600)/60),s=total%60;
+    return [h,m,s].map(n=>String(n).padStart(2,"0")).join(":");
+  }
+  function updateCandleCountdown(){
+    const node=$("candleCountdownValue");if(!node)return;
+    const item=instrument(),interval=activeInterval,now=new Date();let remaining=null;
+    if(item?.type==="bist"){
+      const p=zonedParts(now,"Europe/Istanbul"),weekday=new Date(Date.UTC(p.year,p.month-1,p.day)).getUTCDay(),minute=p.hour*60+p.minute;
+      if(weekday===0||weekday===6||minute<600||minute>=1080){node.textContent="KAPALI";return;}
+      if(["1m","5m","15m","30m","1h","4h"].includes(interval)){
+        const span={"1m":1,"5m":5,"15m":15,"30m":30,"1h":60,"4h":240}[interval],elapsed=minute-600,close=Math.min(1080,600+(Math.floor(elapsed/span)+1)*span);
+        remaining=(close-minute)*60000-p.second*1000;
+      }else if(interval==="1d")remaining=(1080-minute)*60000-p.second*1000;
+      else{
+        const pseudo=Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second);
+        if(interval==="1w"){
+          const current=weekday===0?7:weekday,days=(5-current+7)%7;
+          remaining=days===0?(1080-minute)*60000-p.second*1000:((days*1440)+(1080-minute))*60000-p.second*1000;
+        }else{
+          const lastDay=new Date(Date.UTC(p.year,p.month,0)).getUTCDate(),dow=new Date(Date.UTC(p.year,p.month-1,lastDay)).getUTCDay(),lastBusiness=lastDay-(dow===6?1:dow===0?2:0);
+          remaining=Date.UTC(p.year,p.month-1,lastBusiness,18,0,0)-pseudo;
+        }
+      }
+    }else{
+      const fixed={"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};
+      if(fixed[interval]){const size=fixed[interval],current=Date.now();remaining=(Math.floor(current/size)+1)*size-current;}
+      else if(interval==="1w"){const d=new Date(),day=(d.getUTCDay()+6)%7;remaining=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-day+7)-Date.now();}
+      else if(interval==="1M"){const d=new Date();remaining=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)-Date.now();}
+    }
+    node.textContent=remaining==null?"—":countdownText(remaining);
+  }
+
   function updateClock() {
     $("clock").textContent=fmtTime();
   }
@@ -1157,6 +1290,10 @@
     $("macdFast").value=macdParams.fast;
     $("macdSlow").value=macdParams.slow;
     $("macdSignal").value=macdParams.signal;
+    $("stochRsiLength").value=stochRsiParams.rsi;
+    $("stochRsiWindow").value=stochRsiParams.stoch;
+    $("stochRsiK").value=stochRsiParams.k;
+    $("stochRsiD").value=stochRsiParams.d;
     const key=getIstfinKey();
     $("istfinApiKey").value=key;
     $("istfinState").textContent=key?"KAYITLI":"AYARLANMADI";
@@ -1174,7 +1311,11 @@
       },300);
     }
     updateClock();setInterval(updateClock,1000);
-    document.addEventListener("visibilitychange",()=>{if(!document.hidden)loadChart();});
+    updateCandleCountdown();candleCountdownTimer=setInterval(updateCandleCountdown,1000);
+    loadMarketCatalogs().catch(()=>{});
+    refreshWatchlistQuotes().catch(()=>{});
+    watchQuoteTimer=setInterval(()=>refreshWatchlistQuotes().catch(()=>{}),30000);
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden){loadChart();refreshWatchlistQuotes();}});
   }
 
   document.addEventListener("DOMContentLoaded",init);
