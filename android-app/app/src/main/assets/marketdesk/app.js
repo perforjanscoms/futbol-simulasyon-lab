@@ -65,9 +65,33 @@
   let activeFilter = "all";
   let isLoading = false;
   let pendingReload = false;
+  let symbolSearchTimer = null;
+  let searchRequestId = 0;
 
   function instrument(id = activeSymbol) {
     return symbols.find(s => s.id === id) || null;
+  }
+
+  function ensureInstrument(id, remote = null) {
+    const existing = instrument(id);
+    if (existing) return existing;
+
+    if (id.startsWith("BINANCE:")) {
+      const pair = id.slice("BINANCE:".length).toUpperCase();
+      if (!/^[A-Z0-9]{4,24}$/.test(pair)) return null;
+      const item = {id,ticker:pair,name:pair.replace(/(USDT|USDC|BTC|ETH|TRY)$/," / $1"),exchange:"BINANCE",type:"crypto",pair,currency:pair.endsWith("TRY")?"TRY":pair.endsWith("USDC")?"USDC":pair.endsWith("BTC")?"BTC":"USDT",decimals:pair.endsWith("TRY")?2:6};
+      symbols.push(item);
+      return item;
+    }
+
+    if (id.startsWith("BIST:")) {
+      const ticker = id.slice("BIST:".length).toUpperCase();
+      if (!/^[A-Z0-9]{3,8}$/.test(ticker)) return null;
+      const item = {id,ticker,name:remote?.name||ticker,exchange:"BIST",type:"bist",pair:ticker,currency:"TRY",decimals:2};
+      symbols.push(item);
+      return item;
+    }
+    return null;
   }
 
   function loadWatchlist() {
@@ -249,6 +273,7 @@
     chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
       if (!isLoading && range) saveVisibleRange(range);
     });
+    chart.subscribeClick(onChartClick);
     $("chartOverlay").hidden = true;
     return true;
   }
@@ -712,20 +737,51 @@
     }
   }
 
-  function renderSearchResults(query) {
-    const host=$("searchResults");host.innerHTML="";
+  async function renderSearchResults(query) {
+    const host=$("searchResults");
+    host.innerHTML="";
     const q=query.toLocaleLowerCase("tr-TR").trim();
     if (!q) {host.hidden=true;return;}
     const matches=symbols.filter(s=>(s.ticker+" "+s.name+" "+s.id).toLocaleLowerCase("tr-TR").includes(q)).slice(0,8);
-    matches.forEach(item=>{
-      const b=document.createElement("button");b.type="button";b.className="search-result";
+    const requestId=++searchRequestId;
+
+    const appendItem=item=>{
+      if ([...host.querySelectorAll(".search-result")].some(node=>node.dataset.symbol===item.id)) return;
+      const b=document.createElement("button");b.type="button";b.className="search-result";b.dataset.symbol=item.id;
       b.innerHTML='<span><strong></strong><small></small></span><em></em>';
-      b.querySelector("strong").textContent=item.ticker;b.querySelector("small").textContent=item.name;b.querySelector("em").textContent=item.exchange;
+      b.querySelector("strong").textContent=item.ticker;
+      b.querySelector("small").textContent=item.name;
+      b.querySelector("em").textContent=item.exchange;
       b.addEventListener("click",()=>selectSymbol(item.id));
       host.appendChild(b);
-    });
-    if (!matches.length) {
-      const hint=document.createElement("div");hint.className="subtle-copy";hint.style.padding="10px";hint.textContent="Bu sembol listede yok. BIST sembolü için API bağlantısı ve sembol kodu kontrol edilmeli.";
+    };
+
+    matches.forEach(appendItem);
+
+    // Search the provider's official symbol directory when the user has a BIST data key.
+    if (getIstfinKey() && q.length>=2) {
+      try {
+        const url=new URL(ISTFIN+"/symbols");
+        url.searchParams.set("search",query.trim().toUpperCase());
+        const response=await fetch(url.toString(),{
+          cache:"no-store",
+          headers:{Authorization:"Bearer "+getIstfinKey(),Accept:"application/json"}
+        });
+        const body=await response.json().catch(()=>({}));
+        if (response.ok && requestId===searchRequestId) {
+          (body.data||[]).slice(0,12).forEach(row=>{
+            if (!row.symbol) return;
+            const id="BIST:"+row.symbol;
+            const item=ensureInstrument(id,row);
+            if (item) appendItem(item);
+          });
+        }
+      } catch {}
+    }
+
+    if (!host.querySelector(".search-result")) {
+      const hint=document.createElement("div");hint.className="subtle-copy";hint.style.padding="10px";
+      hint.textContent=q.length>=4?"Enter ile sembolü dene. BIST için lisanslı veri anahtarı gerekir.":"En az 2 harf yaz.";
       host.appendChild(hint);
     }
     host.hidden=false;
@@ -774,7 +830,7 @@
   }
 
   async function selectSymbol(id,keepSettings=false) {
-    if (!instrument(id)) return;
+    if (!ensureInstrument(id)) return;
     clearDrawingRuntime();
     activeSymbol=id;
     activeStudies=keepSettings?activeStudies:loadStudies(id);
@@ -936,7 +992,11 @@
     $("timeframes").addEventListener("click",e=>{
       const b=e.target.closest("[data-interval]");if(b)selectInterval(b.dataset.interval);
     });
-    $("symbolSearch").addEventListener("input",e=>renderSearchResults(e.target.value));
+    $("symbolSearch").addEventListener("input",e=>{
+      clearTimeout(symbolSearchTimer);
+      const value=e.target.value;
+      symbolSearchTimer=setTimeout(()=>renderSearchResults(value),220);
+    });
     $("symbolSearch").addEventListener("keydown",e=>{
       if(e.key==="Enter"){
         const id=resolveSymbol(e.target.value);
