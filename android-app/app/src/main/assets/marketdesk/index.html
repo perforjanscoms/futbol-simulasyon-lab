@@ -29,6 +29,7 @@
         <span id="clock">--:--:-- TRT</span>
       </div>
       <div class="topbar-actions">
+        <button class="top-icon alert-top-icon" id="openPriceAlerts" title="Fiyat alarmları" aria-label="Fiyat alarmları">🔔<span id="alertCount">0</span></button>
         <button class="top-icon" id="openSettings" title="Veri bağlantısı ve ayarlar" aria-label="Ayarlar">⚙</button>
         <button class="top-icon" id="fullscreenButton" title="Grafiği büyüt" aria-label="Grafiği büyüt">⛶</button>
       </div>
@@ -55,6 +56,7 @@
           <button class="watch-tab" data-watch-filter="gold">Altın</button>
           <button class="watch-tab" data-watch-filter="forex">Forex</button>
           <button class="watch-tab" data-watch-filter="commodity">Emtia</button>
+          <button class="watch-tab" data-watch-filter="index">Endeks</button>
         </div>
 
         <div class="watchlist" id="watchlist"></div>
@@ -210,6 +212,37 @@
           <span>Veri kaynağı ve gecikme bilgisi sembole göre değişir · Yatırım tavsiyesi değildir</span>
         </footer>
       </main>
+    </div>
+
+
+    <div class="modal-backdrop" id="priceAlertBackdrop" hidden>
+      <section class="alert-modal" role="dialog" aria-modal="true" aria-labelledby="priceAlertTitle">
+        <div class="modal-heading">
+          <div><span class="eyebrow">PİYASA TAKİBİ</span><h2 id="priceAlertTitle">Fiyat alarmları</h2></div>
+          <button class="modal-close" id="closePriceAlerts" aria-label="Kapat">×</button>
+        </div>
+        <div class="alert-selected-symbol">
+          <span>AKTİF GRAFİK</span>
+          <strong id="alertSelectedSymbol">—</strong>
+        </div>
+        <div class="alert-form">
+          <label class="field-label" for="alertPrice">Alarm fiyat seviyesi</label>
+          <input id="alertPrice" type="number" min="0.00000001" step="any" inputmode="decimal" placeholder="Örn. 0.18500">
+          <label class="field-label" for="alertDirection">Tetikleme koşulu</label>
+          <select id="alertDirection">
+            <option value="above">Fiyat bu seviyenin üzerine çıkarsa</option>
+            <option value="below">Fiyat bu seviyenin altına düşerse</option>
+          </select>
+          <button class="primary-button" id="createPriceAlert">Alarmı kur</button>
+        </div>
+        <div class="alert-notification-row">
+          <div><strong>Android bildirimleri</strong><small id="alertPermissionStatus">İzin durumu kontrol ediliyor…</small></div>
+          <button class="secondary-button" id="enableAlertNotifications">Bildirimleri aç</button>
+        </div>
+        <p class="alert-note">Fiyat kontrolü uygulama açıkken yaklaşık 20 saniyede bir yapılır. Alarm bir kez tetiklenir; yeniden kullanmak için “Yeniden kur” düğmesini seç.</p>
+        <div class="alert-list-heading"><strong>Kurulu alarmlar</strong><span id="alertCountSummary">—</span></div>
+        <div class="price-alert-list" id="priceAlertList"></div>
+      </section>
     </div>
 
     <div class="modal-backdrop" id="settingsBackdrop" hidden>
