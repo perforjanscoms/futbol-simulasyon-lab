@@ -1,8 +1,13 @@
 package com.bybora.marketdesk;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -10,6 +15,7 @@ import android.os.Build;
 import android.view.View;
 import android.view.Window;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -36,6 +42,8 @@ public final class MainActivity extends Activity {
     private static final String APP_START_URL =
             "https://appassets.androidplatform.net/assets/marketdesk/index.html";
     private static final String WEBVIEW_STATE_KEY = "bybora_marketdesk_webview_state";
+    private static final String ALERT_CHANNEL_ID = "bybora_price_alerts";
+    private static final int REQUEST_POST_NOTIFICATIONS = 1807;
 
     private WebView webView;
     private FrameLayout root;
@@ -56,11 +64,13 @@ public final class MainActivity extends Activity {
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.rgb(8, 15, 29));
         setContentView(root);
+        createNotificationChannel();
         createWebView(savedInstanceState);
     }
 
     private void createWebView(Bundle savedInstanceState) {
         webView = new WebView(this);
+        webView.addJavascriptInterface(new MarketDeskBridge(), "ByboraNative");
         webView.setBackgroundColor(Color.rgb(8, 15, 29));
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
@@ -180,6 +190,86 @@ public final class MainActivity extends Activity {
     protected void onPause() {
         CookieManager.getInstance().flush();
         super.onPause();
+    }
+
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    ALERT_CHANNEL_ID, "BYBORA Fiyat Alarmları",
+                    NotificationManager.IMPORTANCE_HIGH);
+            channel.setDescription("Fiyat seviyesi tetiklendiğinde piyasa alarmı bildirimi.");
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.createNotificationChannel(channel);
+        }
+    }
+
+    public final class MarketDeskBridge {
+        @JavascriptInterface
+        public boolean hasNotificationPermission() {
+            return MainActivity.this.hasNotificationPermission();
+        }
+
+        @JavascriptInterface
+        public void requestNotificationPermission() {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33 &&
+                        checkSelfPermission("android.permission.POST_NOTIFICATIONS")
+                                != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(
+                            new String[]{"android.permission.POST_NOTIFICATIONS"},
+                            REQUEST_POST_NOTIFICATIONS);
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void showPriceAlertNotification(String symbol, String message) {
+            runOnUiThread(() -> postPriceAlertNotification(symbol, message));
+        }
+    }
+
+    private boolean hasNotificationPermission() {
+        return Build.VERSION.SDK_INT < 33 ||
+                checkSelfPermission("android.permission.POST_NOTIFICATIONS")
+                        == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void postPriceAlertNotification(String symbol, String message) {
+        if (!hasNotificationPermission()) return;
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return;
+
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 1807, intent, flags);
+
+        Notification.Builder builder = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(this, ALERT_CHANNEL_ID)
+                : new Notification.Builder(this);
+        Notification notification = builder
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("BYBORA · Fiyat Alarmı")
+                .setContentText(symbol + " · " + message)
+                .setStyle(new Notification.BigTextStyle().bigText(message))
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .build();
+
+        int notificationId = (int) (System.currentTimeMillis() & 0x7fffffff);
+        manager.notify(notificationId, notification);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_POST_NOTIFICATIONS && webView != null) {
+            webView.post(() -> webView.evaluateJavascript(
+                    "window.byBoraAlertPermissionChanged && window.byBoraAlertPermissionChanged()", null));
+        }
     }
 
     private android.webkit.WebResourceResponse proxyMarketDataRequest(
