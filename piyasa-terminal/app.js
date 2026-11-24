@@ -87,7 +87,8 @@
     if (known) return known.symbol;
 
     const token = cleaned.toUpperCase().replace("/", "");
-    if (/^(BTC|ETH|SOL|XRP|BNB|DOGE|ADA|AVAX|LINK|DOT|LTC|TRX|TON|SHIB|SUI|NEAR|OP|ARB|APT|ATOM|UNI|ETC|BCH|FIL|INJ|MATIC|POL)[A-Z0-9]*(USDT|USDC|BUSD)$/.test(token)) return "BINANCE:" + token;
+    if (/^[A-Z0-9]{2,24}(USDT|USDC|BUSD|FDUSD|TRY)$/.test(token)) return "BINANCE:" + token;
+    if (/^(BTC|ETH|SOL|XRP|DOGE|ADA)USD$/.test(token)) return "COINBASE:" + token;
     if (/^[A-Z]{6}$/.test(token) && /^(USD|EUR|GBP|JPY|CHF|CAD|AUD|NZD|TRY|SEK|NOK|CNY|CNH)/.test(token)) return "FX_IDC:" + token;
     if (/^[A-Z0-9._!-]{2,18}$/.test(token)) return "BIST:" + token;
     return cleaned.toUpperCase();
