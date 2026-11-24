@@ -297,3 +297,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 .candle-countdown span{color:#7f94ac;font:500 6px 'DM Mono',monospace;letter-spacing:.06em}
 .candle-countdown strong{color:#d6e4f4;font:500 8px 'DM Mono',monospace;letter-spacing:.02em}
 @media(max-width:700px){.watch-quote{flex-basis:66px;min-width:66px}.watch-quote strong{font-size:8px}.watch-quote small{font-size:7px}}
+
+
+/* Forex/commodity chart levels, anchored to visible-range price levels */
+.market-level-tag{position:absolute;z-index:6;right:54px;transform:translateY(-50%);display:flex;align-items:center;gap:5px;max-width:116px;padding:3px 5px;border:1px solid rgba(146,169,195,.18);border-radius:4px;background:rgba(7,15,26,.88);pointer-events:none;white-space:nowrap;box-shadow:0 2px 7px rgba(0,0,0,.2)}
+.market-level-tag span{color:#8295aa;font:500 6px 'DM Mono',monospace;letter-spacing:.03em}
+.market-level-tag strong{color:#dce7f3;font:500 8px 'DM Mono',monospace;font-variant-numeric:tabular-nums}
+#marketHighTag{border-left:2px solid #45d6a0}
+#marketAverageTag{border-left:2px solid #e7bd70}
+#marketLowTag{border-left:2px solid #ff7186}
+.watch-quote strong{font-weight:400!important;letter-spacing:0;font-variant-numeric:tabular-nums}
+.watch-quote small{font-weight:400!important;letter-spacing:0;font-variant-numeric:tabular-nums}
+.watchlist-price-heading{font-weight:500}
+@media(max-width:700px){.market-level-tag{right:48px;max-width:104px;gap:4px;padding:2px 4px}.market-level-tag span{font-size:5px}.market-level-tag strong{font-size:7px}}
