@@ -96,7 +96,8 @@ public final class MainActivity extends Activity {
                 Uri requestUri = request.getUrl();
                 String host = requestUri.getHost();
                 if ("api.istfin.com".equalsIgnoreCase(host) ||
-                        "data-api.binance.vision".equalsIgnoreCase(host)) {
+                        "data-api.binance.vision".equalsIgnoreCase(host) ||
+                        "query1.finance.yahoo.com".equalsIgnoreCase(host)) {
                     return proxyMarketDataRequest(request);
                 }
                 return assetLoader.shouldInterceptRequest(requestUri);
@@ -203,6 +204,9 @@ public final class MainActivity extends Activity {
             connection.setUseCaches(false);
             connection.setRequestProperty("Accept", "application/json");
             connection.setRequestProperty("Accept-Encoding", "identity");
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36");
+            connection.setRequestProperty("Referer", "https://finance.yahoo.com/");
+            connection.setRequestProperty("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7");
 
             Map<String, String> requestHeaders = request.getRequestHeaders();
             String authorization = requestHeaders.get("Authorization");
