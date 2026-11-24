@@ -34,7 +34,7 @@ BIST has no free, general-purpose, licensed public OHLCV API that we can safely 
 - For access details and current pricing, see the [istfin API documentation](https://api.istfin.com/docs) and [OHLCV endpoint reference](https://api.istfin.com/docs/fiyat-barlari).
 
 ## Chart engine
-The chart renderer is [TradingView Lightweight Charts™](https://tradingview.github.io/lightweight-charts/), an open-source charting library. The UI, feed adapters, indicator calculations, drawing tools and local layout persistence are implemented in BYBORA Market Desk. The library itself does not provide market data; BYBORA fetches it from the providers noted above.
+The chart renderer is [TradingView Lightweight Charts™](https://tradingview.github.io/lightweight-charts/), an open-source charting library. Its pinned standalone bundle is downloaded during APK build and packaged into the app's local assets, so the chart engine itself is not fetched at launch. The UI, feed adapters, indicator calculations, drawing tools and local layout persistence are implemented in BYBORA Market Desk. The library itself does not provide market data; BYBORA fetches it from the providers noted above.
 
 ## Build
 The GitHub Actions workflow `.github/workflows/android-apk.yml` builds an installable debug-signed APK whenever the Android project or bundled terminal files change. It uploads the APK as an Actions artifact and attaches it to a GitHub Release. The workflow caches the debug signing key so future updates use the same signature.
@@ -42,4 +42,4 @@ The GitHub Actions workflow `.github/workflows/android-apk.yml` builds an instal
 ## Install
 Download the APK on Android, open it, and allow installation from the browser or file manager when prompted.
 
-Minimum Android version: Android 7.0 (API 24). Keep Android System WebView or Chrome up to date. Internet is required to fetch the chart library and market data. No chart provider opens in an external app or browser.
+Minimum Android version: Android 7.0 (API 24). Keep Android System WebView or Chrome up to date. Internet is required for market data. The chart engine is bundled in the APK. No chart provider opens in an external app or browser.
