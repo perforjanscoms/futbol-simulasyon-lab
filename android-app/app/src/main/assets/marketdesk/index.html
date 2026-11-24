@@ -2,183 +2,228 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#080f1d">
-  <meta name="description" content="BIST, kripto, döviz ve emtia piyasalarını TradingView grafikleriyle izleyin.">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080e18">
+  <meta name="description" content="BYBORA Market Desk — TradingView tarzı yerel piyasa terminali.">
   <title>BYBORA Market Desk</title>
-  <link rel="preconnect" href="https://s3.tradingview.com">
-  <link rel="preconnect" href="https://www.tradingview.com">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://data-api.binance.vision">
+  <link rel="preconnect" href="https://api.istfin.com">
   <link rel="stylesheet" href="./styles.css">
+  <script defer src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <script defer src="./app.js"></script>
 </head>
 <body>
-  <div class="app-frame">
+  <div class="app-shell">
     <header class="topbar">
-      <button class="mobile-menu icon-button" id="menuToggle" aria-label="Menüyü aç">☰</button>
-      <a class="brand" href="./index.html" aria-label="BYBORA Market Desk ana sayfa">
-        <span class="brand-symbol">B</span>
-        <span class="brand-copy"><strong>BYBORA<span>MARKET DESK</span></strong><small>GLOBAL MARKETS TERMINAL</small></span>
-      </a>
-      <div class="topbar-center"><span class="live-dot"></span><span>TRADINGVIEW PİYASA GRAFİKLERİ</span><i></i><span id="turkeyClock">--:--:-- TRT</span></div>
+      <button class="mobile-nav-button" id="mobileNav" aria-label="Piyasa listesini aç">☰</button>
+      <div class="brand">
+        <span class="brand-mark">B</span>
+        <div class="brand-text"><strong>BYBORA<span>MARKET DESK</span></strong><small>PRO CHARTING TERMINAL</small></div>
+      </div>
+      <div class="topbar-center">
+        <span class="connection-lamp" id="connectionLamp"></span>
+        <span id="connectionText">VERİ KAYNAĞI BEKLENİYOR</span>
+        <span class="topbar-divider"></span>
+        <span id="clock">--:--:-- TRT</span>
+      </div>
       <div class="topbar-actions">
-        <span class="source-pill"><span></span> YAHOO FINANCE YOK</span>
-        <a class="top-link" href="https://www.tradingview.com/markets/" target="_blank" rel="noopener">Piyasalar ↗</a>
+        <button class="top-icon" id="openSettings" title="Veri bağlantısı ve ayarlar" aria-label="Ayarlar">⚙</button>
+        <button class="top-icon" id="fullscreenButton" title="Grafiği büyüt" aria-label="Grafiği büyüt">⛶</button>
       </div>
     </header>
 
-    <div class="ticker-strip">
-      <div class="ticker-label"><span class="pulse"></span> PİYASA AKIŞI</div>
-      <div id="tickerTape" class="ticker-mount">
-        <div class="ticker-fallback">BIST:XU100 <b>·</b> BIST:XU030 <b>·</b> BINANCE:BTCUSDT <b>·</b> FX_IDC:USDTRY</div>
-      </div>
-    </div>
-
-    <main class="terminal-layout">
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-head">
-          <div><span class="eyebrow">PİYASA NAVİGASYONU</span><h2>Varlık bul</h2></div>
-          <button class="icon-button mobile-close" id="menuClose" aria-label="Menüyü kapat">×</button>
+    <div class="workspace">
+      <aside class="market-sidebar" id="marketSidebar">
+        <div class="sidebar-heading">
+          <div><span class="eyebrow">PİYASA TAKİBİ</span><h2>İzleme listem</h2></div>
+          <button class="sidebar-close" id="closeSidebar" aria-label="Kapat">×</button>
         </div>
 
-        <form class="search-box" id="symbolSearchForm" autocomplete="off">
-          <span class="search-icon">⌕</span>
-          <input id="symbolSearch" type="search" placeholder="Sembol veya piyasa ara..." aria-label="Sembol ara">
+        <div class="symbol-search">
+          <span>⌕</span>
+          <input id="symbolSearch" placeholder="Sembol ara..." autocomplete="off" spellcheck="false">
           <kbd>/</kbd>
-          <button type="submit" aria-label="Ara">↵</button>
-          <div id="searchSuggestions" class="suggestions" hidden></div>
-        </form>
-        <p class="search-hint">Örn. PETKM, gram altın, BTCUSDT veya BINANCE:ETHUSDT</p>
-
-        <div class="side-section">
-          <div class="side-title"><span>HIZLI PİYASALAR</span><span class="side-count">01</span></div>
-          <div class="market-categories" id="marketCategories">
-            <button class="category-button active" data-category="all"><span class="category-icon">◈</span> Tüm piyasalar <small>01</small></button>
-            <button class="category-button" data-category="bist"><span class="category-icon">▥</span> Borsa İstanbul <small>02</small></button>
-            <button class="category-button" data-category="crypto"><span class="category-icon">₿</span> Kripto <small>03</small></button>
-            <button class="category-button" data-category="forex"><span class="category-icon">⇄</span> Döviz pariteleri <small>04</small></button>
-            <button class="category-button" data-category="metals"><span class="category-icon">◇</span> Altın & emtia <small>05</small></button>
-            <button class="category-button" data-category="indices"><span class="category-icon">▤</span> Endeksler <small>06</small></button>
-          </div>
+          <div class="search-results" id="searchResults" hidden></div>
         </div>
 
-        <div class="side-section watch-section">
-          <div class="side-title"><span>İZLEME LİSTEM</span><button id="addCurrentToWatch" class="add-watch" title="Açık sembolü listeye ekle">＋</button></div>
-          <div id="watchlist" class="watchlist"></div>
-          <p class="watch-note">Listen bu cihazda saklanır.</p>
+        <div class="watch-tabs">
+          <button class="watch-tab active" data-watch-filter="all">Tümü</button>
+          <button class="watch-tab" data-watch-filter="bist">BIST</button>
+          <button class="watch-tab" data-watch-filter="crypto">Kripto</button>
+          <button class="watch-tab" data-watch-filter="gold">Altın</button>
         </div>
 
-        <div class="sidebar-bottom">
-          <span class="shield">✓</span>
-          <div><strong>Veri kaynağı ayrıştırıldı</strong><small>PETKM ve gram altın Investing.com grafiğinde; diğer semboller TradingView widget'ında açılır.</small></div>
+        <div class="watchlist" id="watchlist"></div>
+
+        <div class="sidebar-foot">
+          <div class="source-health"><span class="health-dot"></span><span>Yerel grafik motoru aktif</span></div>
+          <p>Piyasa verileri seçilen veri sağlayıcısından alınır. Fiyat gecikmesi her sembolde ayrıca gösterilir.</p>
         </div>
       </aside>
 
-      <div class="mobile-scrim" id="mobileScrim"></div>
+      <div class="sidebar-scrim" id="sidebarScrim"></div>
 
-      <section class="main-content">
-        <div class="instrument-header">
-          <div class="instrument-main">
-            <div class="instrument-logo" id="instrumentLogo">XU</div>
-            <div class="instrument-titles">
-              <div class="instrument-label" id="instrumentLabel">BORSA İSTANBUL · ENDEKS</div>
-              <div class="instrument-name-row"><h1 id="instrumentName">BIST 100</h1><span class="exchange-tag" id="exchangeTag">BIST</span></div>
-              <div class="instrument-symbol" id="instrumentSymbol">BIST:XU100 <span>·</span> Türk Lirası</div>
+      <main class="main-area">
+        <section class="instrument-bar">
+          <div class="instrument-left">
+            <div class="instrument-avatar" id="instrumentAvatar">B</div>
+            <div class="instrument-identity">
+              <div class="instrument-label" id="instrumentLabel">KRİPTO · SPOT</div>
+              <div class="instrument-title-row">
+                <h1 id="instrumentName">Bitcoin / Tether</h1>
+                <span class="exchange-badge" id="exchangeBadge">BINANCE</span>
+                <button id="favoriteButton" class="star-button" title="Favorilere ekle">☆</button>
+              </div>
+              <div class="instrument-symbol" id="instrumentSymbol">BTCUSDT · USDT</div>
             </div>
           </div>
-          <div class="instrument-actions">
-            <button id="favoriteCurrent" class="favorite-button" aria-label="Favorilere ekle" title="Favorilere ekle">☆</button>
-            <button id="copySymbol" class="small-action" title="Sembolü kopyala">⧉ <span>Kodu kopyala</span></button>
-            <a id="openTradingView" class="tv-open-button" href="https://www.tradingview.com/chart/?symbol=BIST%3AXU100">TradingView'de aç <span>↗</span></a>
-          </div>
-        </div>
-
-        <div class="chart-toolbar">
-          <div class="timeframes" id="timeframes" aria-label="Grafik zaman dilimleri">
-            <button data-interval="1">1 dk</button>
-            <button data-interval="5">5 dk</button>
-            <button data-interval="15" class="active">15 dk</button>
-            <button data-interval="30">30 dk</button>
-            <button data-interval="60">1 sa</button>
-            <button data-interval="240">4 sa</button>
-            <button data-interval="D">1 gün</button>
-            <button data-interval="W">1 hf</button>
-            <button data-interval="M">1 ay</button>
-          </div>
-          <div class="chart-controls"><span class="chart-status"><i></i> GRAFİK AKTİF</span><span class="toolbar-divider"></span><span class="chart-provider">TradingView Advanced Chart</span></div>
-        </div>
-
-        <section class="chart-card" aria-label="TradingView fiyat grafiği">
-          <div id="chartMount" class="chart-mount">
-            <div class="chart-loading"><span class="loader"></span><strong>TradingView grafiği hazırlanıyor</strong><small>Seçili sembol yükleniyor…</small></div>
+          <div class="quote-strip">
+            <div class="quote-main"><strong id="lastPrice">—</strong><span id="priceChange" class="quote-change">—</span></div>
+            <div class="quote-details">
+              <span>24s Yüksek <b id="dayHigh">—</b></span>
+              <span>24s Düşük <b id="dayLow">—</b></span>
+              <span>Hacim <b id="dayVolume">—</b></span>
+            </div>
           </div>
         </section>
 
-        <div id="symbolWarning" class="symbol-warning" hidden></div>
-        <div class="chart-foot">
-          <span><i class="tiny-check"></i> Sembole göre TradingView veya Investing.com grafiği kullanılır.</span>
-          <span class="chart-foot-right">PETKM ve gram altın grafiklerinde Android geri tuşuyla terminale dön.</span>
+        <section class="chart-workspace" id="chartWorkspace">
+          <div class="chart-toolbar">
+            <div class="timeframe-group" id="timeframes">
+              <button data-interval="1m">1m</button>
+              <button data-interval="5m">5m</button>
+              <button data-interval="15m" class="active">15m</button>
+              <button data-interval="30m">30m</button>
+              <button data-interval="1h">1S</button>
+              <button data-interval="4h">4S</button>
+              <button data-interval="1d">1G</button>
+              <button data-interval="1w">1H</button>
+              <button data-interval="1M">1A</button>
+            </div>
+            <div class="chart-tools">
+              <button class="tool-button active" id="candlesButton" title="Mum grafik">▥</button>
+              <button class="tool-button" id="lineButton" title="Çizgi grafik">⌁</button>
+              <span class="tool-separator"></span>
+              <button class="tool-button" id="indicatorButton" title="Göstergeler">ƒx</button>
+              <button class="tool-button" id="drawButton" title="Çizim araçları">／</button>
+              <button class="tool-button" id="layoutButton" title="Grafik düzenleri">▦</button>
+              <button class="tool-button" id="refreshButton" title="Grafiği yenile">↻</button>
+            </div>
+          </div>
+
+          <div class="chart-symbol-line">
+            <span id="chartTicker">BTCUSDT</span>
+            <span class="chart-live-status"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
+            <span class="chart-source" id="chartSource">Binance public market data</span>
+          </div>
+
+          <div class="chart-container" id="chartContainer">
+            <div id="priceChart" class="price-chart"></div>
+            <div id="chartOverlay" class="chart-overlay">
+              <div class="chart-message">
+                <span class="message-symbol">◈</span>
+                <strong id="chartMessageTitle">Grafik hazırlanıyor</strong>
+                <p id="chartMessageText">Piyasa verileri getiriliyor.</p>
+                <button id="chartMessageAction" class="primary-button" hidden>Veri bağlantısını ayarla</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="lowerIndicatorCharts" class="lower-indicator-charts"></div>
+
+          <div class="chart-statusbar">
+            <span><i class="tiny-live"></i><span id="lastUpdate">Son güncelleme bekleniyor</span></span>
+            <span id="dataDelay">Veri kaynağı: —</span>
+            <span class="chart-attribution">Charts by TradingView Lightweight Charts™</span>
+          </div>
+        </section>
+
+        <section class="control-deck">
+          <div class="deck-tabs">
+            <button class="deck-tab active" data-deck="indicators">Göstergeler</button>
+            <button class="deck-tab" data-deck="drawings">Çizimler</button>
+            <button class="deck-tab" data-deck="layouts">Kayıtlı düzenler</button>
+            <span class="deck-spacer"></span>
+            <span class="save-state" id="saveState"><i></i> Otomatik kayıt açık</span>
+          </div>
+
+          <div class="deck-panel" id="indicatorDeck">
+            <div class="indicator-catalog">
+              <button class="indicator-chip" data-study="EMA20"><b>EMA</b><span>20</span></button>
+              <button class="indicator-chip" data-study="EMA50"><b>EMA</b><span>50</span></button>
+              <button class="indicator-chip" data-study="SMA200"><b>SMA</b><span>200</span></button>
+              <button class="indicator-chip" data-study="BB"><b>BB</b><span>Bollinger</span></button>
+              <button class="indicator-chip" data-study="VWAP"><b>VWAP</b></button>
+              <button class="indicator-chip" data-study="RSI14"><b>RSI</b><span>14</span></button>
+              <button class="indicator-chip" data-study="MACD"><b>MACD</b></button>
+              <button class="indicator-chip" data-study="STOCH"><b>STOCH</b></button>
+            </div>
+            <div class="active-study-list" id="activeStudyList"><span class="subtle-copy">Henüz gösterge eklenmedi.</span></div>
+          </div>
+
+          <div class="deck-panel" id="drawingDeck" hidden>
+            <div class="drawing-tools">
+              <button class="drawing-tool" data-drawing="horizontal">─ <span>Yatay çizgi</span></button>
+              <button class="drawing-tool" data-drawing="trend">／ <span>Trend çizgisi</span></button>
+              <button class="drawing-tool" data-drawing="fib">⌁ <span>Fibonacci</span></button>
+              <button class="drawing-tool" data-drawing="clear">⌫ <span>Çizimleri temizle</span></button>
+            </div>
+            <p class="deck-hint" id="drawingHint">Bir araç seç, ardından grafiğe dokunarak çizimini yerleştir.</p>
+            <div class="active-drawings" id="activeDrawings"></div>
+          </div>
+
+          <div class="deck-panel" id="layoutDeck" hidden>
+            <div class="layout-save-row">
+              <input id="layoutName" placeholder="Düzen adı (örn. BYBORA 15dk)" maxlength="36">
+              <button class="primary-button" id="saveLayout">Düzeni kaydet</button>
+            </div>
+            <div class="saved-layout-list" id="savedLayouts"></div>
+            <p class="deck-hint">Sembol, zaman dilimi, grafik türü, göstergeler ve çizimler bu telefonda saklanır.</p>
+          </div>
+        </section>
+
+        <footer class="app-footer">
+          <span>BYBORA MARKET DESK <b>·</b> Kişisel piyasa terminali</span>
+          <span>Veri kaynağı ve gecikme bilgisi sembole göre değişir · Yatırım tavsiyesi değildir</span>
+        </footer>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="settingsBackdrop" hidden>
+      <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="modal-heading">
+          <div><span class="eyebrow">VERİ VE UYGULAMA</span><h2 id="settingsTitle">Bağlantı ayarları</h2></div>
+          <button class="modal-close" id="closeSettings" aria-label="Kapat">×</button>
         </div>
-
-        <section class="indicator-manager panel">
-          <div class="indicator-manager-head">
-            <div>
-              <span class="eyebrow">KİŞİSEL GÖSTERGE DÜZENİN</span>
-              <h3>Gösterge setim</h3>
-              <p>Buradan eklediğin göstergeler sembol ve zaman dilimi değişince yeniden grafiğe eklenir.</p>
-            </div>
-            <span class="indicator-count" id="studyCount">0 GÖSTERGE</span>
+        <div class="provider-card">
+          <div class="provider-icon bist-icon">B</div>
+          <div class="provider-copy">
+            <strong>Borsa İstanbul · istfin API</strong>
+            <span>15 dakika gecikmeli lisanslı veri. 1 dakikadan aylık OHLCV barları.</span>
+            <small>Temel plan: 399 TL/ay. Matriks aboneliği gerekmez.</small>
           </div>
-          <div class="indicator-add-row">
-            <select id="indicatorPicker" aria-label="Eklenecek gösterge">
-              <option value="STD;RSI">RSI</option>
-              <option value="STD;MACD">MACD</option>
-              <option value="STD;EMA">Üssel Hareketli Ortalama (EMA)</option>
-              <option value="STD;SMA">Basit Hareketli Ortalama (SMA)</option>
-              <option value="STD;BB">Bollinger Bantları</option>
-              <option value="STD;VWAP">VWAP</option>
-              <option value="STD;Stochastic">Stochastic</option>
-              <option value="STD;ATR">ATR</option>
-            </select>
-            <button id="addStudyBtn" class="button primary">＋ Gösterge ekle</button>
-          </div>
-          <div id="activeStudies" class="active-studies">
-            <span class="empty-studies">Henüz kayıtlı gösterge yok.</span>
-          </div>
-          <div class="indicator-save-row">
-            <input id="studyPresetName" type="text" maxlength="32" placeholder="Gösterge setine isim ver (örn. ByBora 15 dk)" aria-label="Gösterge seti adı">
-            <button id="saveStudyPreset" class="button subtle">Seti kaydet</button>
-          </div>
-          <div class="indicator-load-row">
-            <select id="studyPresetSelect" aria-label="Kayıtlı gösterge seti">
-              <option value="">Kayıtlı set seç...</option>
-            </select>
-            <button id="loadStudyPreset" class="button subtle">Yükle</button>
-            <button id="deleteStudyPreset" class="button subtle danger-button">Sil</button>
-          </div>
-          <p id="studyMessage" class="indicator-message" aria-live="polite">Gösterge listesi ve kayıtlı setler bu telefonda saklanır. Grafiğin içinden elle eklenen özel göstergeler veya değiştirilen parametreler iframe sınırı nedeniyle okunamaz; kalıcı set oluşturmak için bu paneli kullan.</p>
-        </section>
-
-        <section class="below-grid">
-          <article class="info-panel">
-            <div class="panel-heading"><div><span class="eyebrow">KULLANIM</span><h3>Sembol arama kısayolları</h3></div><span class="panel-mark">⌕</span></div>
-            <div class="shortcut-grid">
-              <button data-symbol="BIST:PETKM"><strong>PETKM</strong><small>Petkim · BIST</small></button>
-              <button data-symbol="BIST:XU100"><strong>XU100</strong><small>BIST 100</small></button>
-              <button data-symbol="ICE:XAUTRYG"><strong>GRAM ALTIN</strong><small>XAUTRYG · TRY</small></button>
-              <button data-symbol="BINANCE:BTCUSDT"><strong>BTCUSDT</strong><small>Bitcoin · Binance</small></button>
-              <button data-symbol="FX_IDC:USDTRY"><strong>USDTRY</strong><small>Dolar / Türk Lirası</small></button>
-              <button data-symbol="OANDA:XAUUSD"><strong>XAUUSD</strong><small>Ons altın · USD</small></button>
-            </div>
-          </article>
-          <article class="info-panel data-panel">
-            <div class="panel-heading"><div><span class="eyebrow">VERİ ŞEFFAFLIĞI</span><h3>Veri nasıl geliyor?</h3></div><span class="panel-mark">ⓘ</span></div>
-            <p>Bu terminal Yahoo Finance kullanmaz. PETKM ve gram altın Investing.com grafiğine yönlendirilir. Diğer grafik ve göstergeler TradingView widget'ından gelir. Hisse verileri borsanın lisansına göre gecikmeli olabilir; forex ve kripto widget verileri genellikle gerçek zamanlıdır.</p>
-            <a href="https://www.tradingview.com/widget-docs/faq/data/" target="_blank" rel="noopener">TradingView veri koşullarını incele ↗</a>
-          </article>
-        </section>
-        <footer class="page-footer"><span>BYBORA MARKET DESK <b>·</b> Kişisel piyasa takip arayüzü</span><span>TradingView verileri · Yatırım tavsiyesi değildir</span></footer>
+          <span class="provider-state" id="istfinState">AYARLANMADI</span>
+        </div>
+        <label class="field-label" for="istfinApiKey">istfin API anahtarı</label>
+        <div class="secret-input">
+          <input id="istfinApiKey" type="password" autocomplete="off" placeholder="istfin_live_...">
+          <button id="toggleKeyVisibility" type="button" aria-label="Anahtarı göster">◉</button>
+        </div>
+        <div class="settings-actions">
+          <button class="secondary-button" id="clearApiKey">Anahtarı sil</button>
+          <button class="primary-button" id="saveApiKey">Bağlantıyı doğrula ve kaydet</button>
+        </div>
+        <p id="settingsMessage" class="settings-message">Anahtar yalnızca bu cihazdaki uygulama alanında saklanır; GitHub'a gönderilmez.</p>
+        <div class="provider-note">
+          <strong>Diğer veri kaynakları</strong>
+          <span>Kripto: Binance genel mum verisi, API anahtarı gerektirmez.</span>
+          <span>Gram altın: Binance PAXG/TRY mumları gram eşdeğerine çevrilir. Fizikî kuyumcu makasıyla aynı değildir.</span>
+        </div>
       </section>
-    </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
   </div>
-  <script src="./app.js"></script>
 </body>
 </html>
