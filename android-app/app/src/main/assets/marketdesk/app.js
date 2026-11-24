@@ -978,7 +978,7 @@
       $("chartLiveStatus").classList.add("ready");
       $("chartOverlay").hidden=true;
       setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":"KRİPTO · AKTİF","good");
-      renderWatchlist();
+      updateWatchlist();
       scheduleRefresh();
     } catch(error) {
       const keyMissing=error.code==="BIST_API_KEY_REQUIRED";
