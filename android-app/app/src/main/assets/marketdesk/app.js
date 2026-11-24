@@ -1,7 +1,21 @@
 (() => {
   "use strict";
 
+  const TV_CHART_SCRIPT = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+  const TV_TICKER_SCRIPT = "https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js";
   const STORAGE_KEY = "bybora-market-desk-watchlist-v1";
+  const STUDY_STORAGE_KEY = "bybora-market-desk-active-studies-v1";
+  const STUDY_PRESETS_KEY = "bybora-market-desk-study-presets-v1";
+  const STUDY_CATALOG = [
+    {id:"STD;RSI",label:"RSI"},
+    {id:"STD;MACD",label:"MACD"},
+    {id:"STD;EMA",label:"EMA"},
+    {id:"STD;SMA",label:"SMA"},
+    {id:"STD;BB",label:"Bollinger Bantları"},
+    {id:"STD;VWAP",label:"VWAP"},
+    {id:"STD;Stochastic",label:"Stochastic"},
+    {id:"STD;ATR",label:"ATR"}
+  ];
 
   const catalog = [
     {symbol:"BIST:XU100",name:"BIST 100",short:"XU100",category:"indices",venue:"BIST",description:"Borsa İstanbul · Ana endeks",aliases:["xu100","bist100","bist 100","bist 100 endeksi"]},
@@ -43,6 +57,8 @@
   let activeSymbol = "BIST:PETKM";
   let activeInterval = "15";
   let activeCategory = "all";
+  let activeStudies = loadActiveStudies();
+  let studyPresets = loadStudyPresets();
   let suggestionIndex = -1;
 
   const $ = (id) => document.getElementById(id);
@@ -56,14 +72,7 @@
   function loadWatchlist() {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if (!Array.isArray(stored) || !stored.length) return [...defaultWatchlist];
-      const migrated = [...new Set(stored.map(symbol =>
-        symbol === "FX_IDC:XAUTRYG" ? "ICE:XAUTRYG" : symbol
-      ))].slice(0, 40);
-      if (JSON.stringify(migrated) !== JSON.stringify(stored)) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-      }
-      return migrated;
+      return Array.isArray(stored) && stored.length ? [...new Set(stored)].slice(0, 40) : [...defaultWatchlist];
     } catch {
       return [...defaultWatchlist];
     }
@@ -72,6 +81,158 @@
   function saveWatchlist() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(watchlist)); }
     catch { /* Private browsing can block local storage; the terminal remains usable. */ }
+  }
+
+  function loadActiveStudies() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STUDY_STORAGE_KEY) || "[]");
+      const allowed = new Set(STUDY_CATALOG.map(item => item.id));
+      return Array.isArray(saved) ? [...new Set(saved.filter(id => allowed.has(id)))] : [];
+    } catch { return []; }
+  }
+
+  function persistActiveStudies() {
+    try { localStorage.setItem(STUDY_STORAGE_KEY, JSON.stringify(activeStudies)); } catch {}
+  }
+
+  function loadStudyPresets() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STUDY_PRESETS_KEY) || "[]");
+      const allowed = new Set(STUDY_CATALOG.map(item => item.id));
+      if (!Array.isArray(saved)) return [];
+      return saved.filter(item => item && typeof item.name === "string" && Array.isArray(item.studies))
+        .map(item => ({name:item.name.slice(0,32),studies:[...new Set(item.studies.filter(id => allowed.has(id)))]}))
+        .slice(0,30);
+    } catch { return []; }
+  }
+
+  function persistStudyPresets() {
+    try { localStorage.setItem(STUDY_PRESETS_KEY, JSON.stringify(studyPresets)); } catch {}
+  }
+
+  function studyLabel(id) {
+    return STUDY_CATALOG.find(item => item.id === id)?.label || id;
+  }
+
+  function setStudyMessage(message, isError = false) {
+    const node = $("studyMessage");
+    if (!node) return;
+    node.textContent = message;
+    node.classList.toggle("is-error", isError);
+  }
+
+  function renderStudyManager() {
+    const chipHost = $("activeStudies");
+    if (!chipHost) return;
+    chipHost.innerHTML = "";
+    $("studyCount").textContent = activeStudies.length + " GÖSTERGE";
+
+    if (!activeStudies.length) {
+      const empty = document.createElement("span");
+      empty.className = "empty-studies";
+      empty.textContent = "Henüz gösterge eklenmedi. Yukarıdan gösterge seçip ekleyebilirsin.";
+      chipHost.appendChild(empty);
+    } else {
+      activeStudies.forEach(id => {
+        const chip = document.createElement("div");
+        chip.className = "study-chip";
+        const label = document.createElement("span");
+        label.textContent = studyLabel(id);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", studyLabel(id) + " göstergesini kaldır");
+        remove.addEventListener("click", () => removeStudy(id));
+        chip.append(label, remove);
+        chipHost.appendChild(chip);
+      });
+    }
+
+    const select = $("studyPresetSelect");
+    const previous = select.value;
+    select.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Kayıtlı set seç...";
+    select.appendChild(placeholder);
+    studyPresets.forEach((preset, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = preset.name;
+      select.appendChild(option);
+    });
+    if (previous && Number(previous) < studyPresets.length) select.value = previous;
+  }
+
+  function addStudy() {
+    const id = $("indicatorPicker").value;
+    if (!STUDY_CATALOG.some(item => item.id === id)) return;
+    if (activeStudies.includes(id)) {
+      setStudyMessage(studyLabel(id) + " zaten gösterge listende.");
+      return;
+    }
+    activeStudies.push(id);
+    persistActiveStudies();
+    renderStudyManager();
+    renderChart();
+    setStudyMessage(studyLabel(id) + " eklendi ve telefonuna kaydedildi.");
+  }
+
+  function removeStudy(id) {
+    activeStudies = activeStudies.filter(item => item !== id);
+    persistActiveStudies();
+    renderStudyManager();
+    renderChart();
+    setStudyMessage(studyLabel(id) + " kaldırıldı.");
+  }
+
+  function saveStudyPreset() {
+    const name = $("studyPresetName").value.trim();
+    if (!name) {
+      setStudyMessage("Önce gösterge setine bir isim ver.", true);
+      $("studyPresetName").focus();
+      return;
+    }
+    if (!activeStudies.length) {
+      setStudyMessage("Kaydetmek için önce en az bir gösterge ekle.", true);
+      return;
+    }
+    const existing = studyPresets.findIndex(item => item.name.toLocaleLowerCase("tr-TR") === name.toLocaleLowerCase("tr-TR"));
+    const preset = {name,studies:[...activeStudies]};
+    if (existing >= 0) studyPresets[existing] = preset;
+    else studyPresets.push(preset);
+    studyPresets = studyPresets.slice(-30);
+    persistStudyPresets();
+    renderStudyManager();
+    $("studyPresetSelect").value = String(studyPresets.findIndex(item => item.name === name));
+    setStudyMessage('"' + name + '" gösterge seti bu telefona kaydedildi.');
+  }
+
+  function applyStudyPreset() {
+    const index = Number($("studyPresetSelect").value);
+    if (!Number.isInteger(index) || !studyPresets[index]) {
+      setStudyMessage("Yüklemek için önce kayıtlı bir set seç.", true);
+      return;
+    }
+    activeStudies = [...studyPresets[index].studies];
+    persistActiveStudies();
+    renderStudyManager();
+    $("studyPresetSelect").value = String(index);
+    renderChart();
+    setStudyMessage('"' + studyPresets[index].name + '" seti uygulandı.');
+  }
+
+  function deleteStudyPreset() {
+    const index = Number($("studyPresetSelect").value);
+    if (!Number.isInteger(index) || !studyPresets[index]) {
+      setStudyMessage("Silmek için önce kayıtlı bir set seç.", true);
+      return;
+    }
+    const name = studyPresets[index].name;
+    studyPresets.splice(index, 1);
+    persistStudyPresets();
+    renderStudyManager();
+    setStudyMessage('"' + name + '" seti silindi.');
   }
 
   function lookupSymbol(query) {
@@ -120,11 +281,89 @@
     };
   }
 
-  function tradingViewChartUrl(symbol, interval) {
-    const url = new URL("https://www.tradingview.com/chart/");
-    url.searchParams.set("symbol", symbol);
-    url.searchParams.set("interval", interval || activeInterval);
-    return url.toString();
+  function renderWidgetScript(container, src, options) {
+    const widgetRoot = document.createElement("div");
+    widgetRoot.className = "tradingview-widget-container__widget";
+    widgetRoot.style.width = "100%";
+    widgetRoot.style.height = src === TV_CHART_SCRIPT ? "calc(100% - 32px)" : "100%";
+    container.appendChild(widgetRoot);
+
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = src;
+    script.async = true;
+    script.textContent = JSON.stringify(options);
+    container.appendChild(script);
+    script.addEventListener("error", () => {
+      if (src !== TV_CHART_SCRIPT) return;
+      const errorBox = document.createElement("div");
+      errorBox.className = "chart-load-error";
+      const title = document.createElement("strong");
+      title.textContent = "TradingView grafiği yüklenemedi";
+      const detail = document.createElement("span");
+      detail.textContent = "Bağlantıyı kontrol et veya grafiğin sol üstündeki arama alanından farklı bir TradingView sembolü dene.";
+      errorBox.append(title, detail);
+      widgetRoot.replaceChildren(errorBox);
+    });
+  }
+
+  function renderTickerTape() {
+    const mount = $("tickerTape");
+    if (!mount) return;
+    mount.innerHTML = "";
+    const container = document.createElement("div");
+    container.className = "tradingview-widget-container";
+    container.style.width = "100%";
+    container.style.height = "100%";
+    mount.appendChild(container);
+    renderWidgetScript(container, TV_TICKER_SCRIPT, {
+      symbols: [
+        {proName:"BIST:XU100",title:"BIST 100"},
+        {proName:"BIST:PETKM",title:"PETKM"},
+        {proName:"ICE:XAUTRYG",title:"Gram Altın"},
+        {proName:"BINANCE:BTCUSDT",title:"Bitcoin"},
+        {proName:"FX_IDC:USDTRY",title:"USD/TRY"},
+        {proName:"OANDA:XAUUSD",title:"Ons Altın"}
+      ],
+      showSymbolLogo: false,
+      isTransparent: true,
+      displayMode: "adaptive",
+      colorTheme: "dark",
+      locale: "tr"
+    });
+  }
+
+  function renderChart() {
+    const host = $("chartMount");
+    if (!host) return;
+    host.innerHTML = "";
+    const container = document.createElement("div");
+    container.className = "tradingview-widget-container";
+    container.style.width = "100%";
+    container.style.height = "100%";
+    host.appendChild(container);
+
+    renderWidgetScript(container, TV_CHART_SCRIPT, {
+      autosize: true,
+      symbol: activeSymbol,
+      interval: activeInterval,
+      timezone: "Europe/Istanbul",
+      theme: "dark",
+      style: "1",
+      locale: "tr",
+      enable_publishing: false,
+      allow_symbol_change: true,
+      withdateranges: true,
+      hide_side_toolbar: false,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      save_image: true,
+      details: true,
+      calendar: false,
+      hotlist: false,
+      support_host: "https://www.tradingview.com",
+      studies: [...activeStudies]
+    });
   }
 
   function renderInstrument() {
@@ -140,10 +379,7 @@
     $("exchangeTag").textContent = item.venue;
     $("instrumentLogo").textContent = (item.short || item.name || "?").slice(0, 2).toUpperCase();
     $("instrumentLogo").dataset.category = item.category;
-    const chartUrl = tradingViewChartUrl(activeSymbol, activeInterval);
-    $("openTradingView").href = chartUrl;
-    $("launchChartNow").href = chartUrl;
-    $("launchChartNow").innerHTML = item.short.toLocaleUpperCase("tr-TR") + " GRAFİĞİNİ AÇ <span>↗</span>";
+    $("openTradingView").href = "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(activeSymbol);
     $("favoriteCurrent").classList.toggle("is-active", watchlist.includes(activeSymbol));
     $("favoriteCurrent").textContent = watchlist.includes(activeSymbol) ? "★" : "☆";
     $("favoriteCurrent").setAttribute("aria-label", watchlist.includes(activeSymbol) ? "Favorilerden çıkar" : "Favorilere ekle");
@@ -205,16 +441,12 @@
     const resolved = resolveSymbol(symbol);
     if (!resolved) return;
     activeSymbol = resolved;
-    try { localStorage.setItem("bybora-market-desk-last-symbol", activeSymbol); } catch {}
     renderInstrument();
     renderWatchlist();
+    renderChart();
     $("symbolSearch").value = "";
     $("searchSuggestions").hidden = true;
     closeMobileMenu();
-
-    // Open TradingView's first-party Supercharts page, not the limited cross-origin embed.
-    // This is where account sign-in, chart layouts and indicator templates can be saved.
-    window.location.assign(tradingViewChartUrl(activeSymbol, activeInterval));
   }
 
   function addCurrentToWatchlist() {
@@ -274,8 +506,7 @@
   function chooseInterval(button) {
     activeInterval = button.dataset.interval;
     document.querySelectorAll("#timeframes button").forEach(el => el.classList.toggle("active", el === button));
-    renderInstrument();
-    window.location.assign(tradingViewChartUrl(activeSymbol, activeInterval));
+    renderChart();
   }
 
   function closeMobileMenu() {
@@ -345,6 +576,16 @@
       if (button) chooseInterval(button);
     });
     $("addCurrentToWatch").addEventListener("click", addCurrentToWatchlist);
+    $("addStudyBtn").addEventListener("click", addStudy);
+    $("saveStudyPreset").addEventListener("click", saveStudyPreset);
+    $("loadStudyPreset").addEventListener("click", applyStudyPreset);
+    $("deleteStudyPreset").addEventListener("click", deleteStudyPreset);
+    $("studyPresetName").addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        saveStudyPreset();
+      }
+    });
     $("favoriteCurrent").addEventListener("click", addCurrentToWatchlist);
     $("copySymbol").addEventListener("click", async () => {
       try {
@@ -370,6 +611,9 @@
     bindEvents();
     renderInstrument();
     renderWatchlist();
+    renderTickerTape();
+    renderStudyManager();
+    renderChart();
     updateClock();
     window.setInterval(updateClock, 1000);
   }
