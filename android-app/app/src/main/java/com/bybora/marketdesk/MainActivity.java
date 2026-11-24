@@ -97,7 +97,10 @@ public final class MainActivity extends Activity {
                 String host = requestUri.getHost();
                 if ("api.istfin.com".equalsIgnoreCase(host) ||
                         "data-api.binance.vision".equalsIgnoreCase(host) ||
-                        "query1.finance.yahoo.com".equalsIgnoreCase(host)) {
+                        "query1.finance.yahoo.com".equalsIgnoreCase(host) ||
+                        "fapi.binance.com".equalsIgnoreCase(host) ||
+                        "www.okx.com".equalsIgnoreCase(host) ||
+                        "stockanalysis.com".equalsIgnoreCase(host)) {
                     return proxyMarketDataRequest(request);
                 }
                 return assetLoader.shouldInterceptRequest(requestUri);
@@ -202,7 +205,10 @@ public final class MainActivity extends Activity {
             connection.setConnectTimeout(12000);
             connection.setReadTimeout(20000);
             connection.setUseCaches(false);
-            connection.setRequestProperty("Accept", "application/json");
+            String requestHost = request.getUrl().getHost();
+            connection.setRequestProperty("Accept", "stockanalysis.com".equalsIgnoreCase(requestHost)
+                    ? "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8"
+                    : "application/json");
             connection.setRequestProperty("Accept-Encoding", "identity");
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36");
             connection.setRequestProperty("Referer", "https://finance.yahoo.com/");
