@@ -654,3 +654,47 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 
 /* Smaller visible endpoint dots, with transparent 10px touch targets underneath. */
 .workspace-drawing-overlay circle[data-drawing-index]{r:10}
+
+
+/* Compact instrument heading and move mode navigation onto the ticker/status row. */
+.instrument-bar{min-height:68px}
+.instrument-label{font-size:6px;margin-bottom:2px;letter-spacing:.1em}
+.exchange-badge{font-size:5px;padding:1px 3px;letter-spacing:.05em}
+.quote-details>span:first-child{font-size:8px!important}
+.quote-details>span:first-child>b{font-size:8px!important}
+.chart-symbol-line{gap:7px;min-width:0;overflow:hidden}
+.chart-symbol-line>#chartTicker{flex:0 0 auto;color:#cbd8e8;font-size:9px;font-weight:600}
+.chart-symbol-line>.chart-mode-tabs{
+  display:flex;align-items:center;flex:0 1 auto;gap:3px;min-width:0;max-width:54%;
+  min-height:20px;height:20px;margin:0;padding:0;border:0;border-radius:0;
+  background:transparent;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;white-space:nowrap
+}
+.chart-symbol-line>.chart-mode-tabs::-webkit-scrollbar{display:none}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-tab,
+.chart-symbol-line>.chart-mode-tabs .chart-mode-create{
+  flex:0 0 auto;min-height:19px;height:19px;padding:0 5px;border:1px solid rgba(150,174,204,.15);
+  border-radius:4px;background:rgba(255,255,255,.018);font-size:6.5px;line-height:17px;
+  font-weight:600;white-space:nowrap
+}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-tab.active{
+  border-color:rgba(69,214,195,.24);background:rgba(69,214,195,.075);color:#c8eee7
+}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-create{margin-left:0;color:#a9bdcf}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces{
+  display:flex;align-items:center;gap:3px;flex:0 0 auto;min-width:0
+}
+.chart-symbol-line>.chart-live-status{flex:0 0 auto}
+.chart-symbol-line>.chart-source{flex:1 1 auto;min-width:0}
+@media(max-width:760px){
+  .instrument-bar{min-height:64px}
+  .instrument-label{font-size:5.5px}
+  .exchange-badge{font-size:4.5px;padding:1px 3px}
+  .chart-symbol-line{gap:5px}
+  .chart-symbol-line>.chart-mode-tabs{max-width:55%}
+  .chart-symbol-line>.chart-mode-tabs .chart-mode-tab,
+  .chart-symbol-line>.chart-mode-tabs .chart-mode-create{
+    min-height:18px;height:18px;padding:0 4px;font-size:6px;line-height:16px
+  }
+  .quote-details>span:first-child,
+  .quote-details>span:first-child>b{font-size:8px!important}
+}

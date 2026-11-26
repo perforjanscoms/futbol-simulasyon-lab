@@ -1098,7 +1098,6 @@
     $("instrumentAvatar").textContent=item.ticker.slice(0,2);
     $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":item.type==="index"?"ABD ENDEKSLERİ":"KRİPTO · SPOT";
     $("instrumentName").textContent=item.name;
-    $("instrumentSymbol").textContent=item.id+" · "+item.currency;
     $("exchangeBadge").textContent=item.exchange;
     $("chartTicker").textContent=item.ticker;
     const price = item.type==="bist" && quote?.price!=null ? Number(quote.price) :
