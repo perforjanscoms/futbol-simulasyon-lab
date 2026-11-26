@@ -20,6 +20,7 @@
   const ALERTS_KEY = "bybora_price_alerts_v1";
   const WATCH_KEY = "bybora_watchlist_v3";
   const WATCH_ORDER_KEY = "bybora_watchlist_order_controls_v1";
+  const WATCHLIST_MARKET_MIGRATION_KEY = "bybora_watchlist_market_symbols_v1";
   const WORKSPACES_KEY = "bybora_chart_workspaces_v1";
   const LAYOUT_KEY = "bybora_layouts_v3";
   const TROY_OUNCE_GRAMS = 31.1034768;
@@ -120,6 +121,7 @@
   symbols.push({id:"YAHOO:BZF27.NYM",ticker:"BRENT-JAN27",name:"Brent Petrol · Ocak 2027 Vadeli (~94 USD referansı)",exchange:"NYMEX",type:"commodity",provider:"yahoo",pair:"BZF27.NYM",currency:"USD",decimals:2});
   const yahooIndexSymbols=[
     {id:"YAHOO:^IXIC",ticker:"NASDAQ",name:"NASDAQ Composite",exchange:"NASDAQ",type:"index",provider:"yahoo",pair:"^IXIC",currency:"USD",decimals:2},
+    {id:"YAHOO:^VIX",ticker:"VIX",name:"CBOE Volatility Index",exchange:"CBOE",type:"index",provider:"yahoo",pair:"^VIX",currency:"USD",decimals:2},
     {id:"YAHOO:^GSPC",ticker:"SP500",name:"S&P 500",exchange:"S&P",type:"index",provider:"yahoo",pair:"^GSPC",currency:"USD",decimals:2},
     {id:"YAHOO:DX-Y.NYB",ticker:"DXY",name:"US Dollar Index (DXY)",exchange:"ICE",type:"index",provider:"yahoo",pair:"DX-Y.NYB",currency:"USD",decimals:2}
   ];
@@ -241,13 +243,28 @@
     for(const item of items){if(!item?.id)continue;const i=symbols.findIndex(s=>s.id===item.id);if(i>=0)symbols[i]={...symbols[i],...item};else symbols.push(item);}
   }
 
-    function loadWatchlist() {
+  function loadWatchlist() {
+    const defaults = ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT","YAHOO:BZF27.NYM","YAHOO:CL=F","YAHOO:^VIX","YAHOO:^IXIC"];
+    const newMarketSymbols = ["YAHOO:BZF27.NYM","YAHOO:CL=F","YAHOO:^VIX","YAHOO:^IXIC"];
     try {
-      const v = JSON.parse(localStorage.getItem(WATCH_KEY) || "null");
-      if (!Array.isArray(v)) return ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
-      return [...new Set(v.filter(id => !!ensureInstrument(id)))];
+      const stored = JSON.parse(localStorage.getItem(WATCH_KEY) || "null");
+      if (!Array.isArray(stored)) {
+        const initial = [...new Set(defaults.filter(id => !!ensureInstrument(id)))];
+        localStorage.setItem(WATCH_KEY, JSON.stringify(initial));
+        localStorage.setItem(WATCHLIST_MARKET_MIGRATION_KEY, "1");
+        return initial;
+      }
+      const ids = [...new Set(stored.filter(id => !!ensureInstrument(id)))];
+      if (localStorage.getItem(WATCHLIST_MARKET_MIGRATION_KEY) !== "1") {
+        for (const id of newMarketSymbols) {
+          if (ensureInstrument(id) && !ids.includes(id)) ids.push(id);
+        }
+        localStorage.setItem(WATCH_KEY, JSON.stringify(ids));
+        localStorage.setItem(WATCHLIST_MARKET_MIGRATION_KEY, "1");
+      }
+      return ids;
     } catch {
-      return ["BINANCE:BTCUSDT","GOLD:GRAM_TRY","BIST:PETKM","BIST:XU100","BINANCE:ETHUSDT"];
+      return defaults.filter(id => !!ensureInstrument(id));
     }
   }
 
@@ -494,7 +511,7 @@
         vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
         horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
       },
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:76,scaleMargins:{top:.08,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,scaleMargins:{top:.08,bottom:.18}},
       timeScale:{
         borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
         rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
@@ -512,35 +529,15 @@
     return true;
   }
 
-  const LOWER_STUDY_PAD_BARS=3;
-  const LOWER_STUDY_EXTRA_HISTORY=2;
   function syncRawChartRanges(source,range){
     if(!range||syncingTimeScales)return;
     syncingTimeScales=true;
     try{
-      const sourceIsLower=lowerCharts.includes(source);
-      const mainRange=sourceIsLower
-        ?{from:range.from-(LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY),to:range.to-LOWER_STUDY_PAD_BARS}
-        :range;
       const targets=[chart,...lowerCharts].filter(target=>target&&target!==source);
       targets.forEach(target=>{
-        const targetRange=target===chart?mainRange:{
-          from:mainRange.from+LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY,
-          to:mainRange.to+LOWER_STUDY_PAD_BARS
-        };
-        try{target.timeScale().setVisibleLogicalRange(targetRange);}catch{}
+        try{target.timeScale().setVisibleLogicalRange({from:range.from,to:range.to});}catch{}
       });
     }finally{syncingTimeScales=false;}
-  }
-  function indicatorLeadIn(points,fallback=50){
-    if(!Array.isArray(points)||!points.length||!bars.length)return points||[];
-    const firstTime=Number(bars[0].time),step=bars.length>1?Number(bars[1].time)-firstTime:60;
-    if(!Number.isFinite(firstTime)||!Number.isFinite(step)||step<=0)return points;
-    const firstValue=Number.isFinite(Number(points[0].value))?Number(points[0].value):fallback;
-    const prefix=Array.from({length:LOWER_STUDY_PAD_BARS},(_,index)=>({
-      time:firstTime-step*(LOWER_STUDY_PAD_BARS-index),value:firstValue
-    }));
-    return [...prefix,...points];
   }
 
   function mapBinanceInterval(interval) {
@@ -870,17 +867,8 @@
   function simpleAverage(points,period){const out=[];for(let i=period-1;i<points.length;i++){let sum=0;for(let j=i-period+1;j<=i;j++)sum+=points[j].value;out.push({time:points[i].time,value:sum/period});}return out;}
   function stochRsi(values,rsiLength=stochRsiParams.rsi,stochLength=stochRsiParams.stoch,smoothK=stochRsiParams.k,smoothD=stochRsiParams.d){
     const rsiPoints=rsi(values,rsiLength),raw=[];
-    for(let i=stochLength-1;i<rsiPoints.length;i++){
-      const window=rsiPoints.slice(i-stochLength+1,i+1),min=Math.min(...window.map(x=>x.value)),max=Math.max(...window.map(x=>x.value)),current=rsiPoints[i].value;
-      raw.push({time:rsiPoints[i].time,value:max===min?50:((current-min)/(max-min))*100});
-    }
-    const kActual=simpleAverage(raw,smoothK),dActual=simpleAverage(kActual,smoothD);
-    const kByTime=new Map(kActual.map(point=>[point.time,point.value]));
-    const dByTime=new Map(dActual.map(point=>[point.time,point.value]));
-    // Keep both lines aligned with MACD from candle one; 50 is the neutral warm-up value.
-    const k=values.map(bar=>({time:bar.time,value:kByTime.has(bar.time)?kByTime.get(bar.time):50}));
-    const d=values.map(bar=>({time:bar.time,value:dByTime.has(bar.time)?dByTime.get(bar.time):50}));
-    return {k,d};
+    for(let i=stochLength-1;i<rsiPoints.length;i++){const window=rsiPoints.slice(i-stochLength+1,i+1),min=Math.min(...window.map(x=>x.value)),max=Math.max(...window.map(x=>x.value)),current=rsiPoints[i].value;raw.push({time:rsiPoints[i].time,value:max===min?50:((current-min)/(max-min))*100});}
+    const k=simpleAverage(raw,smoothK),d=simpleAverage(k,smoothD);return {k,d};
   }
   function applyStochRsiParams(){
     const rsiPeriod=Math.round(Number($("stochRsiLength").value)),stochPeriod=Math.round(Number($("stochRsiWindow").value)),smoothK=Math.round(Number($("stochRsiK").value)),smoothD=Math.round(Number($("stochRsiD").value));
@@ -906,14 +894,14 @@
   }
 
   function stochastic(values,period=14) {
-    const actual=new Map();
+    const out=[];let smooth=[];
     for(let i=period-1;i<values.length;i++){
       const slice=values.slice(i-period+1,i+1);
       const hi=Math.max(...slice.map(x=>x.high)),lo=Math.min(...slice.map(x=>x.low));
       const value=hi===lo?50:((values[i].close-lo)/(hi-lo))*100;
-      actual.set(values[i].time,value);
+      out.push({time:values[i].time,value});
     }
-    return values.map(bar=>({time:bar.time,value:actual.has(bar.time)?actual.get(bar.time):50}));
+    return out;
   }
 
   function renderStudies() {
@@ -944,7 +932,7 @@
     const lower = activeStudies.filter(id=>["STOCHRSI","MACD","STOCH"].includes(id));
     lower.forEach(id=>{
       const wrap=document.createElement("div");
-      wrap.className="lower-chart-wrap"+(id==="STOCHRSI"?" stoch-rsi-chart-wrap":id==="MACD"?" macd-chart-wrap":"");
+      wrap.className="lower-chart-wrap";
       const title=document.createElement("div");
       title.className="lower-chart-title";
       title.textContent=studyTitle(id);
@@ -956,8 +944,8 @@
         autoSize:true,
         layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:9},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",minimumWidth:76},
-        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)"},
+        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
       lowerCharts.push(c);
@@ -965,26 +953,25 @@
         const values=stochRsi(bars);
         const k=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:"%K"});
         const d=c.addSeries(L.LineSeries,{color:"#e9b968",lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:"%D"});
-        k.setData(indicatorLeadIn(values.k,50));d.setData(indicatorLeadIn(values.d,50));
+        k.setData(values.k);d.setData(values.d);
         k.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"80"});
         k.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"20"});
       } else if (id==="MACD") {
         const m=macd(bars);
         const h=c.addSeries(L.HistogramSeries,{priceLineVisible:false,lastValueVisible:false});
-        const histogram=m.hist.map(x=>({time:x.time,value:x.value,color:x.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"}));
-        h.setData(indicatorLeadIn(histogram,0));
+        h.setData(m.hist.map(x=>({time:x.time,value:x.value,color:x.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"})));
         const s1=c.addSeries(L.LineSeries,{color:"#62a9ff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
         const s2=c.addSeries(L.LineSeries,{color:"#f0bd62",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
-        s1.setData(indicatorLeadIn(m.line,0));s2.setData(indicatorLeadIn(m.signal,0));
+        s1.setData(m.line);s2.setData(m.signal);
       } else {
         const s=c.addSeries(L.LineSeries,{color:"#e4b86b",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-        s.setData(indicatorLeadIn(stochastic(bars),50));
+        s.setData(stochastic(bars));
         s.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
         s.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
       }
       c.timeScale().subscribeVisibleLogicalRangeChange(range=>syncRawChartRanges(c,range));
       const mainRange=chart.timeScale().getVisibleLogicalRange();
-      if(mainRange){try{c.timeScale().setVisibleLogicalRange({from:mainRange.from+LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY,to:mainRange.to+LOWER_STUDY_PAD_BARS});}catch{}}
+      if(mainRange){try{c.timeScale().setVisibleLogicalRange(mainRange);}catch{}}
     });
   }
 
@@ -1119,6 +1106,7 @@
     $("instrumentAvatar").textContent=item.ticker.slice(0,2);
     $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":item.type==="index"?"ABD ENDEKSLERİ":"KRİPTO · SPOT";
     $("instrumentName").textContent=item.name;
+    $("instrumentSymbol").textContent=item.id+" · "+item.currency;
     $("exchangeBadge").textContent=item.exchange;
     $("chartTicker").textContent=item.ticker;
     const price = item.type==="bist" && quote?.price!=null ? Number(quote.price) :
@@ -1848,8 +1836,6 @@
       } else {
         chart.timeScale().fitContent();
       }
-      const alignedRange=chart.timeScale().getVisibleLogicalRange();
-      if(alignedRange)syncRawChartRanges(chart,alignedRange);
       updateMarketRangeLevels();
       renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
       $("chartSource").textContent=result.source;
@@ -1892,7 +1878,6 @@
     if (!intervals.includes(interval)) return;
     activeInterval=interval;
     document.querySelectorAll("#timeframes button").forEach(b=>b.classList.toggle("active",b.dataset.interval===interval));
-    renderWorkspaceNav();
     loadChart();
   }
 
@@ -1998,7 +1983,7 @@
     $("workspaceSaveButton").addEventListener("click",()=>{saveActiveWorkspace();toast("Çalışma alanı kaydedildi.");});
     $("workspaceDeleteButton").addEventListener("click",deleteActiveWorkspace);
     $("workspaceRefreshButton").addEventListener("click",loadWorkspaceChart);
-    $("workspaceTimeframes").addEventListener("click",e=>{const button=e.target.closest("[data-workspace-interval]");if(!button)return;workspaceInterval=button.dataset.workspaceInterval;document.querySelectorAll("[data-workspace-interval]").forEach(b=>b.classList.toggle("active",b===button));saveActiveWorkspace();renderWorkspaceNav();loadWorkspaceChart();});
+    $("workspaceTimeframes").addEventListener("click",e=>{const button=e.target.closest("[data-workspace-interval]");if(!button)return;workspaceInterval=button.dataset.workspaceInterval;document.querySelectorAll("[data-workspace-interval]").forEach(b=>b.classList.toggle("active",b===button));saveActiveWorkspace();loadWorkspaceChart();});
     document.querySelectorAll("[data-workspace-chart-type]").forEach(b=>b.addEventListener("click",()=>{workspaceChartType=b.dataset.workspaceChartType;document.querySelectorAll("[data-workspace-chart-type]").forEach(x=>x.classList.toggle("active",x===b));saveActiveWorkspace();loadWorkspaceChart();}));
     document.querySelectorAll("[data-workspace-drawing]").forEach(b=>b.addEventListener("click",()=>chooseWorkspaceDrawing(b.dataset.workspaceDrawing)));
     $("openPriceAlerts").addEventListener("click",openPriceAlerts);
@@ -2015,11 +2000,7 @@
     document.querySelectorAll("[data-drawing]").forEach(b=>b.addEventListener("click",()=>beginDrawing(b.dataset.drawing)));
     $("candlesButton").addEventListener("click",()=>setChartType("candles"));
     $("lineButton").addEventListener("click",()=>setChartType("line"));
-    $("drawButton").addEventListener("click",()=>{
-      const workspaces=symbolWorkspaces();
-      if(workspaces.length)openWorkspace(workspaces[workspaces.length-1].id);
-      else createWorkspace();
-    });
+    $("drawButton").addEventListener("click",()=>document.querySelector('[data-deck="drawings"]').click());
     $("indicatorButton").addEventListener("click",()=>document.querySelector('[data-deck="indicators"]').click());
     $("layoutButton").addEventListener("click",()=>document.querySelector('[data-deck="layouts"]').click());
     $("refreshButton").addEventListener("click",()=>loadChart());

@@ -10,8 +10,8 @@ android {
         applicationId 'com.bybora.marketdesk'
         minSdk 24
         targetSdk 34
-        versionCode 22
-        versionName '2.10.0'
+        versionCode 23
+        versionName '2.1.1'
     }
 
     buildTypes {
