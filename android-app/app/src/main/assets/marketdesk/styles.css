@@ -560,3 +560,70 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 #rawChartView{margin-top:5px}
 #workspacePanel{margin-top:5px}
 .lower-chart-wrap.stoch-rsi-chart-wrap{height:116px}
+
+/* Equal, fully visible Stoch RSI and MACD parameter cards. */
+.indicator-parameter-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch;margin-top:8px
+}
+.indicator-parameter-grid .macd-parameter-row{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(27px,auto);
+  align-content:start;gap:7px;margin:0;padding:9px 10px;min-width:0;min-height:138px;
+  box-sizing:border-box;border:1px solid var(--line2);border-radius:7px;background:rgba(255,255,255,.018)
+}
+.indicator-parameter-grid .macd-parameter-title{grid-column:1/-1;width:auto;margin:0;color:#9bb4cc;font-size:7px}
+.indicator-parameter-grid .macd-parameter-row label{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:4px;
+  min-width:0;color:#9aabc0;font-size:7px;line-height:1.25
+}
+.indicator-parameter-grid .macd-parameter-row input{
+  width:100%;min-width:0;height:26px;box-sizing:border-box;padding:0 6px;
+  font-family:Arial,"Roboto",sans-serif;font-variant-numeric:tabular-nums lining-nums;font-size:9px
+}
+.indicator-parameter-grid .macd-parameter-row .secondary-button{
+  grid-column:1/-1;width:100%;min-height:27px;box-sizing:border-box;font-size:7.5px
+}
+#macdParameterRow{display:grid!important;visibility:visible!important;opacity:1!important}
+#macdParameterRow .macd-parameter-title{color:#9bb4cc}
+#indicatorDeck{display:block;overflow:visible;max-height:none}
+.control-deck{flex:0 0 auto;overflow:visible}
+.overlay-parameter-row{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:8px}
+.overlay-parameter-row .macd-parameter-title{width:100%}
+.overlay-parameter-row label{display:flex;align-items:center;gap:5px}
+.overlay-parameter-row input{width:74px;max-width:100%;box-sizing:border-box}
+@media(max-width:390px){
+ .indicator-parameter-grid{gap:5px}
+ .indicator-parameter-grid .macd-parameter-row{padding:7px;gap:6px;min-height:140px}
+ .indicator-parameter-grid .macd-parameter-row label{font-size:6.5px}
+ .indicator-parameter-grid .macd-parameter-row input{height:25px;padding:0 4px;font-size:8px}
+}
+@media(max-width:330px){.indicator-parameter-grid{grid-template-columns:1fr}.indicator-parameter-grid .macd-parameter-row{min-height:0}}
+
+/* Small mode bar below Ham Grafik / Çalışma Alanım tabs. */
+.chart-mode-subbar{
+  display:flex;align-items:center;gap:6px;width:100%;max-width:340px;height:20px;min-height:20px;
+  box-sizing:border-box;margin-top:3px;padding:0 7px;border:1px solid rgba(145,170,199,.12);
+  border-radius:4px;background:rgba(7,15,27,.55);color:#8da2ba;font-size:7px;line-height:18px;
+  white-space:nowrap;overflow:hidden
+}
+.chart-mode-subbar-dot{width:5px;height:5px;flex:0 0 5px;border-radius:50%;background:var(--teal)}
+.chart-mode-subbar-meta{margin-left:auto;color:#6e8299;font-size:6.5px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+
+/* Stoch RSI and MACD panes have identical heights. */
+.lower-chart-wrap.stoch-rsi-chart-wrap,.lower-chart-wrap.macd-chart-wrap{height:112px}
+
+/* Stable watchlist quote typography: plain zero, tabular digits, fixed text box. */
+.market-sidebar .watch-quote{
+  flex:0 0 84px;width:84px;min-width:84px;max-width:84px;box-sizing:border-box;
+  overflow:hidden;text-align:right;direction:ltr
+}
+.market-sidebar .watch-quote strong,.market-sidebar .watch-quote small{
+  display:block;width:100%;box-sizing:border-box;overflow:hidden;text-overflow:clip;white-space:nowrap;
+  font-family:Arial,"Roboto",sans-serif!important;letter-spacing:0!important;
+  font-variant-numeric:tabular-nums lining-nums!important;font-feature-settings:"tnum" 1,"lnum" 1,"zero" 0;
+  direction:ltr;unicode-bidi:isolate
+}
+.market-sidebar .watch-quote strong{font-size:9.5px!important;font-weight:600!important}
+.market-sidebar .watch-quote small{font-size:8px!important;font-weight:500!important}
+@media(max-width:760px){
+ .market-sidebar .watch-quote{flex-basis:80px;width:80px;min-width:80px;max-width:80px}
+}

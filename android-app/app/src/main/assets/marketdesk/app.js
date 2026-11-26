@@ -915,7 +915,7 @@
     const lower = activeStudies.filter(id=>["STOCHRSI","MACD","STOCH"].includes(id));
     lower.forEach(id=>{
       const wrap=document.createElement("div");
-      wrap.className="lower-chart-wrap"+(id==="STOCHRSI"?" stoch-rsi-chart-wrap":"");
+      wrap.className="lower-chart-wrap"+(id==="STOCHRSI"?" stoch-rsi-chart-wrap":id==="MACD"?" macd-chart-wrap":"");
       const title=document.createElement("div");
       title.className="lower-chart-title";
       title.textContent=studyTitle(id);
@@ -1177,6 +1177,10 @@
     $("rawChartMode").classList.toggle("active",!activeWorkspaceId);
     $("createWorkspaceButton").textContent=list.length?"+ Yeni Çalışma Alanı":"Çalışma Alanı Oluştur";
     if(activeWorkspaceId){const ws=activeWorkspace();$("workspaceTitle").textContent=ws?.name||"Çalışma Alanım";}
+    const subbarLabel=$("chartModeSubbarLabel"),subbarMeta=$("chartModeSubbarMeta");
+    const currentWorkspace=activeWorkspaceId?activeWorkspace():null;
+    if(subbarLabel)subbarLabel.textContent=currentWorkspace?(currentWorkspace.name||"ÇALIŞMA ALANI").toLocaleUpperCase("tr-TR"):"HAM GRAFİK";
+    if(subbarMeta)subbarMeta.textContent=(instrument()?.ticker||activeSymbol)+" · "+(activeWorkspaceId?workspaceInterval:activeInterval);
   }
   function createWorkspace(){
     const list=symbolWorkspaces(),number=list.length+1;
@@ -1275,9 +1279,26 @@
     if(time&&typeof time==="object"&&Number.isFinite(Number(time.year)))return Math.floor(Date.UTC(Number(time.year),Number(time.month)-1,Number(time.day))/1000);
     const parsed=Number(time);return Number.isFinite(parsed)?parsed:NaN;
   }
+  function workspaceNearestBarTime(time){
+    const target=workspaceTimeNumber(time);
+    if(!Number.isFinite(target)||!Array.isArray(workspaceBars)||!workspaceBars.length)return null;
+    let best=null,bestDistance=Infinity;
+    for(const bar of workspaceBars){
+      const stamp=workspaceTimeNumber(bar.time);
+      if(!Number.isFinite(stamp))continue;
+      const distance=Math.abs(stamp-target);
+      if(distance<bestDistance){bestDistance=distance;best=bar.time;}
+      if(stamp>target&&distance>bestDistance)break;
+    }
+    return best;
+  }
   function workspaceDrawingPoint(point){
     if(!point||!workspaceChart||!workspacePriceSeries)return null;
-    const x=workspaceChart.timeScale().timeToCoordinate(point.time);
+    let x=workspaceChart.timeScale().timeToCoordinate(point.time);
+    if(!Number.isFinite(x)){
+      const nearestTime=workspaceNearestBarTime(point.time);
+      if(nearestTime!==null)x=workspaceChart.timeScale().timeToCoordinate(nearestTime);
+    }
     const y=workspacePriceSeries.priceToCoordinate(Number(point.value));
     return Number.isFinite(x)&&Number.isFinite(y)?{x,y}:null;
   }
@@ -1749,6 +1770,7 @@
     if (!intervals.includes(interval)) return;
     activeInterval=interval;
     document.querySelectorAll("#timeframes button").forEach(b=>b.classList.toggle("active",b.dataset.interval===interval));
+    renderWorkspaceNav();
     loadChart();
   }
 
@@ -1854,7 +1876,7 @@
     $("workspaceSaveButton").addEventListener("click",()=>{saveActiveWorkspace();toast("Çalışma alanı kaydedildi.");});
     $("workspaceDeleteButton").addEventListener("click",deleteActiveWorkspace);
     $("workspaceRefreshButton").addEventListener("click",loadWorkspaceChart);
-    $("workspaceTimeframes").addEventListener("click",e=>{const button=e.target.closest("[data-workspace-interval]");if(!button)return;workspaceInterval=button.dataset.workspaceInterval;document.querySelectorAll("[data-workspace-interval]").forEach(b=>b.classList.toggle("active",b===button));saveActiveWorkspace();loadWorkspaceChart();});
+    $("workspaceTimeframes").addEventListener("click",e=>{const button=e.target.closest("[data-workspace-interval]");if(!button)return;workspaceInterval=button.dataset.workspaceInterval;document.querySelectorAll("[data-workspace-interval]").forEach(b=>b.classList.toggle("active",b===button));saveActiveWorkspace();renderWorkspaceNav();loadWorkspaceChart();});
     document.querySelectorAll("[data-workspace-chart-type]").forEach(b=>b.addEventListener("click",()=>{workspaceChartType=b.dataset.workspaceChartType;document.querySelectorAll("[data-workspace-chart-type]").forEach(x=>x.classList.toggle("active",x===b));saveActiveWorkspace();loadWorkspaceChart();}));
     document.querySelectorAll("[data-workspace-drawing]").forEach(b=>b.addEventListener("click",()=>chooseWorkspaceDrawing(b.dataset.workspaceDrawing)));
     $("openPriceAlerts").addEventListener("click",openPriceAlerts);
