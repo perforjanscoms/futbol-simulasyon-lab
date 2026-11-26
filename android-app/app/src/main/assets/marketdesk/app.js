@@ -512,15 +512,35 @@
     return true;
   }
 
+  const LOWER_STUDY_PAD_BARS=3;
+  const LOWER_STUDY_EXTRA_HISTORY=2;
   function syncRawChartRanges(source,range){
     if(!range||syncingTimeScales)return;
     syncingTimeScales=true;
     try{
+      const sourceIsLower=lowerCharts.includes(source);
+      const mainRange=sourceIsLower
+        ?{from:range.from-(LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY),to:range.to-LOWER_STUDY_PAD_BARS}
+        :range;
       const targets=[chart,...lowerCharts].filter(target=>target&&target!==source);
       targets.forEach(target=>{
-        try{target.timeScale().setVisibleLogicalRange({from:range.from,to:range.to});}catch{}
+        const targetRange=target===chart?mainRange:{
+          from:mainRange.from+LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY,
+          to:mainRange.to+LOWER_STUDY_PAD_BARS
+        };
+        try{target.timeScale().setVisibleLogicalRange(targetRange);}catch{}
       });
     }finally{syncingTimeScales=false;}
+  }
+  function indicatorLeadIn(points,fallback=50){
+    if(!Array.isArray(points)||!points.length||!bars.length)return points||[];
+    const firstTime=Number(bars[0].time),step=bars.length>1?Number(bars[1].time)-firstTime:60;
+    if(!Number.isFinite(firstTime)||!Number.isFinite(step)||step<=0)return points;
+    const firstValue=Number.isFinite(Number(points[0].value))?Number(points[0].value):fallback;
+    const prefix=Array.from({length:LOWER_STUDY_PAD_BARS},(_,index)=>({
+      time:firstTime-step*(LOWER_STUDY_PAD_BARS-index),value:firstValue
+    }));
+    return [...prefix,...points];
   }
 
   function mapBinanceInterval(interval) {
@@ -886,14 +906,14 @@
   }
 
   function stochastic(values,period=14) {
-    const out=[];let smooth=[];
+    const actual=new Map();
     for(let i=period-1;i<values.length;i++){
       const slice=values.slice(i-period+1,i+1);
       const hi=Math.max(...slice.map(x=>x.high)),lo=Math.min(...slice.map(x=>x.low));
       const value=hi===lo?50:((values[i].close-lo)/(hi-lo))*100;
-      out.push({time:values[i].time,value});
+      actual.set(values[i].time,value);
     }
-    return out;
+    return values.map(bar=>({time:bar.time,value:actual.has(bar.time)?actual.get(bar.time):50}));
   }
 
   function renderStudies() {
@@ -945,25 +965,26 @@
         const values=stochRsi(bars);
         const k=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:"%K"});
         const d=c.addSeries(L.LineSeries,{color:"#e9b968",lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:"%D"});
-        k.setData(values.k);d.setData(values.d);
+        k.setData(indicatorLeadIn(values.k,50));d.setData(indicatorLeadIn(values.d,50));
         k.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"80"});
         k.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"20"});
       } else if (id==="MACD") {
         const m=macd(bars);
         const h=c.addSeries(L.HistogramSeries,{priceLineVisible:false,lastValueVisible:false});
-        h.setData(m.hist.map(x=>({time:x.time,value:x.value,color:x.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"})));
+        const histogram=m.hist.map(x=>({time:x.time,value:x.value,color:x.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"}));
+        h.setData(indicatorLeadIn(histogram,0));
         const s1=c.addSeries(L.LineSeries,{color:"#62a9ff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
         const s2=c.addSeries(L.LineSeries,{color:"#f0bd62",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
-        s1.setData(m.line);s2.setData(m.signal);
+        s1.setData(indicatorLeadIn(m.line,0));s2.setData(indicatorLeadIn(m.signal,0));
       } else {
         const s=c.addSeries(L.LineSeries,{color:"#e4b86b",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-        s.setData(stochastic(bars));
+        s.setData(indicatorLeadIn(stochastic(bars),50));
         s.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
         s.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
       }
       c.timeScale().subscribeVisibleLogicalRangeChange(range=>syncRawChartRanges(c,range));
       const mainRange=chart.timeScale().getVisibleLogicalRange();
-      if(mainRange){try{c.timeScale().setVisibleLogicalRange(mainRange);}catch{}}
+      if(mainRange){try{c.timeScale().setVisibleLogicalRange({from:mainRange.from+LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY,to:mainRange.to+LOWER_STUDY_PAD_BARS});}catch{}}
     });
   }
 
@@ -1179,7 +1200,7 @@
     }catch{return {};}
   }
   let workspacesBySymbol=loadWorkspaces();
-  let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null,workspaceDrawingScaleSeries=[];
+  let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null;
   let workspaceChartType="candles",workspaceBars=[],workspaceDrawingMode=null,workspaceFirstPoint=null,workspaceDrawings=[],workspaceRuntime=[];
   let workspaceInterval="15m",workspaceLoadBusy=false,workspaceLoadGeneration=0;
   let workspaceDraftPoints=[],workspaceDrag=null,workspaceCreateGesture=null,workspaceDraftDrawing=null,workspaceSelectedDrawingIndex=-1,workspaceOverlayResizeObserver=null;
@@ -1267,7 +1288,7 @@
       timeScale:{borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,rightOffset:7,barSpacing:7,minBarSpacing:.5},
       localization:{locale:"tr-TR"}
     });
-    workspaceChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{updateWorkspaceDrawingScaleSeries();renderWorkspaceDrawingOverlay();});
+    workspaceChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{refreshWorkspacePriceScale();renderWorkspaceDrawingOverlay();});
     if(overlay){
       overlay.addEventListener("pointerdown",startWorkspaceDrawingPointer);
       overlay.addEventListener("pointermove",moveWorkspaceDrawingPointer);
@@ -1275,6 +1296,12 @@
       overlay.addEventListener("pointercancel",finishWorkspaceDrawingPointer);
     }
     const container=$("workspaceChartContainer");
+    if(container){
+      container.addEventListener("dblclick",event=>{
+        const rect=container.getBoundingClientRect();
+        if(event.clientX>=rect.right-88)refreshWorkspacePriceScale();
+      });
+    }
     if(container&&window.ResizeObserver){
       workspaceOverlayResizeObserver=new ResizeObserver(()=>renderWorkspaceDrawingOverlay());
       workspaceOverlayResizeObserver.observe(container);
@@ -1283,75 +1310,73 @@
   function createWorkspacePriceSeries(){
     const L=window.LightweightCharts,item=instrument(activeWorkspace()?.symbol||activeSymbol),last=workspaceBars[workspaceBars.length-1]?.close;
     const precision=chartPriceDecimals(item,last),priceFormat={type:"price",precision,minMove:Math.pow(10,-precision)};
-    (workspaceDrawingScaleSeries||[]).forEach(series=>{try{workspaceChart.removeSeries(series);}catch{}});
-    workspaceDrawingScaleSeries=[];
     if(workspacePriceSeries){workspaceChart.removeSeries(workspacePriceSeries);workspacePriceSeries=null;}
     if(workspaceVolumeSeries){workspaceChart.removeSeries(workspaceVolumeSeries);workspaceVolumeSeries=null;}
+    const drawingAwareAutoscale=original=>{
+      const base=original(),drawingBounds=workspaceVisibleDrawingPriceBounds();
+      if(!drawingBounds)return base;
+      const baseMin=base?.priceRange?.minValue,baseMax=base?.priceRange?.maxValue;
+      const min=Math.min(Number.isFinite(baseMin)?baseMin:drawingBounds.min,drawingBounds.min);
+      const max=Math.max(Number.isFinite(baseMax)?baseMax:drawingBounds.max,drawingBounds.max);
+      const padding=(max-min)*.012||Math.max(Math.abs(max)*.0005,1e-8);
+      return {priceRange:{minValue:min-padding,maxValue:max+padding},...(base?.margins?{margins:base.margins}:{})};
+    };
     workspacePriceSeries=workspaceChart.addSeries(workspaceChartType==="candles"?L.CandlestickSeries:L.LineSeries,
       workspaceChartType==="candles"
-      ?{upColor:"#28cda0",downColor:"#f06479",borderUpColor:"#28cda0",borderDownColor:"#f06479",wickUpColor:"#28cda0",wickDownColor:"#f06479",priceFormat,priceLineVisible:true,lastValueVisible:true}
-      :{color:"#55c9e8",lineWidth:2,priceFormat,priceLineVisible:true,lastValueVisible:true,crosshairMarkerVisible:true});
+      ?{upColor:"#28cda0",downColor:"#f06479",borderUpColor:"#28cda0",borderDownColor:"#f06479",wickUpColor:"#28cda0",wickDownColor:"#f06479",priceFormat,priceLineVisible:true,lastValueVisible:true,autoscaleInfoProvider:drawingAwareAutoscale}
+      :{color:"#55c9e8",lineWidth:2,priceFormat,priceLineVisible:true,lastValueVisible:true,crosshairMarkerVisible:true,autoscaleInfoProvider:drawingAwareAutoscale});
     if(workspaceChartType==="candles")workspacePriceSeries.setData(workspaceBars);
     else workspacePriceSeries.setData(workspaceBars.map(b=>({time:b.time,value:b.close})));
     workspaceVolumeSeries=workspaceChart.addSeries(L.HistogramSeries,{priceFormat:{type:"volume"},priceScaleId:"volume",lastValueVisible:false,priceLineVisible:false});
     workspaceVolumeSeries.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
     workspaceVolumeSeries.setData(workspaceBars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
-    workspaceDrawingScaleSeries=[];
-    updateWorkspaceDrawingScaleSeries();
+    refreshWorkspacePriceScale();
   }
-  function updateWorkspaceDrawingScaleSeries(){
-    if(!workspaceChart||!workspaceBars.length||!workspacePriceSeries)return;
-    const anchors=new Map(),timeNumber=workspaceTimeNumber;
-    const nearestBarTime=value=>{
-      const target=timeNumber(value);if(!Number.isFinite(target))return null;
-      let low=0,high=workspaceBars.length-1;
-      while(low<=high){
-        const mid=(low+high)>>1,stamp=timeNumber(workspaceBars[mid].time);
-        if(stamp===target)return workspaceBars[mid].time;
-        if(stamp<target)low=mid+1;else high=mid-1;
-      }
-      if(high<0)return workspaceBars[0].time;
-      if(low>=workspaceBars.length)return workspaceBars[workspaceBars.length-1].time;
-      const before=workspaceBars[high],after=workspaceBars[low];
-      return target-timeNumber(before.time)<=timeNumber(after.time)-target?before.time:after.time;
+  function workspaceVisibleDrawingPriceBounds(){
+    if(!workspaceChart||!workspaceBars.length||!workspaceDrawings.length)return null;
+    const logical=workspaceChart.timeScale().getVisibleLogicalRange();
+    const fromIndex=Math.max(0,Math.min(workspaceBars.length-1,Math.floor(logical?.from??0)));
+    const toIndex=Math.max(fromIndex,Math.min(workspaceBars.length-1,Math.ceil(logical?.to??(workspaceBars.length-1))));
+    const visibleStart=workspaceTimeNumber(workspaceBars[fromIndex].time);
+    const visibleEnd=workspaceTimeNumber(workspaceBars[toIndex].time);
+    if(!Number.isFinite(visibleStart)||!Number.isFinite(visibleEnd))return null;
+    let min=Infinity,max=-Infinity;
+    const add=value=>{const price=Number(value);if(Number.isFinite(price)){min=Math.min(min,price);max=Math.max(max,price);}};
+    const addSegment=(first,second)=>{
+      if(!first||!second)return;
+      const t1=workspaceTimeNumber(first.time),t2=workspaceTimeNumber(second.time),v1=Number(first.value),v2=Number(second.value);
+      if(![t1,t2,v1,v2].every(Number.isFinite))return;
+      if(t1===t2){if(t1>=visibleStart&&t1<=visibleEnd){add(v1);add(v2);}return;}
+      const start=Math.max(Math.min(t1,t2),visibleStart),end=Math.min(Math.max(t1,t2),visibleEnd);
+      if(start>end)return;
+      const valueAt=time=>v1+(v2-v1)*((time-t1)/(t2-t1));
+      add(valueAt(start));add(valueAt(end));
     };
-    const addAnchor=(time,value)=>{
-      const price=Number(value),barTime=nearestBarTime(time);
-      if(barTime===null||!Number.isFinite(price))return;
-      const key=timeNumber(barTime),entry=anchors.get(key)||{time:barTime,min:price,max:price};
-      entry.min=Math.min(entry.min,price);entry.max=Math.max(entry.max,price);anchors.set(key,entry);
-    };
-    const range=workspaceChart.timeScale().getVisibleLogicalRange();
-    const visibleStart=Math.max(0,Math.min(workspaceBars.length-1,Math.floor(range?.from??0)));
-    const visibleEnd=Math.max(visibleStart,Math.min(workspaceBars.length-1,Math.ceil(range?.to??(workspaceBars.length-1))));
-    const visibleFirst=workspaceBars[visibleStart].time,visibleLast=workspaceBars[visibleEnd].time;
     workspaceDrawings.forEach(drawing=>{
-      if(drawing.type==="horizontal"){addAnchor(visibleFirst,drawing.price);addAnchor(visibleLast,drawing.price);}
-      (drawing.points||[]).forEach(point=>addAnchor(point.time,point.value));
-      if(drawing.type==="trendChannel"&&drawing.points?.length>=3){
-        const [a,b,c]=drawing.points,derivedTime=timeNumber(c.time)+(timeNumber(b.time)-timeNumber(a.time));
-        addAnchor(derivedTime,Number(c.value)+(Number(b.value)-Number(a.value)));
+      const points=Array.isArray(drawing.points)?drawing.points:[];
+      if(drawing.type==="horizontal"){add(drawing.price);return;}
+      if(drawing.type==="fib"){(workspaceFibLevels(drawing)||[]).forEach(level=>add(level.price));return;}
+      if(drawing.type==="trend"&&points.length>=2){addSegment(points[0],points[1]);return;}
+      if(drawing.type==="trendChannel"&&points.length>=3){
+        const [a,b,c]=points;
+        addSegment(a,b);
+        addSegment(c,{time:workspaceTimeNumber(c.time)+(workspaceTimeNumber(b.time)-workspaceTimeNumber(a.time)),value:Number(c.value)+(Number(b.value)-Number(a.value))});
+        return;
       }
-      if(drawing.type==="fib"){
-        (workspaceFibLevels(drawing)||[]).forEach(level=>{addAnchor(visibleFirst,level.price);addAnchor(visibleLast,level.price);});
+      if(["percent","rect","roundRect","circle","ellipse"].includes(drawing.type)&&points.length>=2){
+        const times=points.map(point=>workspaceTimeNumber(point.time)).filter(Number.isFinite);
+        if(times.length&&Math.max(...times)>=visibleStart&&Math.min(...times)<=visibleEnd)points.forEach(point=>add(point.value));
+        return;
       }
+      points.forEach(point=>{const time=workspaceTimeNumber(point.time);if(time>=visibleStart&&time<=visibleEnd)add(point.value);});
     });
-    const points=[...anchors.values()].sort((a,b)=>timeNumber(a.time)-timeNumber(b.time));
-    if(!points.length){
-      workspaceDrawingScaleSeries.forEach(series=>{try{series.setData([]);}catch{}});
-      return;
-    }
-    const L=window.LightweightCharts;
-    while(workspaceDrawingScaleSeries.length<2){
-      workspaceDrawingScaleSeries.push(workspaceChart.addSeries(L.LineSeries,{
-        color:"rgba(0,0,0,0)",lineWidth:1,pointMarkersVisible:false,crosshairMarkerVisible:false,
-        lastValueVisible:false,priceLineVisible:false,priceScaleId:"right"
-      }));
-    }
-    workspaceDrawingScaleSeries[0].setData(points.map(point=>({time:point.time,value:point.min})));
-    workspaceDrawingScaleSeries[1].setData(points.map(point=>({time:point.time,value:point.max})));
+    return Number.isFinite(min)&&Number.isFinite(max)?{min,max}:null;
+  }
+  function refreshWorkspacePriceScale(){
+    if(!workspacePriceSeries)return;
     try{workspacePriceSeries.priceScale().applyOptions({autoScale:true});}catch{}
   }
+  function updateWorkspaceDrawingScaleSeries(){refreshWorkspacePriceScale();}
   function workspaceTimeNumber(time){
     if(typeof time==="number")return time;
     if(time&&typeof time==="object"&&Number.isFinite(Number(time.year)))return Math.floor(Date.UTC(Number(time.year),Number(time.month)-1,Number(time.day))/1000);
