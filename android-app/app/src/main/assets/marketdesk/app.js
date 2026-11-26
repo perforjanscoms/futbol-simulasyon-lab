@@ -499,7 +499,7 @@
       layout: {
         background: {type:L.ColorType.Solid,color:"#0a1220"},
         textColor:"#91a3ba",
-        fontFamily:"DM Sans, sans-serif",
+        fontFamily:"Inter, sans-serif",
         fontSize:10
       },
       grid: {
@@ -530,12 +530,14 @@
   }
 
   function syncRawChartRanges(source,range){
-    if(!range||syncingTimeScales)return;
+    if(source!==chart||!range||syncingTimeScales)return;
     syncingTimeScales=true;
     try{
-      const targets=[chart,...lowerCharts].filter(target=>target&&target!==source);
-      targets.forEach(target=>{
-        try{target.timeScale().setVisibleLogicalRange({from:range.from,to:range.to});}catch{}
+      lowerCharts.forEach(target=>{
+        try{
+          target.timeScale().setVisibleLogicalRange({from:range.from,to:range.to});
+          target.timeScale().scrollToPosition(9,false);
+        }catch{}
       });
     }finally{syncingTimeScales=false;}
   }
@@ -1002,14 +1004,14 @@
       const isStochRsi=id==="STOCHRSI";
       const c=L.createChart(mount,{
         autoSize:true,
-        layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:9},
+        layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"Inter,sans-serif",fontSize:9},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
         rightPriceScale:{
           borderColor:"rgba(145,170,199,.13)",
           autoScale:true,
-          ...(isStochRsi?{scaleMargins:{top:.08,bottom:.06}}:{})
+          ...(isStochRsi?{scaleMargins:{top:.1,bottom:.08}}:{})
         },
-        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7},
+        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:9},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
       lowerCharts.push(c);
@@ -1017,13 +1019,13 @@
         const values=stochRsi(bars);
         const oscillatorScale=original=>{
           const base=original?.();
-          return {...(base||{}),priceRange:{minValue:0,maxValue:105}};
+          return {...(base||{}),priceRange:{minValue:0,maxValue:110}};
         };
         const k=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:"%K",autoscaleInfoProvider:oscillatorScale});
         const d=c.addSeries(L.LineSeries,{color:"#e9b968",lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:"%D",autoscaleInfoProvider:oscillatorScale});
         k.setData(alignToCandles(values.k,50));
         d.setData(alignToCandles(values.d,50));
-        k.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.08,bottom:.06}});
+        k.priceScale().applyOptions({autoScale:true,scaleMargins:{top:.1,bottom:.08}});
         k.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"80"});
         k.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"20"});
       }else if(id==="MACD"){
@@ -1042,7 +1044,7 @@
       }
       c.timeScale().subscribeVisibleLogicalRangeChange(range=>syncRawChartRanges(c,range));
       const mainRange=chart.timeScale().getVisibleLogicalRange();
-      if(mainRange){try{c.timeScale().setVisibleLogicalRange(mainRange);}catch{}}
+      if(mainRange){try{c.timeScale().setVisibleLogicalRange(mainRange);c.timeScale().scrollToPosition(9,false);}catch{}}
     });
   }
 
@@ -1353,7 +1355,7 @@
     const L=window.LightweightCharts,host=$("workspacePriceChart"),overlay=$("workspaceDrawingOverlay");
     workspaceChart=L.createChart(host,{
       autoSize:true,
-      layout:{background:{type:L.ColorType.Solid,color:"#0a1220"},textColor:"#91a3ba",fontFamily:"DM Sans,sans-serif",fontSize:10},
+      layout:{background:{type:L.ColorType.Solid,color:"#0a1220"},textColor:"#91a3ba",fontFamily:"Inter,sans-serif",fontSize:10},
       grid:{vertLines:{color:"rgba(132,157,188,.065)"},horzLines:{color:"rgba(132,157,188,.085)"}},
       crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}},
       rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:76,scaleMargins:{top:.08,bottom:.18}},
@@ -1561,7 +1563,7 @@
           const y=workspacePriceSeries.priceToCoordinate(Number(level.price));if(!Number.isFinite(y))return;
           workspaceAddLine(x1,y,x2,y,drawIndex,"body",color,.95);
           workspaceSvg("rect",{x:labelX,y:y-6,width:labelWidth,height:12,rx:2,fill:"#0a1220",opacity:.94,"pointer-events":"none"},null);
-          const label=workspaceSvg("text",{x:labelX+3,y:y+2.5,fill:color,"font-size":7.5,"font-family":"DM Sans,monospace","pointer-events":"none"},null);
+          const label=workspaceSvg("text",{x:labelX+3,y:y+2.5,fill:color,"font-size":7.5,"font-family":"Inter,monospace","pointer-events":"none"},null);
           label.textContent=(level.label||"Fib")+"  "+fmtPrice(Number(level.price),precision);
         });
         if(hasAnchors&&!draft){workspaceAddHandle(coords[0].x,coords[0].y,index,0);workspaceAddHandle(coords[1].x,coords[1].y,index,1);}
@@ -1597,7 +1599,7 @@
       }else if(drawing.type==="percent"&&coords.length>=2){
         const a=coords[0],b=coords[1],delta=Number(points[1].value)-Number(points[0].value),pct=Number(points[0].value)?delta/Number(points[0].value)*100:0;
         workspaceAddLine(a.x,a.y,b.x,b.y,drawIndex,"body",color,1.1);
-        const label=workspaceSvg("text",{x:(a.x+b.x)/2+7,y:(a.y+b.y)/2-9,fill:color,"font-size":9,"font-weight":650,"font-family":"DM Sans,monospace","pointer-events":"all"},drawIndex,"body");
+        const label=workspaceSvg("text",{x:(a.x+b.x)/2+7,y:(a.y+b.y)/2-9,fill:color,"font-size":9,"font-weight":650,"font-family":"Inter,monospace","pointer-events":"all"},drawIndex,"body");
         label.textContent=(pct>=0?"+":"")+pct.toFixed(2)+"% · "+(delta>=0?"+":"")+fmtPrice(delta,instrument()?.decimals||2);
       }
       if(!draft&&workspaceSelectedDrawingIndex===index&&drawing.type!=="trendChannel"){
