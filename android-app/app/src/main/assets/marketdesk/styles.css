@@ -572,3 +572,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
   .indicator-parameter-grid{grid-template-columns:1fr}
   .indicator-parameter-grid>.macd-parameter-row{min-height:0}
 }
+
+/* Enable touch/mouse input on the transparent chart layer only while a drawing tool is active. */
+.workspace-drawing-overlay.drawing-enabled{
+  pointer-events:auto;
+  touch-action:none;
+  cursor:crosshair
+}
