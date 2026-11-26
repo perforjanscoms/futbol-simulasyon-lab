@@ -598,16 +598,6 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 }
 @media(max-width:330px){.indicator-parameter-grid{grid-template-columns:1fr}.indicator-parameter-grid .macd-parameter-row{min-height:0}}
 
-/* Small mode bar below Ham Grafik / Çalışma Alanım tabs. */
-.chart-mode-subbar{
-  display:flex;align-items:center;gap:6px;width:100%;max-width:340px;height:20px;min-height:20px;
-  box-sizing:border-box;margin-top:3px;padding:0 7px;border:1px solid rgba(145,170,199,.12);
-  border-radius:4px;background:rgba(7,15,27,.55);color:#8da2ba;font-size:7px;line-height:18px;
-  white-space:nowrap;overflow:hidden
-}
-.chart-mode-subbar-dot{width:5px;height:5px;flex:0 0 5px;border-radius:50%;background:var(--teal)}
-.chart-mode-subbar-meta{margin-left:auto;color:#6e8299;font-size:6.5px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
-
 /* Stoch RSI and MACD panes have identical heights. */
 .lower-chart-wrap.stoch-rsi-chart-wrap,.lower-chart-wrap.macd-chart-wrap{height:112px}
 
@@ -632,3 +622,35 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 #indicatorDeck:not([hidden]){display:block;overflow:visible;max-height:none}
 #indicatorDeck[hidden]{display:none!important}
 .control-deck{flex-shrink:0}
+
+/* Mode buttons now occupy the former status-ribbon row below the instrument header. */
+.main-area>.chart-mode-tabs{
+  display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto;gap:4px;
+  width:100%;min-height:22px;height:22px;margin:3px 0;padding:0;border:0;border-radius:0;
+  background:transparent;overflow-x:auto;overflow-y:hidden;scrollbar-width:none
+}
+.main-area>.chart-mode-tabs::-webkit-scrollbar{display:none}
+.main-area>.chart-mode-tabs .chart-mode-tab,
+.main-area>.chart-mode-tabs .chart-mode-create{
+  flex:0 0 auto;min-height:20px;height:20px;padding:0 7px;border:1px solid rgba(150,174,204,.15);
+  border-radius:4px;background:rgba(255,255,255,.018);font-size:7.5px;line-height:18px;font-weight:600;white-space:nowrap
+}
+.main-area>.chart-mode-tabs .chart-mode-tab.active{border-color:rgba(69,214,195,.24);background:rgba(69,214,195,.075);color:#c8eee7}
+.main-area>.chart-mode-tabs .chart-mode-create{margin-left:0;color:#a9bdcf}
+.main-area>.chart-mode-tabs .chart-mode-workspaces{display:flex;align-items:center;gap:3px;min-width:0;flex:0 0 auto}
+
+/* Give the raw-chart content its natural height so the entire settings deck can be scrolled into view. */
+.main-area{min-height:0;height:100%;overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+#rawChartView{flex:0 0 auto;min-height:max-content;height:auto;overflow:visible}
+#rawChartView>.chart-workspace{flex:0 0 auto;min-height:480px}
+#rawChartView>.control-deck{flex:0 0 auto;min-height:max-content;overflow:visible;margin-bottom:18px}
+#rawChartView #indicatorDeck{max-height:none;overflow:visible}
+#rawChartView .indicator-parameter-grid{overflow:visible}
+#workspacePanel{flex:0 0 auto}
+@media(max-width:760px){
+ .main-area>.chart-mode-tabs{margin:2px 0}
+ #rawChartView>.chart-workspace{min-height:420px}
+}
+
+/* Smaller visible endpoint dots, with transparent 10px touch targets underneath. */
+.workspace-drawing-overlay circle[data-drawing-index]{r:10}

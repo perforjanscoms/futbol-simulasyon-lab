@@ -850,8 +850,17 @@
   function simpleAverage(points,period){const out=[];for(let i=period-1;i<points.length;i++){let sum=0;for(let j=i-period+1;j<=i;j++)sum+=points[j].value;out.push({time:points[i].time,value:sum/period});}return out;}
   function stochRsi(values,rsiLength=stochRsiParams.rsi,stochLength=stochRsiParams.stoch,smoothK=stochRsiParams.k,smoothD=stochRsiParams.d){
     const rsiPoints=rsi(values,rsiLength),raw=[];
-    for(let i=stochLength-1;i<rsiPoints.length;i++){const window=rsiPoints.slice(i-stochLength+1,i+1),min=Math.min(...window.map(x=>x.value)),max=Math.max(...window.map(x=>x.value)),current=rsiPoints[i].value;raw.push({time:rsiPoints[i].time,value:max===min?50:((current-min)/(max-min))*100});}
-    const k=simpleAverage(raw,smoothK),d=simpleAverage(k,smoothD);return {k,d};
+    for(let i=stochLength-1;i<rsiPoints.length;i++){
+      const window=rsiPoints.slice(i-stochLength+1,i+1),min=Math.min(...window.map(x=>x.value)),max=Math.max(...window.map(x=>x.value)),current=rsiPoints[i].value;
+      raw.push({time:rsiPoints[i].time,value:max===min?50:((current-min)/(max-min))*100});
+    }
+    const kActual=simpleAverage(raw,smoothK),dActual=simpleAverage(kActual,smoothD);
+    const kByTime=new Map(kActual.map(point=>[point.time,point.value]));
+    const dByTime=new Map(dActual.map(point=>[point.time,point.value]));
+    // Keep both lines aligned with MACD from candle one; 50 is the neutral warm-up value.
+    const k=values.map(bar=>({time:bar.time,value:kByTime.has(bar.time)?kByTime.get(bar.time):50}));
+    const d=values.map(bar=>({time:bar.time,value:dByTime.has(bar.time)?dByTime.get(bar.time):50}));
+    return {k,d};
   }
   function applyStochRsiParams(){
     const rsiPeriod=Math.round(Number($("stochRsiLength").value)),stochPeriod=Math.round(Number($("stochRsiWindow").value)),smoothK=Math.round(Number($("stochRsiK").value)),smoothD=Math.round(Number($("stochRsiD").value));
@@ -1159,9 +1168,9 @@
     catch{return {};}
   }
   let workspacesBySymbol=loadWorkspaces();
-  let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null;
+  let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null,workspaceDrawingScaleSeries=null;
   let workspaceChartType="candles",workspaceBars=[],workspaceDrawingMode=null,workspaceFirstPoint=null,workspaceDrawings=[],workspaceRuntime=[];
-  let workspaceInterval="15m",workspaceLoadBusy=false;
+  let workspaceInterval="15m",workspaceLoadBusy=false,workspaceLoadGeneration=0;
   let workspaceDraftPoints=[],workspaceDrag=null,workspaceCreateGesture=null,workspaceDraftDrawing=null,workspaceSelectedDrawingIndex=-1,workspaceOverlayResizeObserver=null;
   function saveWorkspaceIndex(){try{localStorage.setItem(WORKSPACES_KEY,JSON.stringify(workspacesBySymbol));}catch{}}
   function symbolWorkspaces(symbol=activeSymbol){return Array.isArray(workspacesBySymbol[symbol])?workspacesBySymbol[symbol]:[];}
@@ -1177,10 +1186,6 @@
     $("rawChartMode").classList.toggle("active",!activeWorkspaceId);
     $("createWorkspaceButton").textContent=list.length?"+ Yeni Çalışma Alanı":"Çalışma Alanı Oluştur";
     if(activeWorkspaceId){const ws=activeWorkspace();$("workspaceTitle").textContent=ws?.name||"Çalışma Alanım";}
-    const subbarLabel=$("chartModeSubbarLabel"),subbarMeta=$("chartModeSubbarMeta");
-    const currentWorkspace=activeWorkspaceId?activeWorkspace():null;
-    if(subbarLabel)subbarLabel.textContent=currentWorkspace?(currentWorkspace.name||"ÇALIŞMA ALANI").toLocaleUpperCase("tr-TR"):"HAM GRAFİK";
-    if(subbarMeta)subbarMeta.textContent=(instrument()?.ticker||activeSymbol)+" · "+(activeWorkspaceId?workspaceInterval:activeInterval);
   }
   function createWorkspace(){
     const list=symbolWorkspaces(),number=list.length+1;
@@ -1190,6 +1195,7 @@
     workspacesBySymbol[activeSymbol]=[...list,workspace];saveWorkspaceIndex();renderWorkspaceNav();openWorkspace(id);
   }
   function showRawChart(){
+    workspaceLoadGeneration++;
     if(activeWorkspaceId)saveActiveWorkspace();
     activeWorkspaceId=null;workspaceDrawingMode=null;workspaceFirstPoint=null;workspaceDraftPoints=[];workspaceDraftDrawing=null;workspaceCreateGesture=null;
     const drawingOverlay=$("workspaceDrawingOverlay");if(drawingOverlay)drawingOverlay.classList.remove("drawing-enabled");
@@ -1221,6 +1227,7 @@
   }
   function deleteActiveWorkspace(){
     const workspace=activeWorkspace();if(!workspace)return;
+    workspaceLoadGeneration++;
     const accepted=window.confirm('"'+workspace.name+'" çalışma alanı ve içindeki çizimler kalıcı olarak silinsin mi?');
     if(!accepted)return;
     workspacesBySymbol[activeSymbol]=symbolWorkspaces().filter(item=>item.id!==workspace.id);
@@ -1262,6 +1269,7 @@
   function createWorkspacePriceSeries(){
     const L=window.LightweightCharts,item=instrument(activeWorkspace()?.symbol||activeSymbol),last=workspaceBars[workspaceBars.length-1]?.close;
     const precision=chartPriceDecimals(item,last),priceFormat={type:"price",precision,minMove:Math.pow(10,-precision)};
+    if(workspaceDrawingScaleSeries){workspaceChart.removeSeries(workspaceDrawingScaleSeries);workspaceDrawingScaleSeries=null;}
     if(workspacePriceSeries){workspaceChart.removeSeries(workspacePriceSeries);workspacePriceSeries=null;}
     if(workspaceVolumeSeries){workspaceChart.removeSeries(workspaceVolumeSeries);workspaceVolumeSeries=null;}
     workspacePriceSeries=workspaceChart.addSeries(workspaceChartType==="candles"?L.CandlestickSeries:L.LineSeries,
@@ -1273,6 +1281,33 @@
     workspaceVolumeSeries=workspaceChart.addSeries(L.HistogramSeries,{priceFormat:{type:"volume"},priceScaleId:"volume",lastValueVisible:false,priceLineVisible:false});
     workspaceVolumeSeries.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
     workspaceVolumeSeries.setData(workspaceBars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
+    workspaceDrawingScaleSeries=workspaceChart.addSeries(L.LineSeries,{
+      color:"rgba(0,0,0,0)",lineVisible:false,pointMarkersVisible:false,crosshairMarkerVisible:false,
+      lastValueVisible:false,priceLineVisible:false,priceScaleId:"right"
+    });
+    updateWorkspaceDrawingScaleSeries();
+  }
+  function updateWorkspaceDrawingScaleSeries(){
+    if(!workspaceDrawingScaleSeries||!workspaceBars.length)return;
+    const prices=[],pushPrice=value=>{const n=Number(value);if(Number.isFinite(n))prices.push(n);};
+    workspaceDrawings.forEach(drawing=>{
+      if(drawing.type==="horizontal")pushPrice(drawing.price);
+      (drawing.points||[]).forEach(point=>pushPrice(point.value));
+      if(drawing.type==="trendChannel"&&drawing.points?.length>=3){
+        const [a,b,c]=drawing.points;
+        pushPrice(Number(c.value)+(Number(b.value)-Number(a.value)));
+      }
+      if(drawing.type==="fib"&&!drawing.points?.length)(drawing.levels||[]).forEach(level=>pushPrice(level.price));
+    });
+    if(!prices.length){workspaceDrawingScaleSeries.setData([]);return;}
+    let min=Math.min(...prices),max=Math.max(...prices);
+    const padding=(max-min)*.055||Math.max(Math.abs(max)*.001,1e-8);
+    min-=padding;max+=padding;
+    const first=workspaceBars[0].time,last=workspaceBars[workspaceBars.length-1].time;
+    workspaceDrawingScaleSeries.setData(first===last
+      ?[{time:first,value:(min+max)/2}]
+      :[{time:first,value:min},{time:last,value:max}]);
+    try{workspaceDrawingScaleSeries.priceScale().applyOptions({autoScale:true});}catch{}
   }
   function workspaceTimeNumber(time){
     if(typeof time==="number")return time;
@@ -1280,34 +1315,28 @@
     const parsed=Number(time);return Number.isFinite(parsed)?parsed:NaN;
   }
   function workspaceDrawingTimeCoordinate(time){
-    const target=workspaceTimeNumber(time),scale=workspaceChart?.timeScale();
-    if(!Number.isFinite(target)||!scale||!Array.isArray(workspaceBars)||!workspaceBars.length)return NaN;
+    const target=workspaceTimeNumber(time),scale=workspaceChart?.timeScale(),source=workspaceBars;
+    if(!Number.isFinite(target)||!scale||!Array.isArray(source)||!source.length)return NaN;
     const direct=scale.timeToCoordinate(time);
     if(Number.isFinite(direct))return direct;
-    let before=null,after=null,nearest=null,nearestDistance=Infinity;
-    for(const bar of workspaceBars){
-      const stamp=workspaceTimeNumber(bar.time);if(!Number.isFinite(stamp))continue;
-      const distance=Math.abs(stamp-target);
-      if(distance<nearestDistance){nearest=bar;nearestDistance=distance;}
-      if(stamp<=target)before=bar;
-      if(stamp>target){after=bar;break;}
+    // Map a saved absolute timestamp to a fractional logical candle index in this timeframe.
+    let low=0,high=source.length-1;
+    while(low<=high){
+      const mid=(low+high)>>1,stamp=workspaceTimeNumber(source[mid].time);
+      if(stamp===target)return scale.timeToCoordinate(source[mid].time);
+      if(stamp<target)low=mid+1;else high=mid-1;
     }
-    if(before&&after){
-      const t1=workspaceTimeNumber(before.time),t2=workspaceTimeNumber(after.time);
-      const intervalSeconds={"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400,"1w":604800,"1M":2592000}[workspaceInterval]||3600;
-      const x1=scale.timeToCoordinate(before.time),x2=scale.timeToCoordinate(after.time);
-      if(Number.isFinite(x1)&&Number.isFinite(x2)&&t2>t1&&t2-t1<=intervalSeconds*1.6){
-        const ratio=Math.max(0,Math.min(1,(target-t1)/(t2-t1)));
-        return x1+(x2-x1)*ratio;
-      }
+    if(high<0)return scale.timeToCoordinate(source[0].time);
+    if(low>=source.length)return scale.timeToCoordinate(source[source.length-1].time);
+    const t1=workspaceTimeNumber(source[high].time),t2=workspaceTimeNumber(source[low].time);
+    const ratio=t2>t1?Math.max(0,Math.min(1,(target-t1)/(t2-t1))):0;
+    const logicalIndex=high+ratio;
+    if(typeof scale.logicalToCoordinate==="function"){
+      const x=scale.logicalToCoordinate(logicalIndex);
+      if(Number.isFinite(x))return x;
     }
-    if(nearest){
-      const nearestX=scale.timeToCoordinate(nearest.time);
-      if(Number.isFinite(nearestX))return nearestX;
-    }
-    const edge=target<workspaceTimeNumber(workspaceBars[0].time)?workspaceBars[0]:workspaceBars[workspaceBars.length-1];
-    const edgeX=scale.timeToCoordinate(edge.time);
-    return Number.isFinite(edgeX)?edgeX:NaN;
+    const x1=scale.timeToCoordinate(source[high].time),x2=scale.timeToCoordinate(source[low].time);
+    return Number.isFinite(x1)&&Number.isFinite(x2)?x1+(x2-x1)*ratio:NaN;
   }
   function workspaceDrawingPoint(point){
     if(!point||!workspaceChart||!workspacePriceSeries)return null;
@@ -1339,7 +1368,8 @@
     workspaceSvg("line",{x1,y1,x2,y2,stroke:color,"stroke-width":Math.min(1.25,width),"stroke-linecap":"round","vector-effect":"non-scaling-stroke","pointer-events":"none"},null);
   }
   function workspaceAddHandle(x,y,index,handle){
-    workspaceSvg("circle",{cx:x,cy:y,r:7,fill:"#13253a",stroke:"#f3c976","stroke-width":2,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,handle);
+    workspaceSvg("circle",{cx:x,cy:y,r:10,fill:"#ffffff",opacity:.012,stroke:"none","pointer-events":"all"},index,handle);
+    workspaceSvg("circle",{cx:x,cy:y,r:3.5,fill:"#13253a",stroke:"#f3c976","stroke-width":1.2,"vector-effect":"non-scaling-stroke","pointer-events":"none"},null);
   }
   function renderWorkspaceDrawingOverlay(){
     const svg=$("workspaceDrawingOverlay"),container=$("workspaceChartContainer");
@@ -1403,24 +1433,35 @@
       }
     });
   }
-  function restoreWorkspaceDrawings(){renderWorkspaceDrawingOverlay();}
+  function restoreWorkspaceDrawings(syncPriceScale=true){
+    if(syncPriceScale)updateWorkspaceDrawingScaleSeries();
+    renderWorkspaceDrawingOverlay();
+  }
   async function loadWorkspaceChart(){
-    const workspace=activeWorkspace();if(!workspace||workspaceLoadBusy)return;
+    const workspace=activeWorkspace();if(!workspace)return;
+    const requestId=++workspaceLoadGeneration,requestWorkspaceId=workspace.id,requestInterval=workspaceInterval;
     workspaceLoadBusy=true;$("workspaceChartStatus").textContent="VERİ YÜKLENİYOR";
     try{
       ensureWorkspaceChart();
       const item=instrument(workspace.symbol);if(!item)throw new Error("Bu çalışma alanının sembolü bulunamadı.");
-      const result=await getMarketData(item,workspaceInterval);
+      const result=await getMarketData(item,requestInterval);
+      if(requestId!==workspaceLoadGeneration||activeWorkspaceId!==requestWorkspaceId||workspaceInterval!==requestInterval)return;
       workspaceBars=result.bars;if(!workspaceBars.length)throw new Error("Seçili zaman diliminde mum verisi bulunamadı.");
       createWorkspacePriceSeries();workspaceChart.timeScale().fitContent();restoreWorkspaceDrawings();
-      $("workspaceChartTicker").textContent=item.ticker+" · "+workspaceInterval;
+      $("workspaceChartTicker").textContent=item.ticker+" · "+requestInterval;
       $("workspaceChartSource").textContent=result.source+" · "+result.delay;
       $("workspaceChartStatus").textContent="ÇALIŞMA ALANI AKTİF";
       $("workspaceLastUpdate").textContent="Son güncelleme "+fmtTime();
       renderWorkspaceDrawingList();saveActiveWorkspace();
-      setTimeout(()=>{try{workspaceChart.resize($("workspacePriceChart").clientWidth,$("workspacePriceChart").clientHeight);renderWorkspaceDrawingOverlay();}catch{}},80);
-    }catch(error){$("workspaceChartStatus").textContent="VERİ HATASI";toast(error.message||"Çalışma alanı grafiği açılamadı.");}
-    finally{workspaceLoadBusy=false;}
+      setTimeout(()=>{
+        if(requestId!==workspaceLoadGeneration||activeWorkspaceId!==requestWorkspaceId)return;
+        try{workspaceChart.resize($("workspacePriceChart").clientWidth,$("workspacePriceChart").clientHeight);renderWorkspaceDrawingOverlay();}catch{}
+      },80);
+    }catch(error){
+      if(requestId===workspaceLoadGeneration){$("workspaceChartStatus").textContent="VERİ HATASI";toast(error.message||"Çalışma alanı grafiği açılamadı.");}
+    }finally{
+      if(requestId===workspaceLoadGeneration)workspaceLoadBusy=false;
+    }
   }
   function workspacePointFromPointer(event){
     const svg=$("workspaceDrawingOverlay"),rect=svg.getBoundingClientRect();
@@ -1554,7 +1595,7 @@
       drawing.points=drawing.points.map(point=>({time:Number(point.time)+deltaTime,value:Number(point.value)+deltaPrice}));
       if(drawing.type==="fib")drawing.levels=workspaceFibLevels(drawing);
     }
-    workspaceDrawings[drag.index]=drawing;restoreWorkspaceDrawings();
+    workspaceDrawings[drag.index]=drawing;restoreWorkspaceDrawings(false);
   }
   function finishWorkspaceDrawingDrag(event){
     if(!workspaceDrag)return;
