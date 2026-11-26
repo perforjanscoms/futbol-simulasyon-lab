@@ -454,49 +454,47 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
  .workspace-drawing-panel .drawing-tool{min-height:34px;padding:0 8px}
 }
 
-
-/* Compact chart-mode selector and tablet-friendly chart height */
-.chart-mode-tabs{
-  display:flex;align-items:center;gap:4px;min-height:25px;height:25px;
-  margin:2px 0 4px;padding:0 2px;border:0;border-radius:0;
-  background:transparent;overflow-x:auto;scrollbar-width:none
+/* Compact quote-strip navigation: keep it directly beneath 24h high/low. */
+.quote-strip .chart-mode-tabs{
+  display:flex;align-items:center;justify-content:flex-end;gap:3px;min-height:18px;max-width:min(100%,430px);
+  margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow-x:auto;scrollbar-width:none;
 }
-.chart-mode-tabs::-webkit-scrollbar{display:none}
-.chart-mode-tab,.chart-mode-create{
-  flex:0 0 auto;height:22px;min-height:22px;padding:0 8px;
-  border:1px solid rgba(145,170,199,.15);border-radius:5px;
-  background:rgba(9,19,33,.55);font-size:8px;font-weight:600;line-height:20px
+.quote-strip .chart-mode-tabs::-webkit-scrollbar{display:none}
+.quote-strip .chart-mode-tab,.quote-strip .chart-mode-create{
+  flex:0 0 auto;min-height:18px;height:18px;padding:0 6px;border:1px solid rgba(150,174,204,.14);border-radius:4px;
+  background:rgba(255,255,255,.018);font-size:7px;line-height:16px;font-weight:600;white-space:nowrap;
 }
-.chart-mode-tab.active{border-color:rgba(69,214,195,.32);background:rgba(69,214,195,.08);color:#c1f1e8}
-.chart-mode-create{margin-left:auto;border-color:rgba(145,170,199,.22);background:transparent;color:#9db4cc}
-.chart-mode-workspaces{display:flex;align-items:center;gap:3px;min-width:0;max-width:55%;overflow-x:auto;scrollbar-width:none}
-.chart-mode-workspaces::-webkit-scrollbar{display:none}
-.chart-mode-workspaces .chart-mode-tab{max-width:115px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quote-strip .chart-mode-tab.active{border-color:rgba(69,214,195,.24);background:rgba(69,214,195,.075);color:#c8eee7}
+.quote-strip .chart-mode-create{margin-left:0;color:#a9bdcf}
+.quote-strip .chart-mode-workspaces{display:flex;align-items:center;gap:3px;min-width:0}
 @media(max-width:760px){
-  .instrument-bar{min-height:68px}
-  .chart-workspace{min-height:0}
-  .chart-toolbar{height:38px;flex-basis:38px;gap:4px}
-  .chart-symbol-line{height:25px;flex-basis:25px}
-  .chart-container{height:clamp(235px,40vh,390px);min-height:235px;max-height:390px;flex:0 0 auto}
-  .lower-chart-wrap{height:clamp(66px,9vh,82px);flex:0 0 auto}
-  .chart-statusbar{height:21px;min-height:21px;flex-basis:21px}
-  .raw-chart-view{min-height:0}
-  .chart-mode-tabs{min-height:24px;height:24px;margin:1px 0 3px;gap:3px}
-  .chart-mode-tab,.chart-mode-create{height:21px;min-height:21px;padding:0 7px;font-size:7.5px}
-  .chart-mode-workspaces{max-width:58%}
-  .chart-mode-workspaces .chart-mode-tab{max-width:94px}
-  .workspace-panel-actions{flex-direction:column}
+ .quote-strip{max-width:57vw;align-items:flex-end;gap:3px}
+ .quote-strip .chart-mode-tabs{max-width:100%;width:100%;justify-content:flex-end}
+ .quote-strip .chart-mode-tab,.quote-strip .chart-mode-create{min-height:17px;height:17px;padding:0 5px;font-size:6.5px;line-height:15px}
 }
-@media(max-width:420px){
-  .chart-mode-workspaces{max-width:49%}
-  .chart-mode-tab,.chart-mode-create{padding:0 5px}
-  .chart-container{height:clamp(220px,37vh,330px);min-height:220px;max-height:330px}
-  .lower-chart-wrap{height:68px;flex-basis:68px}
+@media(max-width:380px){.quote-strip{max-width:60vw}.quote-strip .chart-mode-create{max-width:96px;overflow:hidden;text-overflow:ellipsis}}
+
+/* Watchlist prices and move controls are intentionally restrained. */
+.watchlist-tools{display:flex;flex-direction:column;gap:5px;margin:8px 0 3px}
+.watch-order-toggle{width:100%;min-height:26px;padding:0 8px;border:1px solid rgba(69,214,195,.22);border-radius:6px;background:rgba(69,214,195,.045);color:#a9d6d0;font-size:8px;font-weight:600;text-align:left}
+.watchlist-backup-buttons{display:flex;gap:6px}
+.watchlist-backup-buttons button{flex:1;min-height:27px;border:1px solid var(--line2);border-radius:6px;background:rgba(255,255,255,.025);color:#a8bad0;font-size:8px;font-weight:600}
+.watch-quote{flex:0 0 78px;min-width:78px}
+.watch-quote strong{font-size:9px!important;font-weight:450!important;letter-spacing:0}
+.watch-quote small{font-size:8px!important;font-weight:400!important}
+.watch-order-controls{flex:0 0 18px;gap:2px;margin-left:1px}
+.watch-order-btn{width:18px;height:16px;font-size:7px;border-radius:3px}
+.watch-order-controls[hidden]{display:none!important}
+@media(max-width:760px){
+ .watch-quote{flex-basis:72px;min-width:72px}
+ .watch-quote strong{font-size:8.5px!important}
+ .watch-quote small{font-size:7.5px!important}
+ .watch-order-controls{flex-basis:18px}
+ .watch-order-btn{width:18px;height:16px}
 }
 
-/* Traditional, lightweight drawing appearance */
+/* Fine workspace strokes; invisible touch targets stay generous without looking thick. */
+.workspace-drawing-overlay.drawing-enabled{pointer-events:auto;touch-action:none}
 .workspace-drawing-overlay [data-drawing-index]{cursor:move}
-.workspace-drawing-overlay line[data-drawing-index]{pointer-events:stroke}
-.workspace-drawing-overlay circle[data-drawing-handle]{r:5;cursor:grab}
-.workspace-drawing-overlay circle[data-drawing-handle]:active{cursor:grabbing}
-.workspace-drawing-pill{padding:3px 6px}
+.workspace-drawing-overlay [data-drawing-handle]{cursor:grab}
+.workspace-drawing-overlay [data-drawing-handle]:active{cursor:grabbing}

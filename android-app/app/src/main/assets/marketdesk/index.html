@@ -50,8 +50,11 @@
         </div>
 
         <div class="watchlist-tools">
-          <button id="exportWatchlist" type="button">Dışa aktar</button>
-          <button id="importWatchlist" type="button">İçe aktar</button>
+          <button id="toggleWatchOrderControls" class="watch-order-toggle" type="button" aria-expanded="false" aria-pressed="false">Taşıma düğmelerini göster</button>
+          <div class="watchlist-backup-buttons">
+            <button id="exportWatchlist" type="button">Dışa aktar</button>
+            <button id="importWatchlist" type="button">İçe aktar</button>
+          </div>
         </div>
 
         <div class="watch-tabs">
@@ -95,14 +98,13 @@
               <span>24s Düşük <b id="dayLow">—</b></span>
               <span>Hacim <b id="dayVolume">—</b></span>
             </div>
+            <div class="chart-mode-tabs" aria-label="Grafik alanı seçimi">
+              <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
+              <div class="chart-mode-workspaces" id="workspaceTabs"></div>
+              <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
+            </div>
           </div>
         </section>
-
-        <div class="chart-mode-tabs">
-          <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
-          <div class="chart-mode-workspaces" id="workspaceTabs"></div>
-          <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
-        </div>
         <div id="rawChartView" class="raw-chart-view">
 
         <section class="chart-workspace" id="chartWorkspace">
