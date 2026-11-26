@@ -1,0 +1,76 @@
+name: Build BYBORA Market Desk PR Preview APK
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bybora-android-pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build installable Android PR preview APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Restore stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: bybora-marketdesk-debug-keystore-v1
+
+      - name: Install Android 36 platform and build tools
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
+
+      - name: Download Lightweight Charts standalone library
+        run: |
+          curl -fsSL --retry 3 --retry-delay 2 --max-time 90 \
+            "https://cdn.jsdelivr.net/npm/lightweight-charts@5.3.0/dist/lightweight-charts.standalone.production.js" \
+            -o android-app/app/src/main/assets/marketdesk/lightweight-charts.js
+          test -s android-app/app/src/main/assets/marketdesk/lightweight-charts.js
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build APK
+        run: gradle --no-daemon --stacktrace -p android-app assembleDebug
+
+      - name: Prepare preview APK
+        run: cp android-app/app/build/outputs/apk/debug/app-debug.apk BYBORA-Market-Desk-Trend-Fix-Preview.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BYBORA-Market-Desk-Trend-Fix-Preview
+          path: BYBORA-Market-Desk-Trend-Fix-Preview.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          TAG="bybora-market-desk-trend-fix-pr-${{ github.event.pull_request.number }}-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" BYBORA-Market-Desk-Trend-Fix-Preview.apk \
+            --target "$PR_HEAD_SHA" \
+            --title "BYBORA Market Desk · Trend Fix PR Preview ${GITHUB_RUN_NUMBER}" \
+            --notes "Test APK for workspace trend-line timeframe alignment. Pull request: #${{ github.event.pull_request.number }}. Source commit: $PR_HEAD_SHA. Preview build only; not the main release." \
+            --prerelease
