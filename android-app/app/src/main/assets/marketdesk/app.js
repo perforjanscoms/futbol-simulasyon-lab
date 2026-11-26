@@ -494,7 +494,7 @@
         vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
         horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
       },
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,scaleMargins:{top:.08,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:76,scaleMargins:{top:.08,bottom:.18}},
       timeScale:{
         borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
         rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
@@ -936,8 +936,8 @@
         autoSize:true,
         layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:9},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)"},
-        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",minimumWidth:76},
+        timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
       lowerCharts.push(c);
@@ -1163,11 +1163,23 @@
   }
 
   function loadWorkspaces(){
-    try{const value=JSON.parse(localStorage.getItem(WORKSPACES_KEY)||"{}");return value&&typeof value==="object"&&!Array.isArray(value)?value:{};}
-    catch{return {};}
+    try{
+      const stored=JSON.parse(localStorage.getItem(WORKSPACES_KEY)||"{}");
+      if(!stored||typeof stored!=="object"||Array.isArray(stored))return {};
+      let changed=false;
+      for(const [symbol,list] of Object.entries(stored)){
+        if(!Array.isArray(list)){delete stored[symbol];changed=true;continue;}
+        if(list.length>1){
+          const keep=list.filter(item=>item&&typeof item==="object").sort((a,b)=>(Number(b.updatedAt)||Number(b.createdAt)||0)-(Number(a.updatedAt)||Number(a.createdAt)||0))[0];
+          stored[symbol]=keep?[keep]:[];changed=true;
+        }
+      }
+      if(changed)localStorage.setItem(WORKSPACES_KEY,JSON.stringify(stored));
+      return stored;
+    }catch{return {};}
   }
   let workspacesBySymbol=loadWorkspaces();
-  let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null,workspaceDrawingScaleSeries=null;
+  let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null,workspaceDrawingScaleSeries=[];
   let workspaceChartType="candles",workspaceBars=[],workspaceDrawingMode=null,workspaceFirstPoint=null,workspaceDrawings=[],workspaceRuntime=[];
   let workspaceInterval="15m",workspaceLoadBusy=false,workspaceLoadGeneration=0;
   let workspaceDraftPoints=[],workspaceDrag=null,workspaceCreateGesture=null,workspaceDraftDrawing=null,workspaceSelectedDrawingIndex=-1,workspaceOverlayResizeObserver=null;
@@ -1176,22 +1188,25 @@
   function activeWorkspace(){return symbolWorkspaces().find(w=>w.id===activeWorkspaceId)||null;}
   function renderWorkspaceNav(){
     const host=$("workspaceTabs");if(!host)return;host.innerHTML="";
-    const list=symbolWorkspaces();
-    list.forEach((workspace,index)=>{
+    const list=symbolWorkspaces().slice(0,1);
+    list.forEach(workspace=>{
       const button=document.createElement("button");button.type="button";button.className="chart-mode-tab"+(workspace.id===activeWorkspaceId?" active":"");
-      button.textContent=workspace.id===activeWorkspaceId?"Çalışma Alanım ("+(index+1)+")":"Çalışma Alanıma Geç ("+(index+1)+")";
+      button.textContent="Çalışma Alanıma Geç (1)";
       button.addEventListener("click",()=>openWorkspace(workspace.id));host.appendChild(button);
     });
     $("rawChartMode").classList.toggle("active",!activeWorkspaceId);
-    $("createWorkspaceButton").textContent=list.length?"+ Yeni Çalışma Alanı":"Çalışma Alanı Oluştur";
-    if(activeWorkspaceId){const ws=activeWorkspace();$("workspaceTitle").textContent=ws?.name||"Çalışma Alanım";}
+    const createButton=$("createWorkspaceButton");
+    createButton.textContent="Çalışma Alanı Oluştur";
+    createButton.hidden=list.length>=1;
+    if(activeWorkspaceId){const ws=activeWorkspace();$("workspaceTitle").textContent=ws?.name||"Çalışma Alanım (1)";}
   }
   function createWorkspace(){
-    const list=symbolWorkspaces(),number=list.length+1;
+    const list=symbolWorkspaces();
+    if(list.length){openWorkspace(list[0].id);return;}
     const id="ws-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
-    const workspace={id,name:"Çalışma Alanım ("+number+")",symbol:activeSymbol,interval:activeInterval,chartType:"candles",drawings:[],createdAt:Date.now(),updatedAt:Date.now()};
+    const workspace={id,name:"Çalışma Alanım (1)",symbol:activeSymbol,interval:activeInterval,chartType:"candles",drawings:[],createdAt:Date.now(),updatedAt:Date.now()};
     workspaceDraftPoints=[];workspaceSelectedDrawingIndex=-1;workspaceDrag=null;
-    workspacesBySymbol[activeSymbol]=[...list,workspace];saveWorkspaceIndex();renderWorkspaceNav();openWorkspace(id);
+    workspacesBySymbol[activeSymbol]=[workspace];saveWorkspaceIndex();renderWorkspaceNav();openWorkspace(id);
   }
   function showRawChart(){
     workspaceLoadGeneration++;
@@ -1248,11 +1263,11 @@
       layout:{background:{type:L.ColorType.Solid,color:"#0a1220"},textColor:"#91a3ba",fontFamily:"DM Sans,sans-serif",fontSize:10},
       grid:{vertLines:{color:"rgba(132,157,188,.065)"},horzLines:{color:"rgba(132,157,188,.085)"}},
       crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}},
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,scaleMargins:{top:.08,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:76,scaleMargins:{top:.08,bottom:.18}},
       timeScale:{borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,rightOffset:7,barSpacing:7,minBarSpacing:.5},
       localization:{locale:"tr-TR"}
     });
-    workspaceChart.timeScale().subscribeVisibleLogicalRangeChange(()=>renderWorkspaceDrawingOverlay());
+    workspaceChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{updateWorkspaceDrawingScaleSeries();renderWorkspaceDrawingOverlay();});
     if(overlay){
       overlay.addEventListener("pointerdown",startWorkspaceDrawingPointer);
       overlay.addEventListener("pointermove",moveWorkspaceDrawingPointer);
@@ -1268,7 +1283,8 @@
   function createWorkspacePriceSeries(){
     const L=window.LightweightCharts,item=instrument(activeWorkspace()?.symbol||activeSymbol),last=workspaceBars[workspaceBars.length-1]?.close;
     const precision=chartPriceDecimals(item,last),priceFormat={type:"price",precision,minMove:Math.pow(10,-precision)};
-    if(workspaceDrawingScaleSeries){workspaceChart.removeSeries(workspaceDrawingScaleSeries);workspaceDrawingScaleSeries=null;}
+    (workspaceDrawingScaleSeries||[]).forEach(series=>{try{workspaceChart.removeSeries(series);}catch{}});
+    workspaceDrawingScaleSeries=[];
     if(workspacePriceSeries){workspaceChart.removeSeries(workspacePriceSeries);workspacePriceSeries=null;}
     if(workspaceVolumeSeries){workspaceChart.removeSeries(workspaceVolumeSeries);workspaceVolumeSeries=null;}
     workspacePriceSeries=workspaceChart.addSeries(workspaceChartType==="candles"?L.CandlestickSeries:L.LineSeries,
@@ -1280,33 +1296,61 @@
     workspaceVolumeSeries=workspaceChart.addSeries(L.HistogramSeries,{priceFormat:{type:"volume"},priceScaleId:"volume",lastValueVisible:false,priceLineVisible:false});
     workspaceVolumeSeries.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
     workspaceVolumeSeries.setData(workspaceBars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
-    workspaceDrawingScaleSeries=workspaceChart.addSeries(L.LineSeries,{
-      color:"rgba(0,0,0,0)",lineVisible:false,pointMarkersVisible:false,crosshairMarkerVisible:false,
-      lastValueVisible:false,priceLineVisible:false,priceScaleId:"right"
-    });
+    workspaceDrawingScaleSeries=[];
     updateWorkspaceDrawingScaleSeries();
   }
   function updateWorkspaceDrawingScaleSeries(){
-    if(!workspaceDrawingScaleSeries||!workspaceBars.length)return;
-    const prices=[],pushPrice=value=>{const n=Number(value);if(Number.isFinite(n))prices.push(n);};
-    workspaceDrawings.forEach(drawing=>{
-      if(drawing.type==="horizontal")pushPrice(drawing.price);
-      (drawing.points||[]).forEach(point=>pushPrice(point.value));
-      if(drawing.type==="trendChannel"&&drawing.points?.length>=3){
-        const [a,b,c]=drawing.points;
-        pushPrice(Number(c.value)+(Number(b.value)-Number(a.value)));
+    if(!workspaceChart||!workspaceBars.length||!workspacePriceSeries)return;
+    const anchors=new Map(),timeNumber=workspaceTimeNumber;
+    const nearestBarTime=value=>{
+      const target=timeNumber(value);if(!Number.isFinite(target))return null;
+      let low=0,high=workspaceBars.length-1;
+      while(low<=high){
+        const mid=(low+high)>>1,stamp=timeNumber(workspaceBars[mid].time);
+        if(stamp===target)return workspaceBars[mid].time;
+        if(stamp<target)low=mid+1;else high=mid-1;
       }
-      if(drawing.type==="fib"&&!drawing.points?.length)(drawing.levels||[]).forEach(level=>pushPrice(level.price));
+      if(high<0)return workspaceBars[0].time;
+      if(low>=workspaceBars.length)return workspaceBars[workspaceBars.length-1].time;
+      const before=workspaceBars[high],after=workspaceBars[low];
+      return target-timeNumber(before.time)<=timeNumber(after.time)-target?before.time:after.time;
+    };
+    const addAnchor=(time,value)=>{
+      const price=Number(value),barTime=nearestBarTime(time);
+      if(barTime===null||!Number.isFinite(price))return;
+      const key=timeNumber(barTime),entry=anchors.get(key)||{time:barTime,min:price,max:price};
+      entry.min=Math.min(entry.min,price);entry.max=Math.max(entry.max,price);anchors.set(key,entry);
+    };
+    const range=workspaceChart.timeScale().getVisibleLogicalRange();
+    const visibleStart=Math.max(0,Math.min(workspaceBars.length-1,Math.floor(range?.from??0)));
+    const visibleEnd=Math.max(visibleStart,Math.min(workspaceBars.length-1,Math.ceil(range?.to??(workspaceBars.length-1))));
+    const visibleFirst=workspaceBars[visibleStart].time,visibleLast=workspaceBars[visibleEnd].time;
+    workspaceDrawings.forEach(drawing=>{
+      if(drawing.type==="horizontal"){addAnchor(visibleFirst,drawing.price);addAnchor(visibleLast,drawing.price);}
+      (drawing.points||[]).forEach(point=>addAnchor(point.time,point.value));
+      if(drawing.type==="trendChannel"&&drawing.points?.length>=3){
+        const [a,b,c]=drawing.points,derivedTime=timeNumber(c.time)+(timeNumber(b.time)-timeNumber(a.time));
+        addAnchor(derivedTime,Number(c.value)+(Number(b.value)-Number(a.value)));
+      }
+      if(drawing.type==="fib"){
+        (workspaceFibLevels(drawing)||[]).forEach(level=>{addAnchor(visibleFirst,level.price);addAnchor(visibleLast,level.price);});
+      }
     });
-    if(!prices.length){workspaceDrawingScaleSeries.setData([]);return;}
-    let min=Math.min(...prices),max=Math.max(...prices);
-    const padding=(max-min)*.055||Math.max(Math.abs(max)*.001,1e-8);
-    min-=padding;max+=padding;
-    const first=workspaceBars[0].time,last=workspaceBars[workspaceBars.length-1].time;
-    workspaceDrawingScaleSeries.setData(first===last
-      ?[{time:first,value:(min+max)/2}]
-      :[{time:first,value:min},{time:last,value:max}]);
-    try{workspaceDrawingScaleSeries.priceScale().applyOptions({autoScale:true});}catch{}
+    const points=[...anchors.values()].sort((a,b)=>timeNumber(a.time)-timeNumber(b.time));
+    if(!points.length){
+      workspaceDrawingScaleSeries.forEach(series=>{try{series.setData([]);}catch{}});
+      return;
+    }
+    const L=window.LightweightCharts;
+    while(workspaceDrawingScaleSeries.length<2){
+      workspaceDrawingScaleSeries.push(workspaceChart.addSeries(L.LineSeries,{
+        color:"rgba(0,0,0,0)",lineWidth:1,pointMarkersVisible:false,crosshairMarkerVisible:false,
+        lastValueVisible:false,priceLineVisible:false,priceScaleId:"right"
+      }));
+    }
+    workspaceDrawingScaleSeries[0].setData(points.map(point=>({time:point.time,value:point.min})));
+    workspaceDrawingScaleSeries[1].setData(points.map(point=>({time:point.time,value:point.max})));
+    try{workspacePriceSeries.priceScale().applyOptions({autoScale:true});}catch{}
   }
   function workspaceTimeNumber(time){
     if(typeof time==="number")return time;
@@ -1316,9 +1360,7 @@
   function workspaceDrawingTimeCoordinate(time){
     const target=workspaceTimeNumber(time),scale=workspaceChart?.timeScale(),source=workspaceBars;
     if(!Number.isFinite(target)||!scale||!Array.isArray(source)||!source.length)return NaN;
-    const direct=scale.timeToCoordinate(time);
-    if(Number.isFinite(direct))return direct;
-    // Map a saved absolute timestamp to a fractional logical candle index in this timeframe.
+    // Resolve saved anchors against this timeframe's candle index; anchors often fall between 4h bars.
     let low=0,high=source.length-1;
     while(low<=high){
       const mid=(low+high)>>1,stamp=workspaceTimeNumber(source[mid].time);
@@ -1446,7 +1488,7 @@
       const result=await getMarketData(item,requestInterval);
       if(requestId!==workspaceLoadGeneration||activeWorkspaceId!==requestWorkspaceId||workspaceInterval!==requestInterval)return;
       workspaceBars=result.bars;if(!workspaceBars.length)throw new Error("Seçili zaman diliminde mum verisi bulunamadı.");
-      createWorkspacePriceSeries();workspaceChart.timeScale().fitContent();restoreWorkspaceDrawings();
+      createWorkspacePriceSeries();workspaceChart.timeScale().fitContent();updateWorkspaceDrawingScaleSeries();restoreWorkspaceDrawings();
       $("workspaceChartTicker").textContent=item.ticker+" · "+requestInterval;
       $("workspaceChartSource").textContent=result.source+" · "+result.delay;
       $("workspaceChartStatus").textContent="ÇALIŞMA ALANI AKTİF";
@@ -1781,6 +1823,8 @@
       } else {
         chart.timeScale().fitContent();
       }
+      const alignedRange=chart.timeScale().getVisibleLogicalRange();
+      if(alignedRange)syncRawChartRanges(chart,alignedRange);
       updateMarketRangeLevels();
       renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
       $("chartSource").textContent=result.source;

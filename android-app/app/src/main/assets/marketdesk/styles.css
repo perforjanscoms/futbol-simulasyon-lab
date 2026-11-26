@@ -698,3 +698,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
   .quote-details>span:first-child,
   .quote-details>span:first-child>b{font-size:8px!important}
 }
+
+
+/* Readable 24-hour high/low row and a slightly tighter chart header. */
+.quote-details{margin-top:3px!important;gap:13px;font-size:9px!important}
+.quote-details b{font-size:9px!important}
+.chart-symbol-line{height:25px!important;flex-basis:25px!important}
+#rawChartView,#workspacePanel{margin-top:0!important}
+.instrument-bar{min-height:64px}
+@media(max-width:760px){
+  .instrument-bar{min-height:60px}
+  .quote-details{margin-top:3px!important;gap:7px;font-size:8.5px!important}
+  .quote-details b{font-size:8.5px!important}
+  .chart-symbol-line{height:24px!important;flex-basis:24px!important}
+}
