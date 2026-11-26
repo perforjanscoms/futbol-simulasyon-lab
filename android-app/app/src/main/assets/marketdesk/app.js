@@ -1143,7 +1143,7 @@
   let workspacesBySymbol=loadWorkspaces();
   let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null;
   let workspaceChartType="candles",workspaceBars=[],workspaceDrawingMode=null,workspaceFirstPoint=null,workspaceDrawings=[],workspaceRuntime=[];
-  let workspaceInterval="15m",workspaceLoadBusy=false;
+  let workspaceInterval="15m",workspaceLoadBusy=false,workspaceOverlayFrame=0;
   function saveWorkspaceIndex(){try{localStorage.setItem(WORKSPACES_KEY,JSON.stringify(workspacesBySymbol));}catch{}}
   function symbolWorkspaces(symbol=activeSymbol){return Array.isArray(workspacesBySymbol[symbol])?workspacesBySymbol[symbol]:[];}
   function activeWorkspace(){return symbolWorkspaces().find(w=>w.id===activeWorkspaceId)||null;}
@@ -1217,6 +1217,13 @@
       localization:{locale:"tr-TR"}
     });
     workspaceChart.subscribeClick(onWorkspaceChartClick);
+    const timeScale=workspaceChart.timeScale();
+    timeScale.subscribeVisibleLogicalRangeChange(scheduleWorkspaceTrendOverlay);
+    timeScale.subscribeSizeChange(scheduleWorkspaceTrendOverlay);
+    workspaceChart.subscribeCrosshairMove(scheduleWorkspaceTrendOverlay);
+    const overlayHost=$("workspaceChartContainer");
+    ["pointermove","pointerup","wheel","touchend"].forEach(type=>overlayHost.addEventListener(type,scheduleWorkspaceTrendOverlay,{passive:true}));
+    window.addEventListener("resize",scheduleWorkspaceTrendOverlay);
   }
   function createWorkspacePriceSeries(){
     const L=window.LightweightCharts,item=instrument(activeWorkspace()?.symbol||activeSymbol),last=workspaceBars[workspaceBars.length-1]?.close;
@@ -1233,8 +1240,88 @@
     workspaceVolumeSeries.priceScale().applyOptions({scaleMargins:{top:.82,bottom:0},visible:false});
     workspaceVolumeSeries.setData(workspaceBars.map(b=>({time:b.time,value:b.volume||0,color:b.close>=b.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"})));
   }
+  function ensureWorkspaceTrendOverlay(){
+    const host=$("workspaceChartContainer");if(!host)return null;
+    let overlay=$("workspaceTrendOverlay");
+    if(!overlay){
+      overlay=document.createElementNS("http://www.w3.org/2000/svg","svg");
+      overlay.id="workspaceTrendOverlay";
+      overlay.setAttribute("aria-hidden","true");
+      overlay.style.position="absolute";
+      overlay.style.inset="0";
+      overlay.style.width="100%";
+      overlay.style.height="100%";
+      overlay.style.zIndex="5";
+      overlay.style.pointerEvents="none";
+      overlay.style.overflow="hidden";
+      host.appendChild(overlay);
+    }
+    return overlay;
+  }
+  function scheduleWorkspaceTrendOverlay(){
+    if(workspaceOverlayFrame)return;
+    const render=()=>{workspaceOverlayFrame=0;renderWorkspaceTrendOverlay();};
+    workspaceOverlayFrame=window.requestAnimationFrame?window.requestAnimationFrame(render):window.setTimeout(render,16);
+  }
+  function workspaceTimeToLogicalIndex(time){
+    if(!workspaceBars.length||!workspaceChart)return null;
+    const scale=workspaceChart.timeScale();
+    if(typeof scale.timeToIndex==="function"){
+      const index=scale.timeToIndex(time,true);
+      if(index!==null&&index!==undefined&&Number.isFinite(Number(index)))return Number(index);
+    }
+    let low=0,high=workspaceBars.length-1;
+    while(low<=high){
+      const mid=(low+high)>>1,barTime=Number(workspaceBars[mid].time);
+      if(barTime===time)return mid;
+      if(barTime<time)low=mid+1;else high=mid-1;
+    }
+    if(high<0)return 0;
+    if(low>=workspaceBars.length)return workspaceBars.length-1;
+    return time-Number(workspaceBars[high].time)<=Number(workspaceBars[low].time)-time?high:low;
+  }
+  function renderWorkspaceTrendOverlay(){
+    const overlay=ensureWorkspaceTrendOverlay(),host=$("workspaceChartContainer");
+    if(!overlay||!host)return;
+    const width=host.clientWidth,height=host.clientHeight;
+    overlay.setAttribute("width",String(width));
+    overlay.setAttribute("height",String(height));
+    overlay.setAttribute("viewBox","0 0 "+width+" "+height);
+    overlay.replaceChildren();
+    if(!width||!height||!workspaceChart||!workspacePriceSeries||!workspaceBars.length)return;
+    const timeScale=workspaceChart.timeScale();
+    const pointCoordinates=point=>{
+      const time=Number(point?.time),price=Number(point?.value);
+      if(!Number.isFinite(time)||!Number.isFinite(price))return null;
+      const logical=workspaceTimeToLogicalIndex(time);
+      if(logical===null)return null;
+      const x=timeScale.logicalToCoordinate(logical);
+      const y=workspacePriceSeries.priceToCoordinate(price);
+      return Number.isFinite(x)&&Number.isFinite(y)?{x,y}:null;
+    };
+    workspaceDrawings.forEach(d=>{
+      if(d.type!=="trend"||!Array.isArray(d.points)||d.points.length!==2)return;
+      const first=pointCoordinates(d.points[0]),second=pointCoordinates(d.points[1]);
+      if(!first||!second)return;
+      const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1",String(first.x));line.setAttribute("y1",String(first.y));
+      line.setAttribute("x2",String(second.x));line.setAttribute("y2",String(second.y));
+      line.setAttribute("stroke",d.color||"#e8bd68");
+      line.setAttribute("stroke-width","2");
+      line.setAttribute("stroke-linecap","round");
+      line.setAttribute("vector-effect","non-scaling-stroke");
+      overlay.appendChild(line);
+      [first,second].forEach(point=>{
+        const marker=document.createElementNS("http://www.w3.org/2000/svg","circle");
+        marker.setAttribute("cx",String(point.x));marker.setAttribute("cy",String(point.y));
+        marker.setAttribute("r","2.5");marker.setAttribute("fill",d.color||"#e8bd68");
+        marker.setAttribute("stroke","#0a1220");marker.setAttribute("stroke-width","1");
+        overlay.appendChild(marker);
+      });
+    });
+  }
   function restoreWorkspaceDrawings(){
-    destroyWorkspaceDrawingRuntime();if(!workspacePriceSeries)return;
+    destroyWorkspaceDrawingRuntime();if(!workspacePriceSeries){scheduleWorkspaceTrendOverlay();return;}
     workspaceDrawings.forEach(d=>{
       if(d.type==="horizontal"&&Number.isFinite(Number(d.price))){
         const ref=workspacePriceSeries.createPriceLine({price:Number(d.price),color:d.color||"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:d.title||"Seviye"});
@@ -1244,11 +1331,9 @@
           const ref=workspacePriceSeries.createPriceLine({price:Number(level.price),color:"#e8bd68",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:level.label||"Fib"});
           workspaceRuntime.push({kind:"priceLine",series:workspacePriceSeries,ref});
         });
-      }else if(d.type==="trend"&&Array.isArray(d.points)&&d.points.length===2){
-        const ref=workspaceChart.addSeries(window.LightweightCharts.LineSeries,{color:d.color||"#e8bd68",lineWidth:2,priceLineVisible:false,lastValueVisible:false});
-        ref.setData(d.points);workspaceRuntime.push({kind:"series",ref});
       }
     });
+    scheduleWorkspaceTrendOverlay();
   }
   async function loadWorkspaceChart(){
     const workspace=activeWorkspace();if(!workspace||workspaceLoadBusy)return;
