@@ -81,3 +81,10 @@ The watchlist can be reordered by pressing and holding a row for about half a se
 - Workspace drawing tools include horizontal levels, trend lines, parallel trend channels, Fibonacci retracements, rise/fall percentage measurement, rectangles, rounded rectangles, circles and ellipses.
 - Drawing lines and shapes can be selected and dragged to move them; anchor handles let users reposition endpoints. Fibonacci anchors can be adjusted without redrawing. Individual drawings can still be removed from the drawing list.
 - The raw chart, Stoch RSI and MACD (and any other lower indicator chart) now share the same visible logical time range. Panning or zooming one panel synchronizes the horizontal view across the other panels.
+
+
+### Compact layout and traditional drawing refinements · Android 2.2.0
+- The raw/workspace selector is reduced to a compact single-line control so the chart and lower indicators retain more vertical room on tablet and phone screens.
+- Lower indicator panels use responsive heights and the main raw chart uses a tablet-friendly height, keeping Stoch RSI and MACD visible together more often without scrolling.
+- Workspace drawings now use fine 1.05–1.35 px visible strokes. The larger drag hit areas are fully transparent so they do not make lines appear thick. Selection handles are smaller and only shown for the selected drawing.
+- Fibonacci levels display both retracement percentage and calculated price, and anchored levels update when either endpoint is moved.

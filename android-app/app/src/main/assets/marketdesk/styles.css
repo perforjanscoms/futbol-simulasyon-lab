@@ -453,3 +453,50 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
  .workspace-drawing-overlay{touch-action:none}
  .workspace-drawing-panel .drawing-tool{min-height:34px;padding:0 8px}
 }
+
+
+/* Compact chart-mode selector and tablet-friendly chart height */
+.chart-mode-tabs{
+  display:flex;align-items:center;gap:4px;min-height:25px;height:25px;
+  margin:2px 0 4px;padding:0 2px;border:0;border-radius:0;
+  background:transparent;overflow-x:auto;scrollbar-width:none
+}
+.chart-mode-tabs::-webkit-scrollbar{display:none}
+.chart-mode-tab,.chart-mode-create{
+  flex:0 0 auto;height:22px;min-height:22px;padding:0 8px;
+  border:1px solid rgba(145,170,199,.15);border-radius:5px;
+  background:rgba(9,19,33,.55);font-size:8px;font-weight:600;line-height:20px
+}
+.chart-mode-tab.active{border-color:rgba(69,214,195,.32);background:rgba(69,214,195,.08);color:#c1f1e8}
+.chart-mode-create{margin-left:auto;border-color:rgba(145,170,199,.22);background:transparent;color:#9db4cc}
+.chart-mode-workspaces{display:flex;align-items:center;gap:3px;min-width:0;max-width:55%;overflow-x:auto;scrollbar-width:none}
+.chart-mode-workspaces::-webkit-scrollbar{display:none}
+.chart-mode-workspaces .chart-mode-tab{max-width:115px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:760px){
+  .instrument-bar{min-height:68px}
+  .chart-workspace{min-height:0}
+  .chart-toolbar{height:38px;flex-basis:38px;gap:4px}
+  .chart-symbol-line{height:25px;flex-basis:25px}
+  .chart-container{height:clamp(235px,40vh,390px);min-height:235px;max-height:390px;flex:0 0 auto}
+  .lower-chart-wrap{height:clamp(66px,9vh,82px);flex:0 0 auto}
+  .chart-statusbar{height:21px;min-height:21px;flex-basis:21px}
+  .raw-chart-view{min-height:0}
+  .chart-mode-tabs{min-height:24px;height:24px;margin:1px 0 3px;gap:3px}
+  .chart-mode-tab,.chart-mode-create{height:21px;min-height:21px;padding:0 7px;font-size:7.5px}
+  .chart-mode-workspaces{max-width:58%}
+  .chart-mode-workspaces .chart-mode-tab{max-width:94px}
+  .workspace-panel-actions{flex-direction:column}
+}
+@media(max-width:420px){
+  .chart-mode-workspaces{max-width:49%}
+  .chart-mode-tab,.chart-mode-create{padding:0 5px}
+  .chart-container{height:clamp(220px,37vh,330px);min-height:220px;max-height:330px}
+  .lower-chart-wrap{height:68px;flex-basis:68px}
+}
+
+/* Traditional, lightweight drawing appearance */
+.workspace-drawing-overlay [data-drawing-index]{cursor:move}
+.workspace-drawing-overlay line[data-drawing-index]{pointer-events:stroke}
+.workspace-drawing-overlay circle[data-drawing-handle]{r:5;cursor:grab}
+.workspace-drawing-overlay circle[data-drawing-handle]:active{cursor:grabbing}
+.workspace-drawing-pill{padding:3px 6px}

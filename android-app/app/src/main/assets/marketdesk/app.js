@@ -1170,11 +1170,15 @@
     const list=symbolWorkspaces();
     list.forEach((workspace,index)=>{
       const button=document.createElement("button");button.type="button";button.className="chart-mode-tab"+(workspace.id===activeWorkspaceId?" active":"");
-      button.textContent=workspace.id===activeWorkspaceId?"Çalışma Alanım ("+(index+1)+")":"Çalışma Alanıma Geç ("+(index+1)+")";
+      button.textContent=workspace.id===activeWorkspaceId?"Alanım ("+(index+1)+")":"Alan ("+(index+1)+")";
+      button.title=workspace.id===activeWorkspaceId?"Açık çalışma alanı: "+workspace.name:"Çalışma alanına geç: "+workspace.name;
       button.addEventListener("click",()=>openWorkspace(workspace.id));host.appendChild(button);
     });
     $("rawChartMode").classList.toggle("active",!activeWorkspaceId);
-    $("createWorkspaceButton").textContent=list.length?"+ Yeni Çalışma Alanı":"Çalışma Alanı Oluştur";
+    $("rawChartMode").textContent="Ham";
+    $("rawChartMode").title="Ham Grafik";
+    $("createWorkspaceButton").textContent="+ Alan";
+    $("createWorkspaceButton").title=list.length?"Yeni çalışma alanı oluştur":"Çalışma Alanı Oluştur";
     if(activeWorkspaceId){const ws=activeWorkspace();$("workspaceTitle").textContent=ws?.name||"Çalışma Alanım";}
   }
   function createWorkspace(){
@@ -1298,12 +1302,13 @@
     if(handle!==null)node.dataset.drawingHandle=String(handle);
     $("workspaceDrawingOverlay").appendChild(node);return node;
   }
-  function workspaceAddLine(x1,y1,x2,y2,index,handle="body",color="#e8bd68",width=2){
-    workspaceSvg("line",{x1,y1,x2,y2,stroke:color,"stroke-width":Math.max(7,width+5),"stroke-linecap":"round",opacity:.48,"vector-effect":"non-scaling-stroke","pointer-events":"stroke"},index,handle);
-    workspaceSvg("line",{x1,y1,x2,y2,stroke:color,"stroke-width":width,"stroke-linecap":"round","vector-effect":"non-scaling-stroke","pointer-events":"none"},null);
+  function workspaceAddLine(x1,y1,x2,y2,index,handle="body",color="#e8bd68",width=1.35){
+    // The wide transparent stroke is only a touch target; the visible line remains hairline-thin.
+    workspaceSvg("line",{x1,y1,x2,y2,stroke:"rgba(0,0,0,0)","stroke-width":14,"stroke-linecap":"round","vector-effect":"non-scaling-stroke","pointer-events":"stroke"},index,handle);
+    workspaceSvg("line",{x1,y1,x2,y2,stroke:color,"stroke-width":width,"stroke-linecap":"butt","vector-effect":"non-scaling-stroke","pointer-events":"none"},null);
   }
   function workspaceAddHandle(x,y,index,handle){
-    workspaceSvg("circle",{cx:x,cy:y,r:7,fill:"#13253a",stroke:"#f3c976","stroke-width":2,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,handle);
+    workspaceSvg("circle",{cx:x,cy:y,r:5,fill:"#0a1220",stroke:"#f3c976","stroke-width":1.25,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,handle);
   }
   function renderWorkspaceDrawingOverlay(){
     const svg=$("workspaceDrawingOverlay"),container=$("workspaceChartContainer");
@@ -1314,37 +1319,40 @@
       const color=drawing.color||"#e8bd68",points=Array.isArray(drawing.points)?drawing.points:[],coords=points.map(workspaceDrawingPoint);
       if(drawing.type==="horizontal"){
         const y=workspacePriceSeries.priceToCoordinate(Number(drawing.price));if(!Number.isFinite(y))return;
-        workspaceAddLine(0,y,width,y,index,"body",color,1.5);workspaceAddHandle(width*.5,y,index,"body");
+        workspaceAddLine(0,y,width-58,y,index,"body",color,1.1);
+        if(workspaceSelectedDrawingIndex===index)workspaceAddHandle((width-58)*.5,y,index,"body");
         return;
       }
       if(drawing.type==="fib"){
         const levels=workspaceFibLevels(drawing),hasAnchors=coords.length>=2&&coords[0]&&coords[1];
-        let x1=0,x2=width;
-        if(hasAnchors){x1=Math.min(coords[0].x,coords[1].x);x2=Math.max(coords[0].x,coords[1].x);}
+        const plotWidth=Math.max(30,width-62);
+        let x1=0,x2=plotWidth;
+        if(hasAnchors){x1=Math.max(0,Math.min(coords[0].x,coords[1].x));x2=Math.min(plotWidth,Math.max(coords[0].x,coords[1].x));}
+        const decimals=instrument()?.decimals||2;
         levels.forEach(level=>{
-          const y=workspacePriceSeries.priceToCoordinate(Number(level.price));if(!Number.isFinite(y))return;
-          workspaceAddLine(x1,y,x2,y,index,"body",color,1);
-          const label=workspaceSvg("text",{x:x1+5,y:y-4,fill:color,"font-size":9,"font-family":"DM Mono,monospace","pointer-events":"none"},null);
-          label.textContent=level.label||"Fib";
+          const price=Number(level.price),y=workspacePriceSeries.priceToCoordinate(price);if(!Number.isFinite(y))return;
+          workspaceAddLine(x1,y,x2,y,index,"body",color,1.05);
+          const label=workspaceSvg("text",{x:plotWidth-5,y:y-4,fill:color,"font-size":8.5,"font-family":"DM Mono,monospace","text-anchor":"end","paint-order":"stroke","stroke":"#0a1220","stroke-width":3,"stroke-linejoin":"round","pointer-events":"none"},null);
+          label.textContent=(level.label||"Fib")+"  ·  "+fmtPrice(price,decimals);
         });
-        if(hasAnchors){workspaceAddHandle(coords[0].x,coords[0].y,index,0);workspaceAddHandle(coords[1].x,coords[1].y,index,1);}
+        if(hasAnchors&&workspaceSelectedDrawingIndex===index){workspaceAddHandle(coords[0].x,coords[0].y,index,0);workspaceAddHandle(coords[1].x,coords[1].y,index,1);}
         return;
       }
       if(coords.some(point=>!point))return;
       if(drawing.type==="trend"&&coords.length>=2){
-        workspaceAddLine(coords[0].x,coords[0].y,coords[1].x,coords[1].y,index,"body",color,2);
+        workspaceAddLine(coords[0].x,coords[0].y,coords[1].x,coords[1].y,index,"body",color,1.3);
       }else if(drawing.type==="trendChannel"&&coords.length>=3){
         const a=coords[0],b=coords[1],c=coords[2],d={x:c.x+(b.x-a.x),y:c.y+(b.y-a.y)};
-        workspaceSvg("polygon",{points:[a.x+","+a.y,b.x+","+b.y,d.x+","+d.y,c.x+","+c.y].join(" "),fill:"rgba(232,189,104,.10)",stroke:color,"stroke-width":1.5,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
-        workspaceAddLine(a.x,a.y,b.x,b.y,index,"body",color,2);workspaceAddLine(c.x,c.y,d.x,d.y,index,"body",color,2);
+        workspaceSvg("polygon",{points:[a.x+","+a.y,b.x+","+b.y,d.x+","+d.y,c.x+","+c.y].join(" "),fill:"rgba(232,189,104,.035)",stroke:color,"stroke-width":1.1,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
+        workspaceAddLine(a.x,a.y,b.x,b.y,index,"body",color,1.25);workspaceAddLine(c.x,c.y,d.x,d.y,index,"body",color,1.25);
       }else if(["rect","roundRect","circle","ellipse"].includes(drawing.type)&&coords.length>=2){
         const a=coords[0],b=coords[1],x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(a.x-b.x),h=Math.abs(a.y-b.y);
         if(drawing.type==="circle"){
-          const r=Math.min(w,h)/2;workspaceSvg("circle",{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,r,fill:"rgba(232,189,104,.07)",stroke:color,"stroke-width":2,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
+          const r=Math.min(w,h)/2;workspaceSvg("circle",{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,r,fill:"rgba(232,189,104,.025)",stroke:color,"stroke-width":1.15,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
         }else if(drawing.type==="ellipse"){
-          workspaceSvg("ellipse",{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,rx:w/2,ry:h/2,fill:"rgba(232,189,104,.07)",stroke:color,"stroke-width":2,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
+          workspaceSvg("ellipse",{cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,rx:w/2,ry:h/2,fill:"rgba(232,189,104,.025)",stroke:color,"stroke-width":1.15,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
         }else{
-          workspaceSvg("rect",{x,y,width:w,height:h,rx:drawing.type==="roundRect"?12:0,ry:drawing.type==="roundRect"?12:0,fill:"rgba(232,189,104,.07)",stroke:color,"stroke-width":2,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
+          workspaceSvg("rect",{x,y,width:w,height:h,rx:drawing.type==="roundRect"?12:0,ry:drawing.type==="roundRect"?12:0,fill:"rgba(232,189,104,.025)",stroke:color,"stroke-width":1.15,"vector-effect":"non-scaling-stroke","pointer-events":"all"},index,"body");
         }
       }else if(drawing.type==="percent"&&coords.length>=2){
         const a=coords[0],b=coords[1],delta=Number(points[1].value)-Number(points[0].value),pct=Number(points[0].value)?delta/Number(points[0].value)*100:0;
@@ -1452,6 +1460,7 @@
     }else if(handle!=="body"&&Array.isArray(drawing.points)){
       const pointIndex=Number(handle);
       if(Number.isInteger(pointIndex)&&drawing.points[pointIndex])drawing.points[pointIndex]={time,value:price};
+      if(drawing.type==="fib")drawing.levels=workspaceFibLevels(drawing);
     }else if(Array.isArray(drawing.points)){
       const deltaTime=time-drag.startTime,deltaPrice=price-drag.startPrice;
       drawing.points=drawing.points.map(point=>({time:Number(point.time)+deltaTime,value:Number(point.value)+deltaPrice}));
