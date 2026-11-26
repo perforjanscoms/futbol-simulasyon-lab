@@ -49,6 +49,11 @@
           <div class="search-results" id="searchResults" hidden></div>
         </div>
 
+        <div class="watchlist-tools">
+          <button id="exportWatchlist" type="button">Dışa aktar</button>
+          <button id="importWatchlist" type="button">İçe aktar</button>
+        </div>
+
         <div class="watch-tabs">
           <button class="watch-tab active" data-watch-filter="all">Tümü</button>
           <button class="watch-tab" data-watch-filter="bist">BIST</button>
@@ -92,6 +97,13 @@
             </div>
           </div>
         </section>
+
+        <div class="chart-mode-tabs">
+          <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
+          <div class="chart-mode-workspaces" id="workspaceTabs"></div>
+          <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
+        </div>
+        <div id="rawChartView" class="raw-chart-view">
 
         <section class="chart-workspace" id="chartWorkspace">
           <div class="chart-toolbar">
@@ -214,6 +226,58 @@
           </div>
         </section>
 
+
+        </div>
+        <section class="workspace-panel" id="workspacePanel" hidden>
+          <div class="workspace-panel-heading">
+            <div>
+              <span class="eyebrow">BAĞIMSIZ GRAFİK MODÜLÜ</span>
+              <h2 id="workspaceTitle">Çalışma Alanım (1)</h2>
+              <small id="workspaceChartSource">Seçili sembole özel çalışma alanı</small>
+            </div>
+            <div class="workspace-panel-actions">
+              <button id="workspaceSaveButton" class="primary-button" type="button">Kaydet</button>
+              <button id="workspaceBackButton" class="secondary-button" type="button">Ham grafiğe dön</button>
+            </div>
+          </div>
+          <div class="workspace-chart-toolbar">
+            <div class="timeframe-group" id="workspaceTimeframes">
+              <button data-workspace-interval="1m">1m</button>
+              <button data-workspace-interval="5m">5m</button>
+              <button data-workspace-interval="15m" class="active">15m</button>
+              <button data-workspace-interval="30m">30m</button>
+              <button data-workspace-interval="1h">1S</button>
+              <button data-workspace-interval="4h">4S</button>
+              <button data-workspace-interval="1d">1G</button>
+              <button data-workspace-interval="1w">1H</button>
+              <button data-workspace-interval="1M">1A</button>
+            </div>
+            <div class="workspace-chart-type">
+              <button class="tool-button active" data-workspace-chart-type="candles" type="button">Mum</button>
+              <button class="tool-button" data-workspace-chart-type="line" type="button">Çizgi</button>
+              <button class="tool-button" id="workspaceRefreshButton" type="button">↻</button>
+            </div>
+          </div>
+          <div class="workspace-symbol-line">
+            <strong id="workspaceChartTicker">—</strong>
+            <span id="workspaceChartStatus">ÇALIŞMA ALANI HAZIRLANIYOR</span>
+            <small id="workspaceLastUpdate">—</small>
+          </div>
+          <div class="workspace-chart-container" id="workspaceChartContainer">
+            <div class="workspace-price-chart" id="workspacePriceChart"></div>
+          </div>
+          <div class="workspace-drawing-panel">
+            <div class="drawing-tools">
+              <button class="drawing-tool" data-workspace-drawing="horizontal" type="button">─ <span>Yatay çizgi</span></button>
+              <button class="drawing-tool" data-workspace-drawing="trend" type="button">／ <span>Trend çizgisi</span></button>
+              <button class="drawing-tool" data-workspace-drawing="fib" type="button">⌁ <span>Fibonacci</span></button>
+              <button class="drawing-tool" data-workspace-drawing="clear" type="button">⌫ <span>Çizimleri temizle</span></button>
+            </div>
+            <p class="deck-hint" id="workspaceDrawHint">Çalışma alanına özel çizim araçları. Çizimler ham grafiğe aktarılmaz.</p>
+            <div class="active-drawings" id="workspaceDrawingList"></div>
+          </div>
+        </section>
+
         <footer class="app-footer">
           <span>BYBORA MARKET DESK <b>·</b> Kişisel piyasa terminali</span>
           <span>Veri kaynağı ve gecikme bilgisi sembole göre değişir · Yatırım tavsiyesi değildir</span>
@@ -246,7 +310,7 @@
           <div><strong>Android bildirimleri</strong><small id="alertPermissionStatus">İzin durumu kontrol ediliyor…</small></div>
           <button class="secondary-button" id="enableAlertNotifications">Bildirimleri aç</button>
         </div>
-        <p class="alert-note">Fiyat kontrolü uygulama açıkken yaklaşık 20 saniyede bir yapılır. Alarm bir kez tetiklenir; yeniden kullanmak için “Yeniden kur” düğmesini seç.</p>
+        <p class="alert-note">Uygulama açıkken fiyatlar 15 saniyede bir kontrol edilir; her sembol için 3 deneme yapılır. Tetiklenme tarihi ve saati Türkiye saatiyle kaydedilir. Uygulama kapalıyken veya sağlayıcı fiyat verisi vermezken alarm garantisi yoktur.</p>
         <div class="alert-list-heading"><strong>Kurulu alarmlar</strong><span id="alertCountSummary">—</span></div>
         <div class="price-alert-list" id="priceAlertList"></div>
       </section>

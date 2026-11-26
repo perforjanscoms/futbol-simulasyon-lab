@@ -29,7 +29,9 @@ import android.widget.Toast;
 import androidx.webkit.WebViewAssetLoader;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
+import java.io.OutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -37,6 +39,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import org.json.JSONObject;
 
 public final class MainActivity extends Activity {
     private static final String APP_START_URL =
@@ -44,6 +47,9 @@ public final class MainActivity extends Activity {
     private static final String WEBVIEW_STATE_KEY = "bybora_marketdesk_webview_state";
     private static final String ALERT_CHANNEL_ID = "bybora_price_alerts";
     private static final int REQUEST_POST_NOTIFICATIONS = 1807;
+    private static final int REQUEST_SAVE_WATCHLIST = 1808;
+    private static final int REQUEST_OPEN_WATCHLIST = 1809;
+    private String pendingWatchlistJson;
 
     private WebView webView;
     private FrameLayout root;
@@ -227,6 +233,16 @@ public final class MainActivity extends Activity {
         public void showPriceAlertNotification(String symbol, String message) {
             runOnUiThread(() -> postPriceAlertNotification(symbol, message));
         }
+
+        @JavascriptInterface
+        public void saveWatchlistFile(String json) {
+            runOnUiThread(() -> beginSaveWatchlistFile(json));
+        }
+
+        @JavascriptInterface
+        public void openWatchlistFile() {
+            runOnUiThread(() -> beginOpenWatchlistFile());
+        }
     }
 
     private boolean hasNotificationPermission() {
@@ -349,6 +365,75 @@ public final class MainActivity extends Activity {
         } catch (ActivityNotFoundException exception) {
             Toast.makeText(this, "Bu bağlantıyı açacak uygulama bulunamadı.",
                     Toast.LENGTH_SHORT).show();
+        }
+    }
+
+
+    private void beginSaveWatchlistFile(String json) {
+        pendingWatchlistJson = json == null ? "{}" : json;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, "BYBORA-izleme-listesi.json");
+        try {
+            startActivityForResult(intent, REQUEST_SAVE_WATCHLIST);
+        } catch (ActivityNotFoundException exception) {
+            pendingWatchlistJson = null;
+            Toast.makeText(this, "Dosya kaydetme ekranı açılamadı.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void beginOpenWatchlistFile() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try {
+            startActivityForResult(intent, REQUEST_OPEN_WATCHLIST);
+        } catch (ActivityNotFoundException exception) {
+            Toast.makeText(this, "Dosya seçme ekranı açılamadı.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) {
+            pendingWatchlistJson = null;
+            return;
+        }
+        Uri uri = data.getData();
+        if (requestCode == REQUEST_SAVE_WATCHLIST) {
+            String content = pendingWatchlistJson;
+            pendingWatchlistJson = null;
+            if (content == null) return;
+            try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+                if (output == null) throw new IOException("Dosya yazma akışı açılamadı.");
+                output.write(content.getBytes(StandardCharsets.UTF_8));
+                output.flush();
+                Toast.makeText(this, "İzleme listesi JSON dosyasına kaydedildi.", Toast.LENGTH_LONG).show();
+            } catch (Exception exception) {
+                Toast.makeText(this, "İzleme listesi kaydedilemedi.", Toast.LENGTH_LONG).show();
+            }
+        } else if (requestCode == REQUEST_OPEN_WATCHLIST) {
+            try (InputStream input = getContentResolver().openInputStream(uri);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                if (input == null) throw new IOException("Dosya okunamadı.");
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, count);
+                    if (output.size() > 5 * 1024 * 1024) throw new IOException("Dosya çok büyük.");
+                }
+                String json = output.toString(StandardCharsets.UTF_8.name());
+                if (webView != null) {
+                    webView.evaluateJavascript(
+                            "window.handleWatchlistImport && window.handleWatchlistImport(" + JSONObject.quote(json) + ")",
+                            null);
+                }
+            } catch (Exception exception) {
+                Toast.makeText(this, "İzleme listesi dosyası okunamadı.", Toast.LENGTH_LONG).show();
+            }
         }
     }
 

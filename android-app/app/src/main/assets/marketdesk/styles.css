@@ -369,3 +369,56 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 .watch-row.reorder-active{position:relative;z-index:3;cursor:grabbing;border-color:rgba(69,214,195,.7);background:rgba(69,214,195,.16);box-shadow:0 5px 16px rgba(0,0,0,.3);transform:scale(1.015);touch-action:none}
 .watchlist.reordering{overflow-y:auto;overscroll-behavior:contain}
 .watchlist.reordering .watch-row{touch-action:none}
+
+
+/* Watchlist backup and touch-friendly manual ordering */
+.watchlist-tools{display:flex;gap:6px;margin:8px 0 3px}
+.watchlist-tools button{flex:1;min-height:29px;border:1px solid var(--line2);border-radius:6px;background:rgba(255,255,255,.025);color:#a8bad0;font-size:8px;font-weight:600}
+.watch-row{display:flex;align-items:center;cursor:pointer;min-height:54px}
+.watch-order-controls{display:flex;flex-direction:column;gap:2px;flex:0 0 22px;margin-left:2px}
+.watch-order-btn{width:22px;height:19px;border:1px solid rgba(145,170,199,.14);border-radius:4px;background:#14243a;color:#aabdd1;font-size:8px;line-height:1}
+.watch-order-btn:disabled{opacity:.2}
+.watch-order-btn:active{background:rgba(69,214,195,.25);color:#fff}
+.watch-reorder-hint{color:#8da2ba;font-size:7px}
+
+/* Separate chart workspace; the original raw chart remains a separate DOM/chart instance */
+.chart-mode-tabs{display:flex;align-items:center;gap:6px;min-height:40px;margin:8px 0 10px;padding:4px;border:1px solid var(--line);border-radius:8px;background:#091321;overflow-x:auto}
+.chart-mode-tab,.chart-mode-create{flex:0 0 auto;min-height:30px;padding:0 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:#91a5bd;font-size:9px;font-weight:600;white-space:nowrap}
+.chart-mode-tab.active{border-color:rgba(69,214,195,.22);background:rgba(69,214,195,.1);color:#d8f4ee}
+.chart-mode-create{margin-left:auto;border-color:var(--line2);color:#b9d0e4}
+.chart-mode-workspaces{display:flex;align-items:center;gap:5px}
+.raw-chart-view{display:flex;flex-direction:column;flex:1;min-height:0}
+.workspace-panel{display:flex;flex-direction:column;flex:1;min-height:450px;gap:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:rgba(10,20,34,.55)}
+.workspace-panel[hidden],.raw-chart-view[hidden]{display:none!important}
+.workspace-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.workspace-panel-heading h2{margin:3px 0;color:#e3edf7;font-size:15px;font-weight:650}
+.workspace-panel-heading small{color:#8398b1;font-size:8px}
+.workspace-panel-actions{display:flex;gap:6px;flex-wrap:wrap}
+.workspace-panel-actions button{min-height:32px;padding:0 10px;font-size:8px}
+.workspace-chart-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.workspace-chart-toolbar .timeframe-group{margin:0}
+.workspace-chart-type{display:flex;gap:4px}
+.workspace-chart-type .tool-button{min-width:39px;padding:0 8px;font-size:8px}
+.workspace-symbol-line{display:flex;align-items:center;gap:10px;color:#8ca1b9;font:500 8px 'DM Mono',monospace}
+.workspace-symbol-line strong{color:#dce8f4}
+.workspace-symbol-line small{margin-left:auto;color:#6f829a}
+.workspace-chart-container{position:relative;min-height:360px;height:min(56vh,620px);flex:1;border:1px solid rgba(145,170,199,.14);border-radius:7px;overflow:hidden;background:#0a1220}
+.workspace-price-chart{position:absolute;inset:0}
+.workspace-drawing-panel{padding:9px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.015)}
+.workspace-drawing-panel .drawing-tools{display:flex;flex-wrap:wrap;gap:5px}
+.workspace-drawing-panel .drawing-tool{min-height:30px}
+@media(max-width:700px){
+ .chart-mode-tabs{gap:4px}
+ .chart-mode-tab,.chart-mode-create{padding:0 8px;font-size:8px}
+ .workspace-panel{padding:8px;min-height:0}
+ .workspace-panel-heading{align-items:flex-start}
+ .workspace-panel-heading h2{font-size:13px}
+ .workspace-panel-actions{flex-direction:column}
+ .workspace-panel-actions button{min-height:29px}
+ .workspace-chart-container{height:52vh;min-height:340px}
+ .workspace-chart-toolbar .timeframe-group button{min-width:29px}
+ .workspace-symbol-line{flex-wrap:wrap}
+ .workspace-symbol-line small{width:100%;margin-left:0}
+ .watch-order-controls{flex-basis:24px}
+ .watch-order-btn{width:24px;height:22px}
+}

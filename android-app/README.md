@@ -66,3 +66,11 @@ The new defaults are MACD 97/74/175 (fast/slow/signal) and Stoch RSI 125/54/4/32
 SMA and Bollinger Bands are added to each existing symbol's default study set. Their periods are configurable in the indicator panel (SMA period; Bollinger period and standard-deviation multiplier). The application does not impose a maximum active-indicator count.
 The main chart price scale uses adaptive precision for low-priced crypto assets: prices below 1 use at least five decimal places, with more precision for smaller prices.
 The watchlist can be reordered by pressing and holding a row for about half a second, then dragging it up or down. The order is saved locally on the device.
+
+
+### Brent contract, watchlist files, alerts and independent workspaces · Android 2.0.0
+- Adds the January 2027 Brent NYMEX contract `BZF27.NYM` as `BRENT-JAN27` while retaining the prior Brent reference `BZ=F`. The Jan-27 contract's delayed reference was around USD 94.69 in Yahoo Finance on 25 Nov 2026; this is a dated futures contract and it will expire/roll.
+- Watchlists can be exported as a JSON file through Android's document picker and imported later from a selected JSON file. The backup includes exchange/provider metadata for dynamic symbols.
+- Watchlist rows include explicit up/down ordering buttons suitable for touch screens; ordering persists locally.
+- Price alerts record the trigger time in Europe/Istanbul time and last-check status. Each unique symbol is checked with up to three attempts, using a small concurrency pool so one failed quote does not stop other alerts. Checks run while the app is foregrounded; provider outages, closed markets, or a stopped app can still prevent immediate detection.
+- Per-symbol chart workspaces are independent from the original raw chart. Each workspace has its own chart instance, interval and drawings (horizontal levels, trend lines and Fibonacci). Workspaces and drawings persist locally and can be opened/closed without changing raw-chart drawings.
