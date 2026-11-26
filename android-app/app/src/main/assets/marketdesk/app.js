@@ -1265,6 +1265,8 @@
   }
   function workspaceTimeToLogicalIndex(time){
     if(!workspaceBars.length||!workspaceChart)return null;
+    const firstTime=Number(workspaceBars[0].time),lastTime=Number(workspaceBars[workspaceBars.length-1].time);
+    if(!Number.isFinite(time)||time<firstTime||time>lastTime)return null;
     const scale=workspaceChart.timeScale();
     if(typeof scale.timeToIndex==="function"){
       const index=scale.timeToIndex(time,true);
