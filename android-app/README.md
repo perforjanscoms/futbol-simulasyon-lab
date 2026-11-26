@@ -74,3 +74,10 @@ The watchlist can be reordered by pressing and holding a row for about half a se
 - Watchlist rows include explicit up/down ordering buttons suitable for touch screens; ordering persists locally.
 - Price alerts record the trigger time in Europe/Istanbul time and last-check status. Each unique symbol is checked with up to three attempts, using a small concurrency pool so one failed quote does not stop other alerts. Checks run while the app is foregrounded; provider outages, closed markets, or a stopped app can still prevent immediate detection.
 - Per-symbol chart workspaces are independent from the original raw chart. Each workspace has its own chart instance, interval and drawings (horizontal levels, trend lines and Fibonacci). Workspaces and drawings persist locally and can be opened/closed without changing raw-chart drawings.
+
+
+### Interactive workspaces and synchronized indicator charts · Android 2.1.0
+- Each per-symbol workspace now includes a delete action below Save. Deleting removes only the selected workspace and its private drawings; the raw chart is left intact.
+- Workspace drawing tools include horizontal levels, trend lines, parallel trend channels, Fibonacci retracements, rise/fall percentage measurement, rectangles, rounded rectangles, circles and ellipses.
+- Drawing lines and shapes can be selected and dragged to move them; anchor handles let users reposition endpoints. Fibonacci anchors can be adjusted without redrawing. Individual drawings can still be removed from the drawing list.
+- The raw chart, Stoch RSI and MACD (and any other lower indicator chart) now share the same visible logical time range. Panning or zooming one panel synchronizes the horizontal view across the other panels.

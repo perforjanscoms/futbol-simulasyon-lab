@@ -237,6 +237,7 @@
             </div>
             <div class="workspace-panel-actions">
               <button id="workspaceSaveButton" class="primary-button" type="button">Kaydet</button>
+              <button id="workspaceDeleteButton" class="workspace-delete-button" type="button">Çalışma Alanını Sil</button>
               <button id="workspaceBackButton" class="secondary-button" type="button">Ham grafiğe dön</button>
             </div>
           </div>
@@ -265,12 +266,19 @@
           </div>
           <div class="workspace-chart-container" id="workspaceChartContainer">
             <div class="workspace-price-chart" id="workspacePriceChart"></div>
+            <svg class="workspace-drawing-overlay" id="workspaceDrawingOverlay" aria-label="Düzenlenebilir çalışma alanı çizimleri"></svg>
           </div>
           <div class="workspace-drawing-panel">
             <div class="drawing-tools">
               <button class="drawing-tool" data-workspace-drawing="horizontal" type="button">─ <span>Yatay çizgi</span></button>
               <button class="drawing-tool" data-workspace-drawing="trend" type="button">／ <span>Trend çizgisi</span></button>
+              <button class="drawing-tool" data-workspace-drawing="trendChannel" type="button">▱ <span>Trend kanalı</span></button>
               <button class="drawing-tool" data-workspace-drawing="fib" type="button">⌁ <span>Fibonacci</span></button>
+              <button class="drawing-tool" data-workspace-drawing="percent" type="button">↗ <span>Yükseliş / düşüş %</span></button>
+              <button class="drawing-tool" data-workspace-drawing="rect" type="button">□ <span>Dikdörtgen</span></button>
+              <button class="drawing-tool" data-workspace-drawing="roundRect" type="button">▢ <span>Yuvarlatılmış dikdörtgen</span></button>
+              <button class="drawing-tool" data-workspace-drawing="circle" type="button">○ <span>Daire</span></button>
+              <button class="drawing-tool" data-workspace-drawing="ellipse" type="button">⬭ <span>Elips</span></button>
               <button class="drawing-tool" data-workspace-drawing="clear" type="button">⌫ <span>Çizimleri temizle</span></button>
             </div>
             <p class="deck-hint" id="workspaceDrawHint">Çalışma alanına özel çizim araçları. Çizimler ham grafiğe aktarılmaz.</p>
