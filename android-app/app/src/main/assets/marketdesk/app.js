@@ -915,7 +915,7 @@
     const lower = activeStudies.filter(id=>["STOCHRSI","MACD","STOCH"].includes(id));
     lower.forEach(id=>{
       const wrap=document.createElement("div");
-      wrap.className="lower-chart-wrap";
+      wrap.className="lower-chart-wrap"+(id==="STOCHRSI"?" stoch-rsi-chart-wrap":"");
       const title=document.createElement("div");
       title.className="lower-chart-title";
       title.textContent=studyTitle(id);

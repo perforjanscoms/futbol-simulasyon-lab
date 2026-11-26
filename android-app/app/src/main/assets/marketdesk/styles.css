@@ -498,3 +498,53 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 .workspace-drawing-overlay [data-drawing-index]{cursor:move}
 .workspace-drawing-overlay [data-drawing-handle]{cursor:grab}
 .workspace-drawing-overlay [data-drawing-handle]:active{cursor:grabbing}
+
+/* Chart area controls: left aligned, directly beneath the instrument symbol. */
+.instrument-identity .chart-mode-tabs{
+  display:flex;align-items:center;justify-content:flex-start;flex-wrap:nowrap;gap:3px;
+  width:max-content;max-width:100%;min-height:21px;height:21px;margin:4px 0 0;padding:0;
+  border:0;border-radius:0;background:transparent;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;white-space:nowrap;
+}
+.instrument-identity .chart-mode-tabs::-webkit-scrollbar{display:none}
+.instrument-identity .chart-mode-tab,
+.instrument-identity .chart-mode-create{
+  flex:0 0 auto;min-height:20px;height:20px;padding:0 7px;border:1px solid rgba(150,174,204,.15);
+  border-radius:4px;background:rgba(255,255,255,.018);font-size:7.5px;line-height:18px;
+  font-weight:600;white-space:nowrap;
+}
+.instrument-identity .chart-mode-tab.active{border-color:rgba(69,214,195,.24);background:rgba(69,214,195,.075);color:#c8eee7}
+.instrument-identity .chart-mode-create{margin-left:0;color:#a9bdcf}
+.instrument-identity .chart-mode-workspaces{display:flex;align-items:center;gap:3px;min-width:0;flex:0 0 auto}
+@media(max-width:760px){
+ .instrument-bar{align-items:center}
+ .instrument-identity{max-width:min(58vw,450px)}
+ .instrument-identity .chart-mode-tabs{max-width:100%;width:max-content}
+ .instrument-identity .chart-mode-tab,.instrument-identity .chart-mode-create{min-height:19px;height:19px;padding:0 6px;font-size:7px;line-height:17px}
+}
+
+/* Slightly more vertical room only for the Stoch RSI pane. */
+.lower-chart-wrap.stoch-rsi-chart-wrap{height:124px}
+
+/* Watchlist actions now sit below all symbols; make the list consume available space. */
+.market-sidebar .watchlist{flex:1 1 auto;min-height:0}
+.market-sidebar .watchlist-tools{display:flex;flex:0 0 auto;flex-direction:column;gap:5px;margin:7px 0 0;padding-top:7px;border-top:1px solid var(--line)}
+.market-sidebar .watch-order-toggle{width:100%;min-height:26px;padding:0 8px;border:1px solid rgba(69,214,195,.22);border-radius:6px;background:rgba(69,214,195,.045);color:#a9d6d0;font-size:8px;font-weight:600;text-align:left}
+.market-sidebar .watchlist-backup-buttons{display:flex;gap:6px}
+.market-sidebar .watchlist-backup-buttons button{flex:1;min-height:27px;border:1px solid var(--line2);border-radius:6px;background:rgba(255,255,255,.025);color:#a8bad0;font-size:8px;font-weight:600}
+
+/* Use an unslashed-zero UI font for prices and lift their size one step. */
+.market-sidebar .watch-quote{flex:0 0 79px;min-width:79px}
+.market-sidebar .watch-quote strong{
+  font-family:"DM Sans",sans-serif!important;font-size:10px!important;font-weight:600!important;
+  font-variant-numeric:lining-nums tabular-nums;letter-spacing:0!important
+}
+.market-sidebar .watch-quote small{
+  font-family:"DM Sans",sans-serif!important;font-size:8.5px!important;font-weight:500!important;
+  font-variant-numeric:lining-nums tabular-nums;letter-spacing:0!important
+}
+@media(max-width:760px){
+ .market-sidebar .watch-quote{flex-basis:75px;min-width:75px}
+ .market-sidebar .watch-quote strong{font-size:9.5px!important}
+ .market-sidebar .watch-quote small{font-size:8px!important}
+}

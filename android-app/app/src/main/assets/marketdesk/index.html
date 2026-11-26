@@ -49,14 +49,6 @@
           <div class="search-results" id="searchResults" hidden></div>
         </div>
 
-        <div class="watchlist-tools">
-          <button id="toggleWatchOrderControls" class="watch-order-toggle" type="button" aria-expanded="false" aria-pressed="false">Taşıma düğmelerini göster</button>
-          <div class="watchlist-backup-buttons">
-            <button id="exportWatchlist" type="button">Dışa aktar</button>
-            <button id="importWatchlist" type="button">İçe aktar</button>
-          </div>
-        </div>
-
         <div class="watch-tabs">
           <button class="watch-tab active" data-watch-filter="all">Tümü</button>
           <button class="watch-tab" data-watch-filter="bist">BIST</button>
@@ -68,6 +60,14 @@
         </div>
 
         <div class="watchlist" id="watchlist"></div>
+
+        <div class="watchlist-tools">
+          <button id="toggleWatchOrderControls" class="watch-order-toggle" type="button" aria-expanded="false" aria-pressed="false">Taşıma düğmelerini göster</button>
+          <div class="watchlist-backup-buttons">
+            <button id="importWatchlist" type="button">İçe aktar</button>
+            <button id="exportWatchlist" type="button">Dışa aktar</button>
+          </div>
+        </div>
 
         <div class="sidebar-foot">
           <div class="source-health"><span class="health-dot"></span><span>Yerel grafik motoru aktif</span></div>
@@ -89,6 +89,11 @@
                 <button id="favoriteButton" class="star-button" title="Favorilere ekle">☆</button>
               </div>
               <div class="instrument-symbol" id="instrumentSymbol">BTCUSDT · USDT</div>
+              <div class="chart-mode-tabs" aria-label="Grafik alanı seçimi">
+                <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
+                <div class="chart-mode-workspaces" id="workspaceTabs"></div>
+                <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
+              </div>
             </div>
           </div>
           <div class="quote-strip">
@@ -97,11 +102,6 @@
               <span>24s Yüksek <b id="dayHigh">—</b></span>
               <span>24s Düşük <b id="dayLow">—</b></span>
               <span>Hacim <b id="dayVolume">—</b></span>
-            </div>
-            <div class="chart-mode-tabs" aria-label="Grafik alanı seçimi">
-              <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
-              <div class="chart-mode-workspaces" id="workspaceTabs"></div>
-              <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
             </div>
           </div>
         </section>
