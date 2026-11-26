@@ -1279,26 +1279,39 @@
     if(time&&typeof time==="object"&&Number.isFinite(Number(time.year)))return Math.floor(Date.UTC(Number(time.year),Number(time.month)-1,Number(time.day))/1000);
     const parsed=Number(time);return Number.isFinite(parsed)?parsed:NaN;
   }
-  function workspaceNearestBarTime(time){
-    const target=workspaceTimeNumber(time);
-    if(!Number.isFinite(target)||!Array.isArray(workspaceBars)||!workspaceBars.length)return null;
-    let best=null,bestDistance=Infinity;
+  function workspaceDrawingTimeCoordinate(time){
+    const target=workspaceTimeNumber(time),scale=workspaceChart?.timeScale();
+    if(!Number.isFinite(target)||!scale||!Array.isArray(workspaceBars)||!workspaceBars.length)return NaN;
+    const direct=scale.timeToCoordinate(time);
+    if(Number.isFinite(direct))return direct;
+    let before=null,after=null,nearest=null,nearestDistance=Infinity;
     for(const bar of workspaceBars){
-      const stamp=workspaceTimeNumber(bar.time);
-      if(!Number.isFinite(stamp))continue;
+      const stamp=workspaceTimeNumber(bar.time);if(!Number.isFinite(stamp))continue;
       const distance=Math.abs(stamp-target);
-      if(distance<bestDistance){bestDistance=distance;best=bar.time;}
-      if(stamp>target&&distance>bestDistance)break;
+      if(distance<nearestDistance){nearest=bar;nearestDistance=distance;}
+      if(stamp<=target)before=bar;
+      if(stamp>target){after=bar;break;}
     }
-    return best;
+    if(before&&after){
+      const t1=workspaceTimeNumber(before.time),t2=workspaceTimeNumber(after.time);
+      const intervalSeconds={"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400,"1w":604800,"1M":2592000}[workspaceInterval]||3600;
+      const x1=scale.timeToCoordinate(before.time),x2=scale.timeToCoordinate(after.time);
+      if(Number.isFinite(x1)&&Number.isFinite(x2)&&t2>t1&&t2-t1<=intervalSeconds*1.6){
+        const ratio=Math.max(0,Math.min(1,(target-t1)/(t2-t1)));
+        return x1+(x2-x1)*ratio;
+      }
+    }
+    if(nearest){
+      const nearestX=scale.timeToCoordinate(nearest.time);
+      if(Number.isFinite(nearestX))return nearestX;
+    }
+    const edge=target<workspaceTimeNumber(workspaceBars[0].time)?workspaceBars[0]:workspaceBars[workspaceBars.length-1];
+    const edgeX=scale.timeToCoordinate(edge.time);
+    return Number.isFinite(edgeX)?edgeX:NaN;
   }
   function workspaceDrawingPoint(point){
     if(!point||!workspaceChart||!workspacePriceSeries)return null;
-    let x=workspaceChart.timeScale().timeToCoordinate(point.time);
-    if(!Number.isFinite(x)){
-      const nearestTime=workspaceNearestBarTime(point.time);
-      if(nearestTime!==null)x=workspaceChart.timeScale().timeToCoordinate(nearestTime);
-    }
+    const x=workspaceDrawingTimeCoordinate(point.time);
     const y=workspacePriceSeries.priceToCoordinate(Number(point.value));
     return Number.isFinite(x)&&Number.isFinite(y)?{x,y}:null;
   }

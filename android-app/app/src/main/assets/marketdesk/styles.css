@@ -627,3 +627,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 @media(max-width:760px){
  .market-sidebar .watch-quote{flex-basis:80px;width:80px;min-width:80px;max-width:80px}
 }
+
+/* Ensure the indicator panel follows its selected state while all settings remain scroll-visible. */
+#indicatorDeck:not([hidden]){display:block;overflow:visible;max-height:none}
+#indicatorDeck[hidden]{display:none!important}
+.control-deck{flex-shrink:0}
