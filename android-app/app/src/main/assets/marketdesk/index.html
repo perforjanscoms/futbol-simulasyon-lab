@@ -239,7 +239,15 @@
           <div class="workspace-panel-heading">
             <div>
               <span class="eyebrow">BAĞIMSIZ GRAFİK MODÜLÜ</span>
-              <h2 id="workspaceTitle">Çalışma Alanım (1)</h2>
+              <div class="workspace-title-edit" id="workspaceTitleEdit">
+                <h2 id="workspaceTitle">Çalışma Alanı (1)</h2>
+                <button id="renameWorkspaceButton" class="workspace-rename-trigger" type="button" title="Çalışma alanının adını değiştir" aria-label="Çalışma alanının adını değiştir">✎</button>
+              </div>
+              <form class="workspace-rename-form" id="workspaceRenameForm" hidden>
+                <input id="workspaceNameInput" type="text" maxlength="36" autocomplete="off" aria-label="Yeni çalışma alanı adı">
+                <button type="submit">Kaydet</button>
+                <button id="cancelWorkspaceRename" type="button" aria-label="Vazgeç">×</button>
+              </form>
               <small id="workspaceChartSource">Seçili sembole özel çalışma alanı</small>
             </div>
             <div class="workspace-panel-actions">
