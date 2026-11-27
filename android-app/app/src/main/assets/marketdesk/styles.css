@@ -1213,3 +1213,29 @@ html,body,.app-shell{background:#05070b!important}
 }
 /* Keep a little breathing room above the current price as well. */
 .quote-main{margin-top:3px!important;}
+
+
+/* PR19: put the active symbol/source directly above the candle-close counter. */
+#chartContainer>.chart-symbol-line{
+  position:absolute!important;z-index:7!important;top:5px!important;left:7px!important;right:auto!important;
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  width:auto!important;height:11px!important;min-height:11px!important;flex:0 0 11px!important;
+  margin:0!important;padding:0!important;overflow:visible!important;pointer-events:none!important;
+}
+#chartContainer>.chart-symbol-line>.chart-market-identity{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  width:auto!important;min-width:0!important;max-width:none!important;overflow:visible!important;
+}
+#chartContainer .chart-market-title{display:flex!important;align-items:center!important;gap:4px!important;white-space:nowrap!important}
+#chartContainer #chartLiveStatus{display:none!important}
+#chartContainer #chartTicker{font-size:8px!important;color:#cbd8e8!important}
+#chartContainer #chartSource{margin:0!important;font-size:7px!important;color:#9fd7cc!important}
+#chartContainer .candle-countdown{top:22px!important;left:7px!important;right:auto!important;}
+/* Remove every external gap above the timeframe row and between its buttons. */
+.chart-toolbar{margin:0!important;padding:0!important;gap:0!important;border-top:0!important;}
+.chart-toolbar .timeframe-group{margin:0!important;padding:0!important;gap:0!important;}
+.chart-toolbar .timeframe-group button{margin:0!important;}
+/* Reduce the empty strip beneath the topbar action icons by one small step. */
+@media(max-width:760px){.topbar{height:52px!important;flex-basis:52px!important;}}
+/* Add a little breathing room over the rightmost price label and below 24h volume. */
+.quote-volume{display:inline-block!important;margin-bottom:2px!important;}
