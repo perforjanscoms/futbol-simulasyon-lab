@@ -1199,7 +1199,6 @@ html,body,.app-shell{background:#05070b!important}
 
 
 /* PR17: reclaim chart width currently reserved by the oversized price scales. */
-.chart-container #priceChart{width:100%;}
 /* Price labels keep their natural measured width; 68px is only the minimum. */
 .lower-chart-wrap.stoch-rsi-chart-wrap{
   height:107px!important;flex:0 0 107px!important;
