@@ -743,3 +743,69 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
   .chart-symbol-line>.chart-mode-tabs .chart-mode-create{min-height:18px!important;height:18px!important;font-size:6.5px!important}
   #workspacePanel .workspace-chart-container{height:58vh;min-height:390px}
 }
+
+
+/* BYBORA raw-chart header refinement */
+.chart-symbol-line{
+  height:28px!important;flex:0 0 28px!important;min-height:28px!important;
+  margin:1px 0 3px!important;gap:0!important;overflow:hidden!important;
+}
+.chart-symbol-line>#chartTicker,
+.chart-symbol-line>#chartLiveStatus,
+.chart-symbol-line>#chartSource{display:none!important}
+.chart-symbol-line>.chart-mode-tabs{
+  display:flex!important;flex-direction:row!important;align-items:center!important;
+  justify-content:flex-start!important;flex-wrap:nowrap!important;gap:5px!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;
+  height:26px!important;min-height:26px!important;margin:0!important;padding:0!important;
+  overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;
+  scrollbar-width:none!important;
+}
+.chart-symbol-line>.chart-mode-tabs::-webkit-scrollbar{display:none!important}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-tab,
+.chart-symbol-line>.chart-mode-tabs .chart-mode-create{
+  display:inline-flex!important;flex:0 0 auto!important;align-items:center!important;
+  justify-content:center!important;flex-direction:row!important;
+  min-height:23px!important;height:23px!important;padding:0 9px!important;
+  margin:0!important;border-radius:5px!important;font-size:8px!important;line-height:21px!important;
+}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces{
+  display:flex!important;flex:0 0 auto!important;flex-direction:row!important;
+  align-items:center!important;gap:4px!important;min-width:0!important;max-width:none!important;
+  overflow:visible!important;
+}
+.exchange-badge{display:none!important}
+.instrument-bar{min-height:58px!important;gap:10px!important}
+.instrument-left{gap:8px!important}
+.instrument-avatar{width:35px!important;height:35px!important;flex-basis:35px!important}
+.instrument-title-row{gap:5px!important}
+.instrument-title-row h1{font-size:14px!important}
+.quote-strip{gap:3px!important}
+.quote-details{margin-top:2px!important;gap:8px!important;font-size:9px!important}
+.quote-details b{font-size:9px!important}
+#rawChartView{margin-top:0!important;padding-top:0!important}
+#rawChartView>.chart-workspace{margin-top:0!important}
+.chart-toolbar{margin-top:0!important;margin-bottom:3px!important}
+#favoriteButton.favorite-top-icon{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 36px!important;width:36px!important;height:34px!important;
+  padding:0!important;border:1px solid var(--line)!important;border-radius:8px!important;
+  background:rgba(255,255,255,.025)!important;color:#91a5bf!important;
+  font-size:19px!important;line-height:1!important;transform:none!important;
+}
+#favoriteButton.favorite-top-icon.active{color:var(--gold)!important}
+@media(max-width:760px){
+  .instrument-bar{min-height:55px!important;gap:7px!important}
+  .instrument-avatar{width:31px!important;height:31px!important;flex-basis:31px!important}
+  .instrument-title-row h1{font-size:12px!important}
+  .quote-strip{gap:2px!important}
+  .quote-details{gap:6px!important;font-size:8px!important;margin-top:1px!important}
+  .quote-details b{font-size:8px!important}
+  .chart-symbol-line{height:25px!important;flex-basis:25px!important;min-height:25px!important;margin:0 0 2px!important}
+  .chart-symbol-line>.chart-mode-tabs{height:23px!important;min-height:23px!important;gap:4px!important}
+  .chart-symbol-line>.chart-mode-tabs .chart-mode-tab,
+  .chart-symbol-line>.chart-mode-tabs .chart-mode-create{
+    min-height:21px!important;height:21px!important;padding:0 7px!important;font-size:7.5px!important;
+  }
+  #favoriteButton.favorite-top-icon{width:32px!important;flex-basis:32px!important;height:32px!important}
+}
