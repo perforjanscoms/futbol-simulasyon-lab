@@ -809,3 +809,36 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
   }
   #favoriteButton.favorite-top-icon{width:32px!important;flex-basis:32px!important;height:32px!important}
 }
+
+
+/* Top bar: lift navigation and brand slightly; compact the action icons. */
+.topbar .mobile-nav-button,
+.topbar .brand{
+  position:relative;top:-2px;
+}
+.topbar-actions{
+  display:flex;align-items:center;gap:4px!important;
+}
+.topbar-actions>.top-icon,
+.topbar-actions>#favoriteButton.favorite-top-icon{
+  width:32px!important;min-width:32px!important;height:31px!important;
+  flex:0 0 32px!important;padding:0!important;font-size:15px!important;
+  border-radius:7px!important;line-height:1!important;
+}
+.topbar-actions>#favoriteButton.favorite-top-icon{font-size:18px!important}
+.topbar-actions>.alert-top-icon{position:relative}
+.topbar-actions>.alert-top-icon #alertCount{
+  top:-4px;right:-4px;min-width:12px;height:12px;padding:0 3px;font-size:7px;line-height:12px;
+}
+@media(max-width:760px){
+  .topbar{gap:8px!important;padding-left:9px!important;padding-right:9px!important}
+  .topbar .mobile-nav-button,
+  .topbar .brand{top:-2px}
+  .topbar-actions{gap:2px!important}
+  .topbar-actions>.top-icon,
+  .topbar-actions>#favoriteButton.favorite-top-icon{
+    width:29px!important;min-width:29px!important;height:29px!important;flex-basis:29px!important;
+    font-size:13px!important;
+  }
+  .topbar-actions>#favoriteButton.favorite-top-icon{font-size:17px!important}
+}
