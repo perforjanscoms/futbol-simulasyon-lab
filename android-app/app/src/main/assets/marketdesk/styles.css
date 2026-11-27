@@ -1196,3 +1196,13 @@ html,body,.app-shell{background:#05070b!important}
   left:7px!important;right:auto!important;
   align-items:flex-start!important;text-align:left!important;
 }
+
+
+/* PR17: reclaim chart width currently reserved by the oversized price scales. */
+.chart-container #priceChart{width:100%;}
+/* Price labels keep their natural measured width; 68px is only the minimum. */
+.lower-chart-wrap.stoch-rsi-chart-wrap{
+  height:107px!important;flex:0 0 107px!important;
+}
+/* A small breathing gap between the live last price and the 24h high. */
+.quote-high{margin-top:2px!important;}
