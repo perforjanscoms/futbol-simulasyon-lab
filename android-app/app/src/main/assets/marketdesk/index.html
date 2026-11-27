@@ -29,6 +29,7 @@
         <span id="clock">--:--:-- TRT</span>
       </div>
       <div class="topbar-actions">
+        <button class="top-icon star-button favorite-top-icon" id="favoriteButton" title="Favorilere ekle" aria-label="Favorilere ekle">☆</button>
         <button class="top-icon alert-top-icon" id="openPriceAlerts" title="Fiyat alarmları" aria-label="Fiyat alarmları">🔔<span id="alertCount">0</span></button>
         <button class="top-icon" id="openSettings" title="Veri bağlantısı ve ayarlar" aria-label="Ayarlar">⚙</button>
         <button class="top-icon" id="fullscreenButton" title="Grafiği büyüt" aria-label="Grafiği büyüt">⛶</button>
@@ -49,11 +50,6 @@
           <div class="search-results" id="searchResults" hidden></div>
         </div>
 
-        <div class="watchlist-tools">
-          <button id="exportWatchlist" type="button">Dışa aktar</button>
-          <button id="importWatchlist" type="button">İçe aktar</button>
-        </div>
-
         <div class="watch-tabs">
           <button class="watch-tab active" data-watch-filter="all">Tümü</button>
           <button class="watch-tab" data-watch-filter="bist">BIST</button>
@@ -65,6 +61,14 @@
         </div>
 
         <div class="watchlist" id="watchlist"></div>
+
+        <div class="watchlist-tools">
+          <button id="toggleWatchOrderControls" class="watch-order-toggle" type="button" aria-expanded="false" aria-pressed="false">Taşıma düğmelerini göster</button>
+          <div class="watchlist-backup-buttons">
+            <button id="importWatchlist" type="button">İçe aktar</button>
+            <button id="exportWatchlist" type="button">Dışa aktar</button>
+          </div>
+        </div>
 
         <div class="sidebar-foot">
           <div class="source-health"><span class="health-dot"></span><span>Yerel grafik motoru aktif</span></div>
@@ -83,29 +87,36 @@
               <div class="instrument-title-row">
                 <h1 id="instrumentName">Bitcoin / Tether</h1>
                 <span class="exchange-badge" id="exchangeBadge">BINANCE</span>
-                <button id="favoriteButton" class="star-button" title="Favorilere ekle">☆</button>
+
               </div>
-              <div class="instrument-symbol" id="instrumentSymbol">BTCUSDT · USDT</div>
             </div>
           </div>
           <div class="quote-strip">
             <div class="quote-main"><strong id="lastPrice">—</strong><span id="priceChange" class="quote-change">—</span></div>
+            <div class="quote-high">
+              <span>24S Yüksek <b id="dayHigh">—</b></span>
+            </div>
             <div class="quote-details">
-              <span>24s Yüksek <b id="dayHigh">—</b></span>
-              <span>24s Düşük <b id="dayLow">—</b></span>
-              <span>Hacim <b id="dayVolume">—</b></span>
+              <div class="quote-extremes">
+                <span>24S Düşük <b id="dayLow">—</b></span>
+              </div>
+              <small class="quote-volume">24S Hacim <b id="dayVolume">—</b> <span id="volumeCurrency">USDT</span></small>
             </div>
           </div>
         </section>
-
-        <div class="chart-mode-tabs">
-          <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
-          <div class="chart-mode-workspaces" id="workspaceTabs"></div>
-          <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
-        </div>
         <div id="rawChartView" class="raw-chart-view">
 
         <section class="chart-workspace" id="chartWorkspace">
+          <div class="chart-symbol-line">
+            <div class="chart-market-identity">
+              <div class="chart-market-title">
+                <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
+                <span id="chartTicker">BTC/USDT</span>
+                <span class="chart-source" id="chartSource">Binance</span>
+              </div>
+            </div>
+          </div>
+
           <div class="chart-toolbar">
             <div class="timeframe-group" id="timeframes">
               <button data-interval="1m">1m</button>
@@ -123,16 +134,18 @@
               <button class="tool-button" id="lineButton" title="Çizgi grafik">⌁</button>
               <span class="tool-separator"></span>
               <button class="tool-button" id="indicatorButton" title="Göstergeler">ƒx</button>
-              <button class="tool-button" id="drawButton" title="Çizim araçları">／</button>
+              <button class="tool-button" id="drawButton" title="Çalışma alanı çizim araçları">／</button>
               <button class="tool-button" id="layoutButton" title="Grafik düzenleri">▦</button>
               <button class="tool-button" id="refreshButton" title="Grafiği yenile">↻</button>
             </div>
           </div>
 
-          <div class="chart-symbol-line">
-            <span id="chartTicker">BTCUSDT</span>
-            <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
-            <span class="chart-source" id="chartSource">Binance public market data</span>
+          <div class="chart-mode-row">
+            <div class="chart-mode-tabs" aria-label="Grafik alanı seçimi">
+              <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
+              <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
+              <div class="chart-mode-workspaces" id="workspaceTabs"></div>
+            </div>
           </div>
 
           <div class="chart-container" id="chartContainer">
@@ -163,7 +176,6 @@
         <section class="control-deck">
           <div class="deck-tabs">
             <button class="deck-tab active" data-deck="indicators">Göstergeler</button>
-            <button class="deck-tab" data-deck="drawings">Çizimler</button>
             <button class="deck-tab" data-deck="layouts">Kayıtlı düzenler</button>
             <span class="deck-spacer"></span>
             <span class="save-state" id="saveState"><i></i> Otomatik kayıt açık</span>
@@ -180,13 +192,7 @@
               <button class="indicator-chip" data-study="MACD"><b>MACD</b><span>97/74/175</span></button>
               <button class="indicator-chip" data-study="STOCH"><b>STOCH</b></button>
             </div>
-            <div class="macd-parameter-row">
-              <span class="macd-parameter-title">MACD PARAMETRELERİ</span>
-              <label>Hızlı <input id="macdFast" type="number" min="1" max="1000" value="97"></label>
-              <label>Yavaş <input id="macdSlow" type="number" min="1" max="1000" value="74"></label>
-              <label>Sinyal <input id="macdSignal" type="number" min="1" max="1000" value="175"></label>
-              <button id="applyMacdParams" class="secondary-button" type="button">Uygula / Kaydet</button>
-            </div>
+            <div class="indicator-parameter-grid">
             <div class="stochrsi-parameter-row macd-parameter-row">
               <span class="macd-parameter-title">STOCH RSI PARAMETRELERİ</span>
               <label>RSI Uzunluğu <input id="stochRsiLength" type="number" min="2" max="500" value="125"></label>
@@ -194,6 +200,14 @@
               <label>K <input id="stochRsiK" type="number" min="1" max="200" value="4"></label>
               <label>D <input id="stochRsiD" type="number" min="1" max="500" value="324"></label>
               <button id="applyStochRsiParams" class="secondary-button" type="button">Uygula / Kaydet</button>
+            </div>
+            <div class="macd-parameter-row" id="macdParameterRow">
+              <span class="macd-parameter-title">MACD PARAMETRELERİ</span>
+              <label>Hızlı <input id="macdFast" type="number" min="1" max="1000" value="97"></label>
+              <label>Yavaş <input id="macdSlow" type="number" min="1" max="1000" value="74"></label>
+              <label>Sinyal <input id="macdSignal" type="number" min="1" max="1000" value="175"></label>
+              <button id="applyMacdParams" class="secondary-button" type="button">Uygula / Kaydet</button>
+            </div>
             </div>
             <div class="macd-parameter-row overlay-parameter-row">
               <span class="macd-parameter-title">SMA & BOLLINGER AYARLARI</span>
@@ -232,7 +246,15 @@
           <div class="workspace-panel-heading">
             <div>
               <span class="eyebrow">BAĞIMSIZ GRAFİK MODÜLÜ</span>
-              <h2 id="workspaceTitle">Çalışma Alanım (1)</h2>
+              <div class="workspace-title-edit" id="workspaceTitleEdit">
+                <h2 id="workspaceTitle">Çalışma Alanı (1)</h2>
+                <button id="renameWorkspaceButton" class="workspace-rename-trigger" type="button" title="Çalışma alanının adını değiştir" aria-label="Çalışma alanının adını değiştir">✎</button>
+              </div>
+              <form class="workspace-rename-form" id="workspaceRenameForm" hidden>
+                <input id="workspaceNameInput" type="text" maxlength="36" autocomplete="off" aria-label="Yeni çalışma alanı adı">
+                <button type="submit">Kaydet</button>
+                <button id="cancelWorkspaceRename" type="button" aria-label="Vazgeç">×</button>
+              </form>
               <small id="workspaceChartSource">Seçili sembole özel çalışma alanı</small>
             </div>
             <div class="workspace-panel-actions">
@@ -258,12 +280,6 @@
               <button class="tool-button" data-workspace-chart-type="line" type="button">Çizgi</button>
               <button class="tool-button" id="workspaceRefreshButton" type="button">↻</button>
             </div>
-          </div>
-          <div class="workspace-chart-settings">
-            <label class="workspace-cross-timeframe-setting">
-              <input id="workspaceCrossTimeframeToggle" type="checkbox" checked>
-              <span>Çizimleri tüm zaman dilimlerinde göster</span>
-            </label>
           </div>
           <div class="workspace-symbol-line">
             <strong id="workspaceChartTicker">—</strong>
