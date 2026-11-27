@@ -960,7 +960,7 @@
         autoSize:true,
         layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:id==="STOCHRSI"?{top:.17,bottom:.12}:{top:.08,bottom:.18}},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:id==="STOCHRSI"?{top:.20,bottom:.12}:{top:.08,bottom:.18}},
         timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
