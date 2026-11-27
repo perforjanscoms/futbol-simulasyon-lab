@@ -486,13 +486,14 @@
     if (!window.LightweightCharts) return false;
     const L = window.LightweightCharts;
     const host = $("priceChart");
+    const compactViewport = window.matchMedia("(max-width:760px)").matches;
     chart = L.createChart(host, {
       autoSize: true,
       layout: {
         background: {type:L.ColorType.Solid,color:"#070a0f"},
         textColor:"#91a3ba",
         fontFamily:"DM Sans, sans-serif",
-        fontSize:10
+        fontSize:compactViewport?8:10
       },
       grid: {
         vertLines:{color:"rgba(132,157,188,.065)"},
@@ -503,7 +504,7 @@
         vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
         horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
       },
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.15,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:compactViewport?48:68,scaleMargins:{top:.15,bottom:.18}},
       timeScale:{
         borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
         rightOffset:0,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
@@ -945,6 +946,7 @@
     lowerCharts=[];
     if (!bars.length || !window.LightweightCharts) return;
     const L=window.LightweightCharts;
+    const compactViewport=window.matchMedia("(max-width:760px)").matches;
     const lower = activeStudies.filter(id=>["STOCHRSI","MACD","STOCH"].includes(id));
     lower.forEach(id=>{
       const wrap=document.createElement("div");
@@ -958,9 +960,9 @@
       host.appendChild(wrap);
       const c=L.createChart(mount,{
         autoSize:true,
-        layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
+        layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:compactViewport?8:10},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:68,scaleMargins:id==="STOCHRSI"?{top:.23,bottom:.12}:id==="MACD"?{top:.08,bottom:.18}:{top:.08,bottom:.18}},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:compactViewport?48:68,scaleMargins:id==="STOCHRSI"?{top:.23,bottom:.12}:id==="MACD"?{top:.08,bottom:.18}:{top:.08,bottom:.18}},
         timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:0,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
@@ -1539,13 +1541,14 @@
     if(workspaceChart)return;
     if(!window.LightweightCharts)throw new Error("Grafik kütüphanesi yüklenemedi.");
     const L=window.LightweightCharts,host=$("workspacePriceChart"),overlay=$("workspaceDrawingOverlay");
+    const compactViewport=window.matchMedia("(max-width:760px)").matches;
     workspaceChart=L.createChart(host,{
       autoSize:true,
-      layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#91a3ba",fontFamily:"DM Sans,sans-serif",fontSize:10},
+      layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#91a3ba",fontFamily:"DM Sans,sans-serif",fontSize:compactViewport?8:10},
       grid:{vertLines:{color:"rgba(132,157,188,.065)"},horzLines:{color:"rgba(132,157,188,.085)"}},
       crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}},
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:76,scaleMargins:{top:.08,bottom:.18}},
-      timeScale:{borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,rightOffset:7,barSpacing:7,minBarSpacing:.5},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:compactViewport?48:76,scaleMargins:{top:.08,bottom:.18}},
+      timeScale:{borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,rightOffset:compactViewport?0:7,barSpacing:7,minBarSpacing:.5},
       localization:{locale:"tr-TR"}
     });
     workspaceChart.timeScale().subscribeVisibleLogicalRangeChange(()=>{refreshWorkspacePriceScale();renderWorkspaceDrawingOverlay();});
