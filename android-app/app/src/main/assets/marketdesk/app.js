@@ -489,7 +489,7 @@
     chart = L.createChart(host, {
       autoSize: true,
       layout: {
-        background: {type:L.ColorType.Solid,color:"#0a1220"},
+        background: {type:L.ColorType.Solid,color:"#070a0f"},
         textColor:"#91a3ba",
         fontFamily:"DM Sans, sans-serif",
         fontSize:10
@@ -958,7 +958,7 @@
       host.appendChild(wrap);
       const c=L.createChart(mount,{
         autoSize:true,
-        layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
+        layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
         rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:id==="STOCHRSI"?{top:.17,bottom:.12}:{top:.08,bottom:.18}},
         timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
@@ -1541,7 +1541,7 @@
     const L=window.LightweightCharts,host=$("workspacePriceChart"),overlay=$("workspaceDrawingOverlay");
     workspaceChart=L.createChart(host,{
       autoSize:true,
-      layout:{background:{type:L.ColorType.Solid,color:"#0a1220"},textColor:"#91a3ba",fontFamily:"DM Sans,sans-serif",fontSize:10},
+      layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#91a3ba",fontFamily:"DM Sans,sans-serif",fontSize:10},
       grid:{vertLines:{color:"rgba(132,157,188,.065)"},horzLines:{color:"rgba(132,157,188,.085)"}},
       crosshair:{mode:L.CrosshairMode.Normal,vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}},
       rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:76,scaleMargins:{top:.08,bottom:.18}},
@@ -1818,7 +1818,7 @@
         levels.forEach(level=>{
           const y=workspacePriceSeries.priceToCoordinate(Number(level.price));if(!Number.isFinite(y))return;
           workspaceAddLine(x1,y,x2,y,drawIndex,"body",color,.95);
-          workspaceSvg("rect",{x:labelX,y:y-6,width:labelWidth,height:12,rx:2,fill:"#0a1220",opacity:.94,"pointer-events":"none"},null);
+          workspaceSvg("rect",{x:labelX,y:y-6,width:labelWidth,height:12,rx:2,fill:"#070a0f",opacity:.94,"pointer-events":"none"},null);
           const label=workspaceSvg("text",{x:labelX+3,y:y+2.5,fill:color,"font-size":7.5,"font-family":"DM Sans,monospace","pointer-events":"none"},null);
           label.textContent=(level.label||"Fib")+"  "+fmtPrice(Number(level.price),precision);
         });
