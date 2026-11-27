@@ -1025,3 +1025,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
   .workspace-panel-actions{gap:4px}
   .workspace-panel-actions button{min-height:27px;padding:0 7px;font-size:7px}
 }
+
+
+/* Ensure the old high-specificity PR12 selectors cannot reintroduce the two gaps. */
+.chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces{gap:0!important}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces:empty{display:none!important}
