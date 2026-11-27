@@ -503,7 +503,7 @@
         vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
         horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
       },
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.12,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.13,bottom:.18}},
       timeScale:{
         borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
         rightOffset:0,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
