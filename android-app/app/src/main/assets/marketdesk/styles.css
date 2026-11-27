@@ -1088,3 +1088,104 @@ html,body,.app-shell{background:#05070b!important}
 .chart-market-title{gap:4px!important}
 .chart-market-title #chartTicker{color:#dce7f4!important}
 .chart-market-title #chartSource{color:#9fd7cc!important}
+
+
+/* PR15 — quote high is directly beneath the live last price. */
+.quote-strip{gap:2px!important}
+.quote-main{gap:8px!important;justify-content:flex-end!important}
+.quote-high{
+  display:flex!important;align-items:center!important;justify-content:flex-end!important;
+  margin-top:-1px!important;min-height:11px!important;line-height:1.05!important;
+  color:#9aaabd!important;white-space:nowrap!important;
+}
+.quote-high span{font:500 8px 'DM Sans',monospace!important;color:#9aaabd!important}
+.quote-high b{margin-left:3px!important;color:#d3deeb!important;font:600 9.5px 'DM Sans',monospace!important}
+.quote-details{gap:2px!important}
+.quote-extremes>span{font-size:8.5px!important}
+.quote-extremes b{font-size:9px!important}
+.quote-volume{font-size:7px!important}
+.quote-volume b{font-size:7.5px!important}
+@media(max-width:760px){
+  .quote-high{min-height:10px!important}
+  .quote-high span{font-size:7px!important}
+  .quote-high b{font-size:8.2px!important}
+  .quote-extremes>span{font-size:7.5px!important}
+  .quote-extremes b{font-size:8px!important}
+  .quote-volume,.quote-volume b,.quote-volume span{font-size:6.5px!important}
+}
+
+/* Ticker/source band is now the first row, above timeframes and chart-mode tabs. */
+.chart-symbol-line{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  width:100%!important;height:21px!important;min-height:21px!important;flex:0 0 21px!important;
+  margin:0!important;padding:0!important;overflow:visible!important;
+}
+.chart-symbol-line>.chart-market-identity{
+  display:flex!important;flex:1 1 auto!important;flex-direction:row!important;
+  align-items:center!important;justify-content:flex-start!important;gap:0!important;
+  width:100%!important;min-width:0!important;max-width:none!important;overflow:visible!important;
+}
+.chart-market-title{display:flex!important;align-items:center!important;gap:4px!important;min-width:0!important;max-width:100%!important;white-space:nowrap!important}
+.chart-market-title #chartTicker{font-size:8px!important}
+.chart-market-title #chartSource{font-size:7px!important;max-width:none!important}
+.chart-toolbar{
+  margin:0!important;padding:0!important;border:0!important;
+  height:28px!important;min-height:28px!important;flex:0 0 28px!important;
+}
+.chart-mode-row{
+  display:flex!important;align-items:flex-start!important;justify-content:flex-start!important;
+  flex:0 0 auto!important;width:100%!important;min-width:0!important;
+  min-height:0!important;height:auto!important;margin:0 0 3px!important;padding:0!important;
+  overflow:visible!important;
+}
+.chart-mode-row>.chart-mode-tabs{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  flex-direction:row!important;flex-wrap:wrap!important;gap:3px!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
+  min-height:0!important;height:auto!important;margin:0!important;padding:0!important;
+  border:0!important;border-radius:0!important;background:transparent!important;
+  overflow:visible!important;white-space:normal!important;
+}
+.chart-mode-row .chart-mode-tab,
+.chart-mode-row .chart-mode-create{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 0 auto!important;min-width:0!important;min-height:19px!important;height:19px!important;
+  padding:0 5px!important;margin:0!important;border:1px solid rgba(150,174,204,.15)!important;
+  border-radius:4px!important;background:rgba(255,255,255,.018)!important;
+  color:#a9bdcf!important;font-size:6.5px!important;line-height:17px!important;
+  font-weight:600!important;white-space:nowrap!important;
+}
+.chart-mode-row .chart-mode-tab.active{
+  border-color:rgba(69,214,195,.24)!important;background:rgba(69,214,195,.075)!important;color:#c8eee7!important;
+}
+.chart-mode-row .chart-mode-create{margin-left:0!important}
+.chart-mode-row .chart-mode-workspaces{
+  display:flex!important;flex:1 1 100%!important;flex-direction:row!important;
+  align-items:center!important;justify-content:flex-start!important;flex-wrap:wrap!important;
+  gap:3px!important;width:100%!important;max-width:100%!important;min-width:0!important;
+  height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;
+  overflow:visible!important;white-space:normal!important;
+}
+.chart-mode-row .chart-mode-workspaces:empty{display:none!important}
+.chart-mode-row .chart-mode-workspaces .chart-mode-tab{flex:0 0 auto!important}
+.chart-mode-row .chart-mode-workspaces .chart-mode-tab,
+.chart-mode-row .chart-mode-workspaces .chart-mode-create{
+  padding-left:5px!important;padding-right:5px!important;
+}
+@media(max-width:760px){
+  .chart-symbol-line{height:20px!important;min-height:20px!important;flex-basis:20px!important}
+  .chart-market-title{gap:3px!important}
+  .chart-market-title #chartTicker{font-size:7.5px!important}
+  .chart-market-title #chartSource{font-size:6.5px!important}
+  .chart-toolbar{height:27px!important;min-height:27px!important;flex-basis:27px!important}
+  .chart-mode-row{margin-bottom:3px!important}
+  .chart-mode-row .chart-mode-tab,
+  .chart-mode-row .chart-mode-create{
+    min-height:18px!important;height:18px!important;padding:0 4px!important;font-size:6px!important;line-height:16px!important;
+  }
+  .chart-mode-row .chart-mode-workspaces{gap:3px!important}
+}
+
+/* A small amount of extra room for the two lower indicators. */
+.lower-chart-wrap.stoch-rsi-chart-wrap{height:101px!important;flex:0 0 101px!important}
+.lower-chart-wrap.macd-chart-wrap{height:117px!important;flex:0 0 117px!important}
