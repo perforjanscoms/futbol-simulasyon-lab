@@ -1321,3 +1321,28 @@ html,body,.app-shell{background:#05070b!important}
 }
 
 /* PR21: add only a small cushion above the highest right-axis price label. */
+
+
+/* PR22: let every workspace tab wrap naturally onto another row. */
+.chart-mode-row{
+  height:auto!important;min-height:18px!important;flex:0 0 auto!important;
+  overflow:visible!important;
+}
+.chart-mode-row>.chart-mode-tabs{
+  display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;
+  align-items:flex-start!important;justify-content:flex-start!important;
+  height:auto!important;min-height:18px!important;max-height:none!important;
+  overflow:visible!important;white-space:normal!important;
+  gap:3px!important;
+}
+/* Treat saved workspace tabs as siblings of the two fixed mode buttons. */
+.chart-mode-row .chart-mode-workspaces{display:contents!important}
+.chart-mode-row .chart-mode-workspaces .chart-mode-tab{
+  display:inline-flex!important;flex:0 0 auto!important;white-space:nowrap!important;
+}
+@media(max-width:760px){
+  .chart-mode-row{height:auto!important;min-height:18px!important;flex-basis:auto!important;margin-bottom:3px!important}
+  .chart-mode-row>.chart-mode-tabs{height:auto!important;min-height:18px!important;gap:2px!important}
+  .chart-mode-row .chart-mode-workspaces{display:contents!important}
+  .topbar-actions{transform:translateY(2px)!important}
+}
