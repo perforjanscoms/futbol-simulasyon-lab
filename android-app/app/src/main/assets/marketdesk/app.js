@@ -1382,26 +1382,93 @@
     if(time&&typeof time==="object"&&Number.isFinite(Number(time.year)))return Math.floor(Date.UTC(Number(time.year),Number(time.month)-1,Number(time.day))/1000);
     const parsed=Number(time);return Number.isFinite(parsed)?parsed:NaN;
   }
-  function workspaceDrawingTimeCoordinate(time){
-    const target=workspaceTimeNumber(time),scale=workspaceChart?.timeScale(),source=workspaceBars;
-    if(!Number.isFinite(target)||!scale||!Array.isArray(source)||!source.length)return NaN;
-    // Resolve saved anchors against this timeframe's candle index; anchors often fall between 4h bars.
+  function workspaceNominalBarInterval(source=workspaceBars){
+    const intervals=[];
+    for(let index=1;index<source.length;index++){
+      const previous=workspaceTimeNumber(source[index-1]?.time),current=workspaceTimeNumber(source[index]?.time);
+      const delta=current-previous;
+      if(Number.isFinite(delta)&&delta>0)intervals.push(delta);
+    }
+    if(intervals.length){
+      intervals.sort((a,b)=>a-b);
+      const middle=Math.floor(intervals.length/2);
+      return intervals.length%2?intervals[middle]:(intervals[middle-1]+intervals[middle])/2;
+    }
+    const raw=String(workspaceInterval||"15m");
+    if(raw==="1M")return 30*86400;
+    const match=raw.match(/^(\\d+)(m|h|d|w)$/i);
+    if(!match)return 86400;
+    const amount=Number(match[1]),unit=match[2].toLowerCase();
+    const seconds=unit==="m"?60:unit==="h"?3600:unit==="d"?86400:604800;
+    return amount*seconds;
+  }
+  function workspaceLogicalIndexForTime(time,source=workspaceBars){
+    const target=workspaceTimeNumber(time);
+    if(!Number.isFinite(target)||!Array.isArray(source)||!source.length)return NaN;
     let low=0,high=source.length-1;
     while(low<=high){
-      const mid=(low+high)>>1,stamp=workspaceTimeNumber(source[mid].time);
-      if(stamp===target)return scale.timeToCoordinate(source[mid].time);
-      if(stamp<target)low=mid+1;else high=mid-1;
+      const middle=(low+high)>>1,stamp=workspaceTimeNumber(source[middle].time);
+      if(stamp===target)return middle;
+      if(stamp<target)low=middle+1;else high=middle-1;
     }
-    if(high<0)return scale.timeToCoordinate(source[0].time);
-    if(low>=source.length)return scale.timeToCoordinate(source[source.length-1].time);
-    const t1=workspaceTimeNumber(source[high].time),t2=workspaceTimeNumber(source[low].time);
-    const ratio=t2>t1?Math.max(0,Math.min(1,(target-t1)/(t2-t1))):0;
-    const logicalIndex=high+ratio;
+    const interval=workspaceNominalBarInterval(source);
+    if(!Number.isFinite(interval)||interval<=0)return NaN;
+    if(high<0){
+      const first=workspaceTimeNumber(source[0].time);
+      return (target-first)/interval;
+    }
+    if(low>=source.length){
+      const lastIndex=source.length-1,last=workspaceTimeNumber(source[lastIndex].time);
+      return lastIndex+(target-last)/interval;
+    }
+    const first=workspaceTimeNumber(source[high].time),second=workspaceTimeNumber(source[low].time);
+    if(!Number.isFinite(first)||!Number.isFinite(second)||second<=first)return NaN;
+    return high+(target-first)/(second-first);
+  }
+  function workspaceTimeForLogicalIndex(logicalIndex,source=workspaceBars){
+    if(!Number.isFinite(logicalIndex)||!Array.isArray(source)||!source.length)return NaN;
+    const lastIndex=source.length-1,interval=workspaceNominalBarInterval(source);
+    const firstTime=workspaceTimeNumber(source[0].time),lastTime=workspaceTimeNumber(source[lastIndex].time);
+    if(!Number.isFinite(firstTime)||!Number.isFinite(lastTime))return NaN;
+    if(logicalIndex<0)return firstTime+logicalIndex*interval;
+    if(logicalIndex>lastIndex)return lastTime+(logicalIndex-lastIndex)*interval;
+    if(logicalIndex>=lastIndex)return lastTime;
+    const left=Math.floor(logicalIndex),fraction=logicalIndex-left;
+    const t1=workspaceTimeNumber(source[left].time),t2=workspaceTimeNumber(source[left+1].time);
+    return Number.isFinite(t1)&&Number.isFinite(t2)?t1+(t2-t1)*fraction:NaN;
+  }
+  function workspaceTimeFromCoordinate(x){
+    const scale=workspaceChart?.timeScale(),source=workspaceBars;
+    if(!scale||!Array.isArray(source)||!source.length)return NaN;
+    if(typeof scale.coordinateToLogical==="function"){
+      const logicalIndex=scale.coordinateToLogical(x);
+      if(Number.isFinite(logicalIndex)){
+        const time=workspaceTimeForLogicalIndex(logicalIndex,source);
+        if(Number.isFinite(time))return time;
+      }
+    }
+    return workspaceTimeNumber(scale.coordinateToTime(x));
+  }
+  function workspaceDrawingTimeCoordinate(time){
+    const scale=workspaceChart?.timeScale(),source=workspaceBars;
+    const logicalIndex=workspaceLogicalIndexForTime(time,source);
+    if(!Number.isFinite(logicalIndex)||!scale)return NaN;
     if(typeof scale.logicalToCoordinate==="function"){
       const x=scale.logicalToCoordinate(logicalIndex);
       if(Number.isFinite(x))return x;
     }
-    const x1=scale.timeToCoordinate(source[high].time),x2=scale.timeToCoordinate(source[low].time);
+    const lastIndex=source.length-1;
+    if(logicalIndex<0&&source.length>1){
+      const firstX=scale.timeToCoordinate(source[0].time),nextX=scale.timeToCoordinate(source[1].time);
+      return Number.isFinite(firstX)&&Number.isFinite(nextX)?firstX+logicalIndex*(nextX-firstX):NaN;
+    }
+    if(logicalIndex>lastIndex&&source.length>1){
+      const previousX=scale.timeToCoordinate(source[lastIndex-1].time),lastX=scale.timeToCoordinate(source[lastIndex].time);
+      return Number.isFinite(previousX)&&Number.isFinite(lastX)?lastX+(logicalIndex-lastIndex)*(lastX-previousX):NaN;
+    }
+    const left=Math.max(0,Math.min(lastIndex,Math.floor(logicalIndex)));
+    if(left===lastIndex)return scale.timeToCoordinate(source[lastIndex].time);
+    const ratio=logicalIndex-left,x1=scale.timeToCoordinate(source[left].time),x2=scale.timeToCoordinate(source[left+1].time);
     return Number.isFinite(x1)&&Number.isFinite(x2)?x1+(x2-x1)*ratio:NaN;
   }
   function workspaceDrawingPoint(point){
@@ -1472,12 +1539,20 @@
       if(drawing.type==="trend"&&coords.length>=2){
         workspaceAddLine(coords[0].x,coords[0].y,coords[1].x,coords[1].y,drawIndex,"body",color,1.1);
       }else if(drawing.type==="trendChannel"&&coords.length>=3){
-        const a=coords[0],b=coords[1],c=coords[2],offsetX=c.x-a.x,offsetY=c.y-a.y;
-        const d={x:b.x+offsetX,y:b.y+offsetY};
+        const [first,second,third]=points;
+        const firstTime=workspaceTimeNumber(first.time),secondTime=workspaceTimeNumber(second.time),thirdTime=workspaceTimeNumber(third.time);
+        const firstValue=Number(first.value),secondValue=Number(second.value),thirdValue=Number(third.value);
+        const offsetTime=thirdTime-firstTime,offsetValue=thirdValue-firstValue;
+        const farPoint={time:secondTime+offsetTime,value:secondValue+offsetValue};
+        const farCoord=workspaceDrawingPoint(farPoint);
+        if(!farCoord)return;
+        const a=coords[0],b=coords[1],c=coords[2],d=farCoord;
         workspaceSvg("polygon",{points:[a.x+","+a.y,b.x+","+b.y,d.x+","+d.y,c.x+","+c.y].join(" "),fill:"rgba(232,189,104,.055)",stroke:"none","pointer-events":"all"},drawIndex,"body");
         for(let level=0;level<4;level++){
-          const ratio=level/3,shiftX=offsetX*ratio,shiftY=offsetY*ratio;
-          workspaceAddLine(a.x+shiftX,a.y+shiftY,b.x+shiftX,b.y+shiftY,drawIndex,"body",color,level===0||level===3?1.15:.85);
+          const ratio=level/3;
+          const start=workspaceDrawingPoint({time:firstTime+offsetTime*ratio,value:firstValue+offsetValue*ratio});
+          const end=workspaceDrawingPoint({time:secondTime+offsetTime*ratio,value:secondValue+offsetValue*ratio});
+          if(start&&end)workspaceAddLine(start.x,start.y,end.x,end.y,drawIndex,"body",color,level===0||level===3?1.15:.85);
         }
       }else if(["rect","roundRect","circle","ellipse"].includes(drawing.type)&&coords.length>=2){
         const a=coords[0],b=coords[1],x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(a.x-b.x),h=Math.abs(a.y-b.y);
@@ -1532,7 +1607,7 @@
   function workspacePointFromPointer(event){
     const svg=$("workspaceDrawingOverlay"),rect=svg.getBoundingClientRect();
     const x=Math.max(0,Math.min(rect.width,event.clientX-rect.left)),y=Math.max(0,Math.min(rect.height,event.clientY-rect.top));
-    const time=workspaceTimeNumber(workspaceChart.timeScale().coordinateToTime(x));
+    const time=workspaceTimeFromCoordinate(x);
     const value=workspacePriceSeries.coordinateToPrice(y);
     return Number.isFinite(time)&&Number.isFinite(value)?{time,value,x,y}:null;
   }
