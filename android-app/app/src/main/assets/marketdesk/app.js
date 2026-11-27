@@ -1450,26 +1450,56 @@
     return workspaceTimeNumber(scale.coordinateToTime(x));
   }
   function workspaceDrawingTimeCoordinate(time){
-    const scale=workspaceChart?.timeScale(),source=workspaceBars;
-    const logicalIndex=workspaceLogicalIndexForTime(time,source);
-    if(!Number.isFinite(logicalIndex)||!scale)return NaN;
-    if(typeof scale.logicalToCoordinate==="function"){
-      const x=scale.logicalToCoordinate(logicalIndex);
-      if(Number.isFinite(x))return x;
+    const target=workspaceTimeNumber(time),scale=workspaceChart?.timeScale(),source=workspaceBars;
+    if(!Number.isFinite(target)||!scale||!Array.isArray(source)||source.length<2)return NaN;
+    // Resolve a drawing timestamp against the actual candle timestamps first.
+    // Interpolate between adjacent candle centres in pixel space. This avoids
+    // logicalToCoordinate collapsing out-of-range/fractional anchors at an edge.
+    let low=0,high=source.length-1;
+    while(low<=high){
+      const middle=(low+high)>>1,stamp=workspaceTimeNumber(source[middle].time);
+      if(stamp===target){
+        const exactX=scale.timeToCoordinate(source[middle].time);
+        return Number.isFinite(exactX)?exactX:scale.logicalToCoordinate(middle);
+      }
+      if(stamp<target)low=middle+1;else high=middle-1;
     }
-    const lastIndex=source.length-1;
-    if(logicalIndex<0&&source.length>1){
-      const firstX=scale.timeToCoordinate(source[0].time),nextX=scale.timeToCoordinate(source[1].time);
-      return Number.isFinite(firstX)&&Number.isFinite(nextX)?firstX+logicalIndex*(nextX-firstX):NaN;
+    let left,right;
+    if(high<0){left=0;right=1;}
+    else if(low>=source.length){left=source.length-2;right=source.length-1;}
+    else{left=high;right=low;}
+    const t1=workspaceTimeNumber(source[left].time),t2=workspaceTimeNumber(source[right].time);
+    if(!Number.isFinite(t1)||!Number.isFinite(t2)||t2<=t1)return NaN;
+    const x1=scale.timeToCoordinate(source[left].time),x2=scale.timeToCoordinate(source[right].time);
+    if(!Number.isFinite(x1)||!Number.isFinite(x2))return NaN;
+    const ratio=(target-t1)/(t2-t1);
+    return x1+(x2-x1)*ratio;
+  }
+
+  function workspaceDrawingLogicalBounds(source=workspaceBars){
+    if(!Array.isArray(source)||source.length<2||!workspaceDrawings.length)return null;
+    let from=Infinity,to=-Infinity;
+    workspaceDrawings.forEach(drawing=>{
+      const points=Array.isArray(drawing.points)?drawing.points:[];
+      points.forEach(point=>{
+        const index=workspaceLogicalIndexForTime(point?.time,source);
+        if(Number.isFinite(index)){from=Math.min(from,index);to=Math.max(to,index);}
+      });
+    });
+    return Number.isFinite(from)&&Number.isFinite(to)?{from,to}:null;
+  }
+
+  function workspaceIncludeDrawingsInVisibleRange(){
+    if(!workspaceChart||!workspaceBars.length)return;
+    const drawings=workspaceDrawingLogicalBounds(workspaceBars);
+    const visible=workspaceChart.timeScale().getVisibleLogicalRange();
+    if(!drawings||!visible)return;
+    const padding=2;
+    const from=Math.min(visible.from,drawings.from-padding);
+    const to=Math.max(visible.to,drawings.to+padding);
+    if(from<visible.from-0.5||to>visible.to+0.5){
+      try{workspaceChart.timeScale().setVisibleLogicalRange({from,to});}catch{}
     }
-    if(logicalIndex>lastIndex&&source.length>1){
-      const previousX=scale.timeToCoordinate(source[lastIndex-1].time),lastX=scale.timeToCoordinate(source[lastIndex].time);
-      return Number.isFinite(previousX)&&Number.isFinite(lastX)?lastX+(logicalIndex-lastIndex)*(lastX-previousX):NaN;
-    }
-    const left=Math.max(0,Math.min(lastIndex,Math.floor(logicalIndex)));
-    if(left===lastIndex)return scale.timeToCoordinate(source[lastIndex].time);
-    const ratio=logicalIndex-left,x1=scale.timeToCoordinate(source[left].time),x2=scale.timeToCoordinate(source[left+1].time);
-    return Number.isFinite(x1)&&Number.isFinite(x2)?x1+(x2-x1)*ratio:NaN;
   }
   function workspaceDrawingPoint(point){
     if(!point||!workspaceChart||!workspacePriceSeries)return null;
@@ -1615,6 +1645,10 @@
         }
       }
       if(!viewportRestored)workspaceChart.timeScale().fitContent();
+      // Keep every saved drawing anchor in the chart's visible time window.
+      // Without this, a line crossing the viewport edge can appear as a tiny
+      // fragment detached from its real endpoints on coarser intervals.
+      workspaceIncludeDrawingsInVisibleRange();
       workspaceLoadedInterval=requestInterval;workspaceLoadedWorkspaceId=requestWorkspaceId;
       updateWorkspaceDrawingScaleSeries();restoreWorkspaceDrawings();
       $("workspaceChartTicker").textContent=item.ticker+" · "+requestInterval;
@@ -1737,7 +1771,7 @@
     const index=Number(target.dataset.drawingIndex);if(!Number.isInteger(index)||!workspaceDrawings[index])return;
     event.preventDefault();event.stopPropagation();
     const rect=svg.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
-    const startTime=workspaceTimeNumber(workspaceChart.timeScale().coordinateToTime(x));
+    const startTime=workspaceTimeFromCoordinate(x);
     const startPrice=workspacePriceSeries.coordinateToPrice(y);
     workspaceSelectedDrawingIndex=index;
     workspaceDrag={index,handle:target.dataset.drawingHandle??"body",startX:x,startY:y,startTime,startPrice,original:JSON.parse(JSON.stringify(workspaceDrawings[index]))};
@@ -1748,7 +1782,7 @@
     if(!workspaceDrag)return;
     event.preventDefault();event.stopPropagation();
     const rect=$("workspaceDrawingOverlay").getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
-    const time=workspaceTimeNumber(workspaceChart.timeScale().coordinateToTime(x)),price=workspacePriceSeries.coordinateToPrice(y);
+    const time=workspaceTimeFromCoordinate(x),price=workspacePriceSeries.coordinateToPrice(y);
     if(!Number.isFinite(time)||!Number.isFinite(price))return;
     const drag=workspaceDrag,drawing=JSON.parse(JSON.stringify(drag.original)),handle=drag.handle;
     if(drawing.type==="horizontal")drawing.price=price;
