@@ -512,37 +512,27 @@
     return true;
   }
 
-  const LOWER_STUDY_PAD_BARS=3;
-  // Three synthetic lead-in bars exist only to maintain the lower panes' x-axis.
-  // Do not add the two-bar viewport offset: it makes MACD/Stoch RSI start late.
-  const LOWER_STUDY_EXTRA_HISTORY=0;
+  // All lower studies share the exact candle timestamps of the main chart.
+  // No synthetic lead-in candles or logical-index offsets: this prevents
+  // MACD/Stoch RSI from starting a few candles to the left or right.
   function syncRawChartRanges(source,range){
     if(!range||syncingTimeScales)return;
     syncingTimeScales=true;
     try{
-      const sourceIsLower=lowerCharts.includes(source);
-      const mainRange=sourceIsLower
-        ?{from:range.from-(LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY),to:range.to-LOWER_STUDY_PAD_BARS}
-        :range;
-      const targets=[chart,...lowerCharts].filter(target=>target&&target!==source);
-      targets.forEach(target=>{
-        const targetRange=target===chart?mainRange:{
-          from:mainRange.from+LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY,
-          to:mainRange.to+LOWER_STUDY_PAD_BARS
-        };
-        try{target.timeScale().setVisibleLogicalRange(targetRange);}catch{}
+      [chart,...lowerCharts].filter(target=>target&&target!==source).forEach(target=>{
+        try{target.timeScale().setVisibleLogicalRange({from:range.from,to:range.to});}catch{}
       });
     }finally{syncingTimeScales=false;}
   }
-  function indicatorLeadIn(points,fallback=50){
-    if(!Array.isArray(points)||!points.length||!bars.length)return points||[];
-    const firstTime=Number(bars[0].time),step=bars.length>1?Number(bars[1].time)-firstTime:60;
-    if(!Number.isFinite(firstTime)||!Number.isFinite(step)||step<=0)return points;
-    const firstValue=Number.isFinite(Number(points[0].value))?Number(points[0].value):fallback;
-    const prefix=Array.from({length:LOWER_STUDY_PAD_BARS},(_,index)=>({
-      time:firstTime-step*(LOWER_STUDY_PAD_BARS-index),value:firstValue
-    }));
-    return [...prefix,...points];
+  function alignStudyToMainCandles(points,fallback=50){
+    if(!bars.length)return [];
+    const byTime=new Map((Array.isArray(points)?points:[]).map(point=>[Number(point.time),point]));
+    const fallbackPoint=typeof fallback==="object"&&fallback!==null?fallback:{value:fallback};
+    return bars.map(bar=>{
+      const point=byTime.get(Number(bar.time));
+      if(point&&Number.isFinite(Number(point.value)))return {...point,time:bar.time,value:Number(point.value)};
+      return {...fallbackPoint,time:bar.time};
+    });
   }
 
   function mapBinanceInterval(interval) {
@@ -967,26 +957,26 @@
         const values=stochRsi(bars);
         const k=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:"%K"});
         const d=c.addSeries(L.LineSeries,{color:"#e9b968",lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:"%D"});
-        k.setData(indicatorLeadIn(values.k,50));d.setData(indicatorLeadIn(values.d,50));
+        k.setData(alignStudyToMainCandles(values.k,50));d.setData(alignStudyToMainCandles(values.d,50));
         k.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"80"});
         k.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"20"});
       } else if (id==="MACD") {
         const m=macd(bars);
         const h=c.addSeries(L.HistogramSeries,{priceLineVisible:false,lastValueVisible:false});
         const histogram=m.hist.map(x=>({time:x.time,value:x.value,color:x.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"}));
-        h.setData(indicatorLeadIn(histogram,0));
+        h.setData(alignStudyToMainCandles(histogram,{value:0,color:"rgba(132,157,188,.12)"}));
         const s1=c.addSeries(L.LineSeries,{color:"#62a9ff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
         const s2=c.addSeries(L.LineSeries,{color:"#f0bd62",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
-        s1.setData(indicatorLeadIn(m.line,0));s2.setData(indicatorLeadIn(m.signal,0));
+        s1.setData(alignStudyToMainCandles(m.line,0));s2.setData(alignStudyToMainCandles(m.signal,0));
       } else {
         const s=c.addSeries(L.LineSeries,{color:"#e4b86b",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
-        s.setData(indicatorLeadIn(stochastic(bars),50));
+        s.setData(alignStudyToMainCandles(stochastic(bars),50));
         s.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
         s.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
       }
       c.timeScale().subscribeVisibleLogicalRangeChange(range=>syncRawChartRanges(c,range));
       const mainRange=chart.timeScale().getVisibleLogicalRange();
-      if(mainRange){try{c.timeScale().setVisibleLogicalRange({from:mainRange.from+LOWER_STUDY_PAD_BARS-LOWER_STUDY_EXTRA_HISTORY,to:mainRange.to+LOWER_STUDY_PAD_BARS});}catch{}}
+      if(mainRange){try{c.timeScale().setVisibleLogicalRange({from:mainRange.from,to:mainRange.to});}catch{}}
     });
   }
 
