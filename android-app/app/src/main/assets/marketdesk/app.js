@@ -204,6 +204,15 @@
   let pendingReload = false;
   let symbolSearchTimer = null;
   let searchRequestId = 0;
+  const binanceLiveQuotes = new Map();
+  let binanceMarketSocket = null;
+  let binanceWantedStreams = new Set();
+  let binanceActiveStreams = new Set();
+  let binanceSocketReconnectTimer = null;
+  let binanceSocketRotationTimer = null;
+  let binanceSocketRetryDelay = 1000;
+  let binanceSocketRequestId = 1;
+  let binanceSocketLastMessageAt = 0;
 
   function instrument(id = activeSymbol) {
     return symbols.find(s => s.id === id) || null;
@@ -782,6 +791,7 @@
       color,lineWidth:width,title,priceLineVisible:false,lastValueVisible:false,
       crosshairMarkerVisible:false,lineStyle:style
     });
+    s._byboraTitle=title;
     s.setData(data.filter(p=>Number.isFinite(p.value)));
     overlaySeries.push(s);
     return s;
@@ -960,6 +970,7 @@
         const k=c.addSeries(L.LineSeries,{color:"#b48cff",lineWidth:2,priceLineVisible:false,lastValueVisible:true,title:"%K"});
         const d=c.addSeries(L.LineSeries,{color:"#e9b968",lineWidth:1,priceLineVisible:false,lastValueVisible:true,title:"%D"});
         k.setData(alignStudyToMainCandles(values.k,50));d.setData(alignStudyToMainCandles(values.d,50));
+        c._byboraLiveSeries={id,k,d};
         k.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"80"});
         k.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false,title:"20"});
       } else if (id==="MACD") {
@@ -970,9 +981,11 @@
         const s1=c.addSeries(L.LineSeries,{color:"#62a9ff",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
         const s2=c.addSeries(L.LineSeries,{color:"#f0bd62",lineWidth:1,priceLineVisible:false,lastValueVisible:false});
         s1.setData(alignStudyToMainCandles(m.line,0));s2.setData(alignStudyToMainCandles(m.signal,0));
+        c._byboraLiveSeries={id,h,s1,s2};
       } else {
         const s=c.addSeries(L.LineSeries,{color:"#e4b86b",lineWidth:2,priceLineVisible:false,lastValueVisible:true});
         s.setData(alignStudyToMainCandles(stochastic(bars),50));
+        c._byboraLiveSeries={id,s};
         s.createPriceLine({price:80,color:"rgba(255,113,134,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
         s.createPriceLine({price:20,color:"rgba(69,214,195,.55)",lineStyle:L.LineStyle.Dashed,lineWidth:1,axisLabelVisible:false});
       }
@@ -1107,6 +1120,191 @@
     saveDrawings();renderDrawingList();
     $("drawingHint").textContent="Çizim telefona kaydedildi. Yeni araç seçebilir veya grafiği kullanabilirsin.";
     document.querySelectorAll("[data-drawing]").forEach(b=>b.classList.remove("active"));
+  }
+
+  function isBinanceSpotInstrument(item){
+    return !!item&&item.type==="crypto"&&!item.provider?.startsWith("binanceFutures")&&!item.provider?.startsWith("okx")&&
+      (String(item.id||"").startsWith("BINANCE:")||item.provider==="binanceSpot"||item.exchange==="BINANCE");
+  }
+  function binanceSpotItems(){
+    const ids=[activeSymbol,...watchlist],unique=[...new Set(ids)];
+    return unique.map(id=>instrument(id)).filter(isBinanceSpotInstrument);
+  }
+  function desiredBinanceStreams(){
+    const streams=new Set();
+    for(const item of binanceSpotItems()){
+      const symbol=String(item.pair||"").toLowerCase();
+      if(!symbol)continue;
+      streams.add(symbol+"@ticker");
+      if(item.id===activeSymbol){
+        const interval=intervalBinance[activeInterval]||activeInterval;
+        streams.add(symbol+"@kline_"+interval);
+      }
+    }
+    return streams;
+  }
+  function sendBinanceSubscription(method,streams){
+    const socket=binanceMarketSocket;
+    if(!socket||socket.readyState!==window.WebSocket.OPEN||!streams.length)return false;
+    try{socket.send(JSON.stringify({method,params:streams,id:binanceSocketRequestId++}));return true;}
+    catch{return false;}
+  }
+  function scheduleBinanceReconnect(){
+    if(binanceSocketReconnectTimer||!binanceWantedStreams.size)return;
+    const delay=binanceSocketRetryDelay;
+    binanceSocketRetryDelay=Math.min(30000,binanceSocketRetryDelay*2);
+    binanceSocketReconnectTimer=setTimeout(()=>{
+      binanceSocketReconnectTimer=null;
+      if(binanceWantedStreams.size&&navigator.onLine!==false)connectBinanceMarketSocket();
+    },delay);
+  }
+  function connectBinanceMarketSocket(){
+    if(!binanceWantedStreams.size||binanceMarketSocket||!window.WebSocket)return;
+    let socket;
+    try{socket=new WebSocket("wss://stream.binance.com:9443/ws");}
+    catch{scheduleBinanceReconnect();return;}
+    binanceMarketSocket=socket;binanceActiveStreams.clear();
+    socket.onopen=()=>{
+      if(binanceMarketSocket!==socket)return;
+      binanceSocketRetryDelay=1000;
+      const streams=[...binanceWantedStreams];
+      if(sendBinanceSubscription("SUBSCRIBE",streams))streams.forEach(stream=>binanceActiveStreams.add(stream));
+      clearTimeout(binanceSocketRotationTimer);
+      // Binance Spot stream connections have a 24-hour lifetime; rotate before the server closes them.
+      binanceSocketRotationTimer=setTimeout(()=>{if(binanceMarketSocket===socket)socket.close(1000,"scheduled stream rotation");},23*60*60*1000+30*60*1000);
+      if(isBinanceSpotInstrument(instrument()))setStatus("BINANCE · BAĞLANDI","good");
+    };
+    socket.onmessage=event=>{
+      if(binanceMarketSocket!==socket)return;
+      binanceSocketLastMessageAt=Date.now();
+      let message;
+      try{message=JSON.parse(event.data);}catch{return;}
+      const payload=message?.data??message;
+      if(Array.isArray(payload)){payload.forEach(processBinanceStreamMessage);return;}
+      processBinanceStreamMessage(payload);
+    };
+    socket.onerror=()=>{try{socket.close();}catch{}};
+    socket.onclose=()=>{
+      if(binanceMarketSocket!==socket)return;
+      binanceMarketSocket=null;binanceActiveStreams.clear();
+      clearTimeout(binanceSocketRotationTimer);binanceSocketRotationTimer=null;
+      if(isBinanceSpotInstrument(instrument()))setStatus("BINANCE · YENİDEN BAĞLANIYOR","warn");
+      scheduleBinanceReconnect();
+    };
+  }
+  function syncBinanceLiveSubscriptions(){
+    binanceWantedStreams=desiredBinanceStreams();
+    if(!binanceWantedStreams.size){
+      clearTimeout(binanceSocketReconnectTimer);binanceSocketReconnectTimer=null;
+      const socket=binanceMarketSocket;binanceMarketSocket=null;binanceActiveStreams.clear();
+      clearTimeout(binanceSocketRotationTimer);binanceSocketRotationTimer=null;
+      if(socket){socket.onclose=null;try{socket.close(1000,"no Binance symbols in view");}catch{}}
+      return;
+    }
+    clearTimeout(binanceSocketReconnectTimer);binanceSocketReconnectTimer=null;
+    if(!binanceMarketSocket||binanceMarketSocket.readyState===window.WebSocket.CLOSED){connectBinanceMarketSocket();return;}
+    if(binanceMarketSocket.readyState!==window.WebSocket.OPEN)return;
+    const add=[...binanceWantedStreams].filter(stream=>!binanceActiveStreams.has(stream));
+    const remove=[...binanceActiveStreams].filter(stream=>!binanceWantedStreams.has(stream));
+    if(add.length&&sendBinanceSubscription("SUBSCRIBE",add))add.forEach(stream=>binanceActiveStreams.add(stream));
+    if(remove.length&&sendBinanceSubscription("UNSUBSCRIBE",remove))remove.forEach(stream=>binanceActiveStreams.delete(stream));
+  }
+  function findBinanceSpotByPair(pair){
+    const upper=String(pair||"").toUpperCase();
+    return symbols.find(item=>isBinanceSpotInstrument(item)&&String(item.pair||"").toUpperCase()===upper)||null;
+  }
+  function updateWatchlistQuoteRow(item,quote){
+    const row=Array.from($("watchlist").querySelectorAll(".watch-row")).find(el=>el.dataset.symbol===item.id);
+    if(!row||!quote)return;
+    const value=Number(quote.lastPrice??quote.price??quote.close);
+    const change=Number(quote.priceChangePercent??quote.changePercent??0);
+    row.querySelector("[data-quote-price]").textContent=Number.isFinite(value)?fmtPrice(value,item.decimals):"—";
+    const label=row.querySelector("[data-quote-change]");
+    label.textContent=Number.isFinite(change)?(change>=0?"+":"")+change.toFixed(2)+"%":"—";
+    label.className=change>0?"up":change<0?"down":"";
+  }
+  function processBinanceTicker(data){
+    if(!data?.s||data.e!=="24hrTicker")return;
+    const item=findBinanceSpotByPair(data.s);
+    if(!item)return;
+    const last=Number(data.c),open=Number(data.o);
+    if(!Number.isFinite(last)||!Number.isFinite(open))return;
+    const quote={
+      lastPrice:String(last),highPrice:Number(data.h),lowPrice:Number(data.l),
+      quoteVolume:Number(data.q),volume:Number(data.q),baseVolume:Number(data.v),
+      volumeCurrency:item.currency||"",priceChangePercent:Number.isFinite(Number(data.P))?Number(data.P):(open?((last/open)-1)*100:0),
+      receivedAt:Date.now()
+    };
+    binanceLiveQuotes.set(String(data.s).toUpperCase(),quote);
+    updateWatchlistQuoteRow(item,quote);
+    const active=instrument();
+    if(isBinanceSpotInstrument(active)&&active.pair===item.pair){
+      renderInstrumentHeader(active,quote,bars[bars.length-1]);
+      $("lastUpdate").textContent="Canlı veri "+fmtTime();
+      setStatus("BINANCE · CANLI","good");
+    }
+  }
+  function updateLiveOverlayAndStudies(){
+    if(!bars.length)return;
+    const last=bars[bars.length-1];
+    const updateOverlay=(title,points)=>{
+      const point=points[points.length-1],series=overlaySeries.find(item=>item._byboraTitle===title);
+      if(point&&series){try{series.update(point);}catch{}}
+    };
+    if(activeStudies.includes("EMA20"))updateOverlay("EMA 20",ema(bars,20));
+    if(activeStudies.includes("EMA50"))updateOverlay("EMA 50",ema(bars,50));
+    if(activeStudies.includes("SMA200"))updateOverlay("SMA "+overlayParams.sma,sma(bars,overlayParams.sma));
+    if(activeStudies.includes("BB")){
+      const bb=bollinger(bars,overlayParams.bb,overlayParams.deviation);
+      updateOverlay("BB Upper",bb.upper);updateOverlay("BB Mid",bb.mid);updateOverlay("BB Lower",bb.lower);
+    }
+    if(activeStudies.includes("VWAP"))updateOverlay("VWAP",vwap(bars));
+    lowerCharts.forEach(chartPanel=>{
+      const live=chartPanel._byboraLiveSeries;if(!live)return;
+      try{
+        if(live.id==="STOCHRSI"){
+          const values=stochRsi(bars);
+          live.k.update(values.k[values.k.length-1]);live.d.update(values.d[values.d.length-1]);
+        }else if(live.id==="MACD"){
+          const values=macd(bars),hist=values.hist[values.hist.length-1];
+          live.h.update({...hist,color:hist.value>=0?"rgba(53,214,160,.5)":"rgba(255,113,134,.5)"});
+          live.s1.update(values.line[values.line.length-1]);live.s2.update(values.signal[values.signal.length-1]);
+        }else if(live.id==="STOCH"){
+          const values=stochastic(bars);live.s.update(values[values.length-1]);
+        }
+      }catch{}
+    });
+    if(last)updateMarketRangeLevels();
+  }
+  function processBinanceKline(data){
+    const active=instrument();
+    if(!data?.s||data.e!=="kline"||!data.k||!isBinanceSpotInstrument(active)||String(active.pair).toUpperCase()!==String(data.s).toUpperCase())return;
+    const k=data.k,time=Math.floor(Number(k.t)/1000);
+    if(!Number.isFinite(time))return;
+    const bar={time,open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v)||0};
+    if(![bar.open,bar.high,bar.low,bar.close].every(Number.isFinite))return;
+    const previous=bars[bars.length-1];
+    const logical=chart?.timeScale().getVisibleLogicalRange();
+    const follow=!logical||logical.to>=bars.length-5;
+    if(previous&&time<previous.time)return;
+    if(previous&&time===previous.time)bars[bars.length-1]=bar;
+    else{
+      bars.push(bar);
+      if(bars.length>2000)bars.shift();
+    }
+    if(chartType==="candles"&&candleSeries)candleSeries.update({time,open:bar.open,high:bar.high,low:bar.low,close:bar.close});
+    else if(lineSeries)lineSeries.update({time,value:bar.close});
+    if(volumeSeries)volumeSeries.update({time,value:bar.volume,color:bar.close>=bar.open?"rgba(53,214,160,.28)":"rgba(255,113,134,.28)"});
+    updateLiveOverlayAndStudies();
+    if(follow&&time>Number(previous?.time||0))chart?.timeScale().scrollToRealTime();
+    const quote=binanceLiveQuotes.get(String(data.s).toUpperCase());
+    if(quote)renderInstrumentHeader(active,quote,bar);
+  }
+  function processBinanceStreamMessage(data){
+    if(!data||typeof data!=="object")return;
+    if(data.e==="24hrTicker")processBinanceTicker(data);
+    else if(data.e==="kline")processBinanceKline(data);
+    else if(data.e==="serverShutdown"){try{binanceMarketSocket?.close();}catch{}}
   }
 
   function marketProviderLabel(item){
@@ -1909,20 +2107,21 @@
       controls.forEach(btn=>btn.addEventListener("click",e=>{e.stopPropagation();moveWatchlistItem(item.id,Number(btn.dataset.move));}));host.appendChild(row);
     });
     if(!visible.length){const empty=document.createElement("div");empty.className="subtle-copy";empty.textContent="Bu kategoride izleme sembolü yok.";host.appendChild(empty);}
-    refreshWatchlistQuotes();renderWorkspaceNav();renderWatchOrderToggle();
+    refreshWatchlistQuotes();renderWorkspaceNav();renderWatchOrderToggle();syncBinanceLiveSubscriptions();
   }
   async function refreshWatchlistQuotes(){
     if(watchQuoteBusy)return;watchQuoteBusy=true;
     try{
       const items=watchlist.map(id=>instrument(id)).filter(Boolean);
       for(let i=0;i<items.length;i+=5){
-        const quotes=await Promise.all(items.slice(i,i+5).map(async item=>({item,quote:await fetchQuote(item.id).catch(()=>null)})));
-        for(const result of quotes){
-          const row=Array.from($("watchlist").querySelectorAll(".watch-row")).find(el=>el.dataset.symbol===result.item.id);if(!row||!result.quote)continue;
-          const value=Number(result.quote.lastPrice??result.quote.price??result.quote.close),change=Number(result.quote.priceChangePercent??result.quote.changePercent??0);
-          row.querySelector("[data-quote-price]").textContent=Number.isFinite(value)?fmtPrice(value,result.item.decimals):"—";
-          const label=row.querySelector("[data-quote-change]");label.textContent=Number.isFinite(change)?(change>=0?"+":"")+change.toFixed(2)+"%":"—";label.className=change>0?"up":change<0?"down":"";
-        }
+        const quotes=await Promise.all(items.slice(i,i+5).map(async item=>{
+          if(isBinanceSpotInstrument(item)){
+            const live=binanceLiveQuotes.get(String(item.pair).toUpperCase());
+            if(live&&Date.now()-live.receivedAt<15000)return {item,quote:live};
+          }
+          return {item,quote:await fetchQuote(item.id).catch(()=>null)};
+        }));
+        for(const result of quotes)if(result.quote)updateWatchlistQuoteRow(result.item,result.quote);
       }
     }finally{watchQuoteBusy=false;}
   }
@@ -2024,8 +2223,13 @@
       setStatus("GRAFİK MOTORU YOK","warn");return;
     }
     isLoading=true;
-    setMessage("Piyasa verisi getiriliyor",item.type==="bist"?"BIST mum verisi doğrulanıyor.":"Seçili sembol için mumlar yükleniyor.");
-    setStatus("VERİ YÜKLENİYOR","warn");
+    if(isBinanceSpotInstrument(item)){
+      $("chartOverlay").hidden=true;
+      setStatus(binanceMarketSocket?.readyState===window.WebSocket.OPEN?"BINANCE · CANLI":"BINANCE · BAĞLANIYOR",binanceMarketSocket?.readyState===window.WebSocket.OPEN?"good":"warn");
+    }else{
+      setMessage("Piyasa verisi getiriliyor",item.type==="bist"?"BIST mum verisi doğrulanıyor.":"Seçili sembol için mumlar yükleniyor.");
+      setStatus("VERİ YÜKLENİYOR","warn");
+    }
     $("chartSource").textContent=marketProviderLabel(item);
     $("chartTicker").textContent=item.ticker;
     try {
@@ -2050,14 +2254,15 @@
       const alignedRange=chart.timeScale().getVisibleLogicalRange();
       if(alignedRange)syncRawChartRanges(chart,alignedRange);
       updateMarketRangeLevels();
-      renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
+      const liveQuote=isBinanceSpotInstrument(item)?binanceLiveQuotes.get(String(item.pair).toUpperCase()):null;
+      renderInstrumentHeader(item,liveQuote||result.quote,bars[bars.length-1]);
       $("chartSource").textContent=marketProviderLabel(item);
       $("dataDelay").textContent=result.delay;
       $("lastUpdate").textContent="Son güncelleme "+fmtTime();
       $("chartStatusText").textContent="GRAFİK AKTİF";
       $("chartLiveStatus").classList.add("ready");
       $("chartOverlay").hidden=true;
-      setStatus(item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":item.type==="forex"?"FOREX · YAHOO":item.type==="commodity"?"EMTİA · YAHOO":item.type==="index"?"ENDEKS · YAHOO":item.provider==="binanceFutures"?"KRİPTO VADELİ · AKTİF":item.provider?.startsWith("okx")?"OKX · AKTİF":"KRİPTO · AKTİF","good");
+      setStatus(isBinanceSpotInstrument(item)?(binanceMarketSocket?.readyState===window.WebSocket.OPEN?"BINANCE · CANLI":"BINANCE · AKTİF"):item.type==="bist"?"BIST · YAHOO GECİKMELİ":item.type==="gold"?"GRAM ALTIN · HESAPLANAN REFERANS":item.type==="forex"?"FOREX · YAHOO":item.type==="commodity"?"EMTİA · YAHOO":item.type==="index"?"ENDEKS · YAHOO":item.provider==="binanceFutures"?"KRİPTO VADELİ · AKTİF":item.provider?.startsWith("okx")?"OKX · AKTİF":"KRİPTO · AKTİF","good");
       updateWatchlist();
       scheduleRefresh();
     } catch(error) {
@@ -2082,16 +2287,30 @@
 
   function scheduleRefresh() {
     clearTimeout(refreshTimer);
+    const item=instrument();
+    if(isBinanceSpotInstrument(item)){
+      refreshTimer=setTimeout(async()=>{
+        if(document.hidden){scheduleRefresh();return;}
+        const live=binanceLiveQuotes.get(String(item.pair).toUpperCase());
+        if(!live||Date.now()-live.receivedAt>12000){
+          const quote=await fetchQuote(item.id).catch(()=>null);
+          if(quote&&activeSymbol===item.id)renderInstrumentHeader(item,quote,bars[bars.length-1]);
+          await loadChart(true);
+        }else scheduleRefresh();
+      },30000);
+      return;
+    }
     refreshTimer=setTimeout(async()=>{
       if (!document.hidden) await loadChart(true);
-    }, instrument()?.type==="bist"?60000:30000);
+      else scheduleRefresh();
+    },item?.type==="bist"?60000:30000);
   }
 
   function selectInterval(interval) {
     if (!intervals.includes(interval)) return;
     activeInterval=interval;
     document.querySelectorAll("#timeframes button").forEach(b=>b.classList.toggle("active",b.dataset.interval===interval));
-    renderWorkspaceNav();
+    renderWorkspaceNav();syncBinanceLiveSubscriptions();
     loadChart();
   }
 
@@ -2461,7 +2680,9 @@
     loadMarketCatalogs().catch(()=>{});
     refreshWatchlistQuotes().catch(()=>{});
     watchQuoteTimer=setInterval(()=>refreshWatchlistQuotes().catch(()=>{}),30000);
-    document.addEventListener("visibilitychange",()=>{if(!document.hidden){loadChart();refreshWatchlistQuotes();}});
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden){syncBinanceLiveSubscriptions();loadChart();refreshWatchlistQuotes();}});
+    window.addEventListener("online",()=>{binanceSocketRetryDelay=1000;syncBinanceLiveSubscriptions();});
+    window.addEventListener("pagehide",()=>{clearTimeout(binanceSocketReconnectTimer);clearTimeout(binanceSocketRotationTimer);const socket=binanceMarketSocket;binanceMarketSocket=null;if(socket){socket.onclose=null;try{socket.close(1000,"page hidden");}catch{}}});
   }
 
   document.addEventListener("DOMContentLoaded",init);
