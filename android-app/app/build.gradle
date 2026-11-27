@@ -16,8 +16,8 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ''
-            versionNameSuffix '-debug'
+            applicationIdSuffix '.drawingtest'
+            versionNameSuffix '-drawing-test'
         }
         release {
             minifyEnabled false
