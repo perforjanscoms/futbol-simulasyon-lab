@@ -950,7 +950,7 @@
         autoSize:true,
         layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:id==="STOCHRSI"?{top:.14,bottom:.12}:{top:.08,bottom:.18}},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:id==="STOCHRSI"?{top:.17,bottom:.12}:{top:.08,bottom:.18}},
         timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
@@ -1199,10 +1199,25 @@
       let changed=false;
       for(const [symbol,list] of Object.entries(stored)){
         if(!Array.isArray(list)){delete stored[symbol];changed=true;continue;}
-        if(list.length>1){
-          const keep=list.filter(item=>item&&typeof item==="object").sort((a,b)=>(Number(b.updatedAt)||Number(b.createdAt)||0)-(Number(a.updatedAt)||Number(a.createdAt)||0))[0];
-          stored[symbol]=keep?[keep]:[];changed=true;
-        }
+        const clean=[],seenIds=new Set();
+        list.forEach((workspace,index)=>{
+          if(!workspace||typeof workspace!=="object"||typeof workspace.id!=="string"||!workspace.id||seenIds.has(workspace.id)){
+            changed=true;return;
+          }
+          seenIds.add(workspace.id);
+          const oldName=String(workspace.name||"");
+          const match=oldName.match(/Çalışma Alan(?:ım|ı)\s*\((\d+)\)/i);
+          const parsed=Number(match?.[1]);
+          const number=Number.isSafeInteger(Number(workspace.number))&&Number(workspace.number)>0
+            ?Number(workspace.number):(Number.isSafeInteger(parsed)&&parsed>0?parsed:index+1);
+          if(workspace.number!==number){workspace.number=number;changed=true;}
+          if(!oldName||/^Çalışma Alanım\s*\(/i.test(oldName)){
+            workspace.name="Çalışma Alanı ("+number+")";changed=true;
+          }
+          clean.push(workspace);
+        });
+        if(clean.length!==list.length)changed=true;
+        stored[symbol]=clean;
       }
       if(changed)localStorage.setItem(WORKSPACES_KEY,JSON.stringify(stored));
       return stored;
@@ -1217,13 +1232,14 @@
   function symbolWorkspaces(symbol=activeSymbol){return Array.isArray(workspacesBySymbol[symbol])?workspacesBySymbol[symbol]:[];}
   function activeWorkspace(){return symbolWorkspaces().find(w=>w.id===activeWorkspaceId)||null;}
   function workspaceDisplayName(workspace,index=0){
-    const match=String(workspace?.name||"").match(/Çalışma Alan(?:ım|ı)\s*\((\d+)\)/i);
-    return "Çalışma Alanı ("+(match?Number(match[1]):index+1)+")";
+    const name=String(workspace?.name||"").trim();
+    return name||"Çalışma Alanı ("+(Number(workspace?.number)||index+1)+")";
   }
   function nextWorkspaceNumber(list){
     return list.reduce((max,workspace,index)=>{
       const match=String(workspace?.name||"").match(/Çalışma Alan(?:ım|ı)\s*\((\d+)\)/i);
-      return Math.max(max,match?Number(match[1]):index+1);
+      const number=Number(workspace?.number)||Number(match?.[1])||index+1;
+      return Math.max(max,number);
     },0)+1;
   }
   function renderWorkspaceNav(){
@@ -1245,16 +1261,38 @@
       $("workspaceTitle").textContent=ws?workspaceDisplayName(ws,index):"Çalışma Alanı";
     }
   }
+  function openWorkspaceRename(){
+    const workspace=activeWorkspace();if(!workspace)return;
+    $("workspaceNameInput").value=workspace.name||workspaceDisplayName(workspace);
+    $("workspaceTitleEdit").hidden=true;
+    $("workspaceRenameForm").hidden=false;
+    $("workspaceNameInput").focus();$("workspaceNameInput").select();
+  }
+  function closeWorkspaceRename(){
+    $("workspaceRenameForm").hidden=true;
+    $("workspaceTitleEdit").hidden=false;
+  }
+  function commitWorkspaceRename(event){
+    event.preventDefault();
+    const workspace=activeWorkspace();if(!workspace)return;
+    const name=$("workspaceNameInput").value.trim().slice(0,36);
+    if(!name){toast("Çalışma alanı adı boş bırakılamaz.");$("workspaceNameInput").focus();return;}
+    workspace.name=name;workspace.updatedAt=Date.now();
+    saveWorkspaceIndex();closeWorkspaceRename();renderWorkspaceNav();
+    toast("Çalışma alanı adı güncellendi.");
+  }
   function createWorkspace(){
     const list=symbolWorkspaces();
     const id="ws-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
-    const workspace={id,name:"Çalışma Alanı ("+nextWorkspaceNumber(list)+")",symbol:activeSymbol,interval:activeInterval,chartType:"candles",drawings:[],createdAt:Date.now(),updatedAt:Date.now()};
+    const number=nextWorkspaceNumber(list);
+    const workspace={id,number,name:"Çalışma Alanı ("+number+")",symbol:activeSymbol,interval:activeInterval,chartType:"candles",drawings:[],createdAt:Date.now(),updatedAt:Date.now()};
     workspaceDraftPoints=[];workspaceSelectedDrawingIndex=-1;workspaceDrag=null;
     workspacesBySymbol[activeSymbol]=[...list,workspace];saveWorkspaceIndex();renderWorkspaceNav();openWorkspace(id);
   }
   function showRawChart(){
     workspaceLoadGeneration++;
     if(activeWorkspaceId)saveActiveWorkspace();
+    closeWorkspaceRename();
     activeWorkspaceId=null;workspaceDrawingMode=null;workspaceFirstPoint=null;workspaceDraftPoints=[];workspaceDraftDrawing=null;workspaceCreateGesture=null;
     const drawingOverlay=$("workspaceDrawingOverlay");if(drawingOverlay)drawingOverlay.classList.remove("drawing-enabled");
     $("workspacePanel").hidden=true;$("rawChartView").hidden=false;
@@ -1264,6 +1302,7 @@
   async function openWorkspace(id){
     const workspace=symbolWorkspaces().find(w=>w.id===id);if(!workspace)return;
     if(activeWorkspaceId&&activeWorkspaceId!==id)saveActiveWorkspace();
+    closeWorkspaceRename();
     activeWorkspaceId=id;workspaceInterval=workspace.interval||activeInterval;workspaceChartType=workspace.chartType||"candles";
     workspaceDrawings=Array.isArray(workspace.drawings)?workspace.drawings.map(x=>({...x})):[];workspaceDrawingMode=null;workspaceFirstPoint=null;workspaceDraftPoints=[];workspaceDraftDrawing=null;workspaceCreateGesture=null;workspaceSelectedDrawingIndex=-1;workspaceDrag=null;
     const overlay=$("workspaceDrawingOverlay");if(overlay)overlay.classList.remove("drawing-enabled");
@@ -2156,6 +2195,9 @@
     $("createWorkspaceButton").addEventListener("click",createWorkspace);
     $("workspaceBackButton").addEventListener("click",closeActiveWorkspace);
     $("workspaceSaveButton").addEventListener("click",()=>{saveActiveWorkspace();toast("Çalışma alanı kaydedildi.");});
+    $("renameWorkspaceButton").addEventListener("click",openWorkspaceRename);
+    $("workspaceRenameForm").addEventListener("submit",commitWorkspaceRename);
+    $("cancelWorkspaceRename").addEventListener("click",closeWorkspaceRename);
     $("workspaceDeleteButton").addEventListener("click",deleteActiveWorkspace);
     $("workspaceRefreshButton").addEventListener("click",loadWorkspaceChart);
     $("workspaceTimeframes").addEventListener("click",e=>{const button=e.target.closest("[data-workspace-interval]");if(!button)return;workspaceInterval=button.dataset.workspaceInterval;document.querySelectorAll("[data-workspace-interval]").forEach(b=>b.classList.toggle("active",b===button));saveActiveWorkspace();renderWorkspaceNav();loadWorkspaceChart();});
