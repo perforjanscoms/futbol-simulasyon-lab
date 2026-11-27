@@ -1396,7 +1396,7 @@
     }
     const raw=String(workspaceInterval||"15m");
     if(raw==="1M")return 30*86400;
-    const match=raw.match(/^(\\d+)(m|h|d|w)$/i);
+    const match=raw.match(/^(\d+)(m|h|d|w)$/i);
     if(!match)return 86400;
     const amount=Number(match[1]),unit=match[2].toLowerCase();
     const seconds=unit==="m"?60:unit==="h"?3600:unit==="d"?86400:604800;
