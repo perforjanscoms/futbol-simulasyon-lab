@@ -685,13 +685,15 @@
       const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)return null;
       const row=(await response.json()).data?.[0];if(!row)return null;
       const last=Number(row.last),open=Number(row.open24h);
-      return {lastPrice:String(last),highPrice:Number(row.high24h),lowPrice:Number(row.low24h),volume:Number(row.vol24h),priceChangePercent:open?((last/open)-1)*100:0};
+      const quoteVolume=Number(row.volCcy24h??row.vol24h);
+      return {lastPrice:String(last),highPrice:Number(row.high24h),lowPrice:Number(row.low24h),volume:quoteVolume,quoteVolume,volumeCurrency:item.currency||"",priceChangePercent:open?((last/open)-1)*100:0};
     }
     const base=item.provider==="binanceFutures"?BINANCE_FUTURES+"/fapi/v1/ticker/24hr":BINANCE+"/ticker/24hr";
     const url=new URL(base);url.searchParams.set("symbol",item.pair);
     const response=await fetch(url.toString(),{cache:"no-store"});if(!response.ok)return null;
     const row=await response.json();
-    return {lastPrice:row.lastPrice,highPrice:row.highPrice,lowPrice:row.lowPrice,volume:row.volume,priceChangePercent:Number(row.priceChangePercent)||0};
+    const quoteVolume=Number(row.quoteVolume),baseVolume=Number(row.volume);
+    return {lastPrice:row.lastPrice,highPrice:row.highPrice,lowPrice:row.lowPrice,volume:Number.isFinite(quoteVolume)?quoteVolume:baseVolume,quoteVolume:Number.isFinite(quoteVolume)?quoteVolume:null,baseVolume,volumeCurrency:item.currency||"",priceChangePercent:Number(row.priceChangePercent)||0};
   }
 
   async function getMarketData(item,interval){
@@ -948,7 +950,7 @@
         autoSize:true,
         layout:{background:{type:L.ColorType.Solid,color:"#0b1422"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:{top:.08,bottom:.18}},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:104,scaleMargins:id==="STOCHRSI"?{top:.14,bottom:.12}:{top:.08,bottom:.18}},
         timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:7,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
@@ -1107,12 +1109,26 @@
     document.querySelectorAll("[data-drawing]").forEach(b=>b.classList.remove("active"));
   }
 
+  function marketProviderLabel(item){
+    if(item.provider?.startsWith("binance")||item.exchange==="BINANCE"||item.exchange==="BINANCE PERP")return "Binance";
+    if(item.provider?.startsWith("okx"))return "OKX";
+    if(item.provider==="yahoo"||["bist","gold","forex","commodity","index"].includes(item.type))return "Yahoo Finance";
+    return item.exchange||"";
+  }
+  function marketDisplayTicker(item){
+    if(item.type!=="crypto"||!item.pair)return item.ticker;
+    const pair=String(item.pair).replace(/-SWAP$/,"").replace(/-/g,"");
+    const currency=item.currency||"";
+    return currency&&pair.endsWith(currency)&&pair.length>currency.length
+      ?pair.slice(0,-currency.length)+"/"+currency:item.ticker;
+  }
   function renderInstrumentHeader(item,quote,lastBar) {
     $("instrumentAvatar").textContent=item.ticker.slice(0,2);
-    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":item.type==="index"?"ABD ENDEKSLERİ":"KRİPTO · SPOT";
+    $("instrumentLabel").textContent=item.type==="bist"?"BORSA İSTANBUL · HİSSE":item.type==="gold"?"ALTIN · HESAPLANAN GRAM/TL REFERANSI":item.type==="forex"?"FOREX · DÖVİZ PARİTESİ":item.type==="commodity"?"EMTİA · VADELİ KONTRAT":item.type==="index"?"ABD ENDEKSLERİ":"KRİPTO · "+marketProviderLabel(item).toLocaleUpperCase("tr-TR");
     $("instrumentName").textContent=item.name;
     $("exchangeBadge").textContent=item.exchange;
-    $("chartTicker").textContent=item.ticker;
+    $("chartTicker").textContent=marketDisplayTicker(item);
+    $("chartSource").textContent=marketProviderLabel(item);
     const price = item.type==="bist" && quote?.price!=null ? Number(quote.price) :
       quote?.lastPrice!=null ? Number(quote.lastPrice) : lastBar?.close;
     $("lastPrice").textContent=Number.isFinite(price)?fmtPrice(price,item.decimals):"—";
@@ -1123,10 +1139,11 @@
     $("priceChange").className="quote-change"+(change>0?" up":change<0?" down":"");
     const hi = quote?.dayHigh ?? quote?.highPrice ?? quote?.high ?? lastBar?.high;
     const lo = quote?.dayLow ?? quote?.lowPrice ?? quote?.low ?? lastBar?.low;
-    const vol = quote?.volume ?? quote?.volume24h ?? lastBar?.volume;
+    const vol = quote?.quoteVolume ?? quote?.volume24h ?? quote?.volume;
     $("dayHigh").textContent=Number.isFinite(Number(hi))?fmtPrice(Number(hi),item.decimals):"—";
     $("dayLow").textContent=Number.isFinite(Number(lo))?fmtPrice(Number(lo),item.decimals):"—";
     $("dayVolume").textContent=Number.isFinite(Number(vol))?fmtCompact(Number(vol)):"—";
+    $("volumeCurrency").textContent=quote?.volumeCurrency||(item.type==="crypto"?item.currency||"":"");
     $("favoriteButton").classList.toggle("active",watchlist.includes(item.id));
     $("favoriteButton").textContent=watchlist.includes(item.id)?"★":"☆";
     document.title=item.ticker+" | BYBORA Market Desk";
@@ -1199,27 +1216,41 @@
   function saveWorkspaceIndex(){try{localStorage.setItem(WORKSPACES_KEY,JSON.stringify(workspacesBySymbol));}catch{}}
   function symbolWorkspaces(symbol=activeSymbol){return Array.isArray(workspacesBySymbol[symbol])?workspacesBySymbol[symbol]:[];}
   function activeWorkspace(){return symbolWorkspaces().find(w=>w.id===activeWorkspaceId)||null;}
+  function workspaceDisplayName(workspace,index=0){
+    const match=String(workspace?.name||"").match(/Çalışma Alan(?:ım|ı)\s*\((\d+)\)/i);
+    return "Çalışma Alanı ("+(match?Number(match[1]):index+1)+")";
+  }
+  function nextWorkspaceNumber(list){
+    return list.reduce((max,workspace,index)=>{
+      const match=String(workspace?.name||"").match(/Çalışma Alan(?:ım|ı)\s*\((\d+)\)/i);
+      return Math.max(max,match?Number(match[1]):index+1);
+    },0)+1;
+  }
   function renderWorkspaceNav(){
     const host=$("workspaceTabs");if(!host)return;host.innerHTML="";
-    const list=symbolWorkspaces().slice(0,1);
-    list.forEach(workspace=>{
+    const list=symbolWorkspaces();
+    list.forEach((workspace,index)=>{
+      const label=workspaceDisplayName(workspace,index);
+      if(workspace.name!==label)workspace.name=label;
       const button=document.createElement("button");button.type="button";button.className="chart-mode-tab"+(workspace.id===activeWorkspaceId?" active":"");
-      button.textContent="Çalışma Alanıma Geç (1)";
+      button.textContent=label;button.title=label;
       button.addEventListener("click",()=>openWorkspace(workspace.id));host.appendChild(button);
     });
     $("rawChartMode").classList.toggle("active",!activeWorkspaceId);
     const createButton=$("createWorkspaceButton");
     createButton.textContent="Çalışma Alanı Oluştur";
-    createButton.hidden=list.length>=1;
-    if(activeWorkspaceId){const ws=activeWorkspace();$("workspaceTitle").textContent=ws?.name||"Çalışma Alanım (1)";}
+    createButton.hidden=false;
+    if(activeWorkspaceId){
+      const ws=activeWorkspace(),index=list.findIndex(item=>item.id===activeWorkspaceId);
+      $("workspaceTitle").textContent=ws?workspaceDisplayName(ws,index):"Çalışma Alanı";
+    }
   }
   function createWorkspace(){
     const list=symbolWorkspaces();
-    if(list.length){openWorkspace(list[0].id);return;}
     const id="ws-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
-    const workspace={id,name:"Çalışma Alanım (1)",symbol:activeSymbol,interval:activeInterval,chartType:"candles",drawings:[],createdAt:Date.now(),updatedAt:Date.now()};
+    const workspace={id,name:"Çalışma Alanı ("+nextWorkspaceNumber(list)+")",symbol:activeSymbol,interval:activeInterval,chartType:"candles",drawings:[],createdAt:Date.now(),updatedAt:Date.now()};
     workspaceDraftPoints=[];workspaceSelectedDrawingIndex=-1;workspaceDrag=null;
-    workspacesBySymbol[activeSymbol]=[workspace];saveWorkspaceIndex();renderWorkspaceNav();openWorkspace(id);
+    workspacesBySymbol[activeSymbol]=[...list,workspace];saveWorkspaceIndex();renderWorkspaceNav();openWorkspace(id);
   }
   function showRawChart(){
     workspaceLoadGeneration++;
@@ -1956,7 +1987,7 @@
     isLoading=true;
     setMessage("Piyasa verisi getiriliyor",item.type==="bist"?"BIST mum verisi doğrulanıyor.":"Seçili sembol için mumlar yükleniyor.");
     setStatus("VERİ YÜKLENİYOR","warn");
-    $("chartSource").textContent=item.type==="bist"?"Yahoo Finance · "+item.ticker+".IS":item.type==="gold"?"Yahoo Finance · GC=F × USDTRY=X":item.provider==="yahoo"?"Yahoo Finance · "+item.pair:item.provider==="okxSpot"||item.provider==="okxSwap"?"OKX":"Binance";
+    $("chartSource").textContent=marketProviderLabel(item);
     $("chartTicker").textContent=item.ticker;
     try {
       const result=await getMarketData(item,activeInterval);
@@ -1981,7 +2012,7 @@
       if(alignedRange)syncRawChartRanges(chart,alignedRange);
       updateMarketRangeLevels();
       renderInstrumentHeader(item,result.quote,bars[bars.length-1]);
-      $("chartSource").textContent=result.source;
+      $("chartSource").textContent=marketProviderLabel(item);
       $("dataDelay").textContent=result.delay;
       $("lastUpdate").textContent="Son güncelleme "+fmtTime();
       $("chartStatusText").textContent="GRAFİK AKTİF";
@@ -2140,6 +2171,7 @@
       const deck=b.dataset.deck;
       document.querySelectorAll("[data-deck]").forEach(x=>x.classList.toggle("active",x===b));
       $("indicatorDeck").hidden=deck!=="indicators";$("drawingDeck").hidden=deck!=="drawings";$("layoutDeck").hidden=deck!=="layouts";
+      $("indicatorButton").classList.toggle("active",deck==="indicators");
     }));
     document.querySelectorAll("[data-drawing]").forEach(b=>b.addEventListener("click",()=>beginDrawing(b.dataset.drawing)));
     $("candlesButton").addEventListener("click",()=>setChartType("candles"));
@@ -2149,7 +2181,13 @@
       if(workspaces.length)openWorkspace(workspaces[workspaces.length-1].id);
       else createWorkspace();
     });
-    $("indicatorButton").addEventListener("click",()=>document.querySelector('[data-deck="indicators"]').click());
+    $("indicatorButton").addEventListener("click",()=>{
+      const panel=$("indicatorDeck"),opening=panel.hidden;
+      panel.hidden=!opening;
+      if(opening){$("drawingDeck").hidden=true;$("layoutDeck").hidden=true;}
+      document.querySelectorAll("[data-deck]").forEach(button=>button.classList.toggle("active",opening&&button.dataset.deck==="indicators"));
+      $("indicatorButton").classList.toggle("active",opening);
+    });
     $("layoutButton").addEventListener("click",()=>document.querySelector('[data-deck="layouts"]').click());
     $("refreshButton").addEventListener("click",()=>loadChart());
     $("saveLayout").addEventListener("click",saveLayout);
