@@ -1239,3 +1239,49 @@ html,body,.app-shell{background:#05070b!important}
 @media(max-width:760px){.topbar{height:52px!important;flex-basis:52px!important;}}
 /* Add a little breathing room over the rightmost price label and below 24h volume. */
 .quote-volume{display:inline-block!important;margin-bottom:2px!important;}
+
+
+/* PR20: ticker and candle close share one aligned top line. */
+#chartContainer>.chart-topline{
+  position:absolute!important;z-index:7!important;top:5px!important;left:7px!important;right:7px!important;
+  display:flex!important;align-items:center!important;justify-content:space-between!important;
+  gap:8px!important;width:auto!important;min-width:0!important;margin:0!important;padding:0!important;
+  pointer-events:none!important;overflow:visible!important;
+}
+#chartContainer>.chart-topline>.chart-symbol-line{
+  position:static!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  flex:0 1 auto!important;width:auto!important;height:14px!important;min-height:14px!important;
+  margin:0!important;padding:0!important;overflow:visible!important;pointer-events:none!important;
+}
+#chartContainer .chart-symbol-line>.chart-market-identity{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  flex:0 1 auto!important;width:auto!important;min-width:0!important;max-width:100%!important;overflow:visible!important;
+}
+#chartContainer .chart-market-title{display:flex!important;align-items:center!important;gap:4px!important;white-space:nowrap!important}
+#chartContainer .chart-symbol-dot{
+  display:inline-block!important;width:5px!important;height:5px!important;flex:0 0 5px!important;
+  border-radius:50%!important;background:#45d6a0!important;
+  box-shadow:0 0 6px rgba(69,214,160,.55)!important;
+}
+#chartContainer #chartTicker{font-size:8px!important;color:#cbd8e8!important}
+#chartContainer #chartSource{margin:0!important;font-size:7px!important;color:#9fd7cc!important}
+#chartContainer .candle-countdown{
+  position:static!important;top:auto!important;left:auto!important;right:auto!important;
+  flex:0 0 auto!important;min-width:0!important;margin:0 0 0 auto!important;
+  padding:1px 3px!important;align-items:flex-end!important;text-align:right!important;
+}
+/* Reset-scale control sits at the extreme right of the chart toolbar. */
+#resetPriceScaleButton{flex:0 0 23px!important;width:23px!important;min-width:23px!important;padding:0!important;font-size:12px!important;color:#9db2c9!important}
+#resetPriceScaleButton:active{background:rgba(69,214,195,.12)!important;color:#8be8da!important}
+/* Tighten the action-bar area beneath the favourite and alert icons slightly. */
+@media(max-width:760px){.topbar{height:50px!important;flex-basis:50px!important;}}
+/* A touch more clearance above the rightmost price labels and below 24h volume. */
+.quote-volume{margin-bottom:4px!important;}
+@media(max-width:760px){
+  #chartContainer>.chart-topline{top:4px!important;left:6px!important;right:6px!important}
+  #chartContainer .chart-market-title{gap:3px!important}
+  #chartContainer #chartTicker{font-size:7.5px!important}
+  #chartContainer #chartSource{font-size:6.5px!important}
+  #chartContainer .candle-countdown{padding:1px 2px!important}
+  #resetPriceScaleButton{flex-basis:21px!important;width:21px!important;min-width:21px!important;font-size:11px!important}
+}
