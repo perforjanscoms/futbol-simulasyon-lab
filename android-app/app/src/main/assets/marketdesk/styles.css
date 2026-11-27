@@ -1030,3 +1030,61 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
 /* Ensure the old high-specificity PR12 selectors cannot reintroduce the two gaps. */
 .chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces{gap:0!important}
 .chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces:empty{display:none!important}
+
+
+/* PR14 — deeper near-black chart canvas and quieter gridlines. */
+:root{
+  --bg:#05070b;
+  --panel:#090d13;
+  --panel2:#0d131b;
+  --panel3:#141c27;
+}
+html,body,.app-shell{background:#05070b!important}
+.app-shell{
+  background:radial-gradient(ellipse at 40% -30%,rgba(30,75,91,.075),transparent 48%),#05070b!important;
+}
+.market-sidebar{background:linear-gradient(180deg,#090e15,#06090e)!important}
+.main-area{background:#05070b!important}
+.chart-container,.lower-chart-wrap,.lower-indicator-chart,
+.workspace-chart-container,.workspace-price-chart{
+  background:#070a0f!important;
+}
+.lower-chart-wrap{
+  border-color:rgba(115,135,160,.09)!important;
+}
+.chart-container{border-color:rgba(115,135,160,.10)!important}
+.workspace-panel{background:rgba(7,11,16,.82)!important;border-color:rgba(115,135,160,.10)!important}
+
+/* 24-hour high / low get one step more emphasis; quote volume sits directly beneath. */
+.instrument-bar{min-height:62px!important}
+.quote-strip{gap:3px!important}
+.quote-details{
+  display:flex!important;flex-direction:column!important;align-items:flex-end!important;
+  justify-content:center!important;gap:3px!important;margin:0!important;
+  font-size:10.5px!important;line-height:1.15!important;
+}
+.quote-extremes{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.quote-extremes>span{font-size:10px!important;color:#9aaabd!important}
+.quote-extremes b{font-size:11px!important;color:#d3deeb!important;font-weight:600!important}
+.quote-volume{
+  display:block!important;margin:0!important;color:#8294a9!important;
+  font:500 8px 'DM Sans',monospace!important;line-height:1.1!important;
+}
+.quote-volume b{color:#b7c8dc!important;font:600 8.3px 'DM Sans',monospace!important}
+.quote-volume span{color:#8ea4ba!important;font-size:7.7px!important}
+@media(max-width:760px){
+  .instrument-bar{min-height:60px!important}
+  .quote-details{gap:2px!important;font-size:9.8px!important}
+  .quote-extremes{gap:7px}
+  .quote-extremes>span{font-size:9.2px!important}
+  .quote-extremes b{font-size:10px!important}
+  .quote-volume{font-size:7.1px!important}
+  .quote-volume b{font-size:7.4px!important}
+  .quote-volume span{font-size:7px!important}
+}
+
+/* Keep the ticker / venue together without a second volume row in the chart ribbon. */
+.chart-market-identity{gap:1px!important}
+.chart-market-title{gap:4px!important}
+.chart-market-title #chartTicker{color:#dce7f4!important}
+.chart-market-title #chartSource{color:#9fd7cc!important}
