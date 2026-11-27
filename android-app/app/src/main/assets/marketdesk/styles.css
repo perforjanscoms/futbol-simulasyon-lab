@@ -1189,3 +1189,10 @@ html,body,.app-shell{background:#05070b!important}
 /* A small amount of extra room for the two lower indicators. */
 .lower-chart-wrap.stoch-rsi-chart-wrap{height:101px!important;flex:0 0 101px!important}
 .lower-chart-wrap.macd-chart-wrap{height:117px!important;flex:0 0 117px!important}
+
+
+/* PR16: keep the candle-close countdown off the right price axis. */
+.candle-countdown{
+  left:7px!important;right:auto!important;
+  align-items:flex-start!important;text-align:left!important;
+}
