@@ -503,7 +503,7 @@
         vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
         horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
       },
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.10,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.12,bottom:.18}},
       timeScale:{
         borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
         rightOffset:0,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
@@ -2321,6 +2321,22 @@
     loadChart();
   }
 
+  function resetMainChartView(){
+    if(!chart)return;
+    try{
+      // Match a double-click on the right price scale: reset vertical autoscaling
+      // without fitting the entire candle history into the horizontal viewport.
+      chart.priceScale("right").applyOptions({autoScale:true});
+      chart.timeScale().scrollToRealTime();
+      updateMarketRangeLevels();
+    }catch(error){
+      console.warn("Grafik ölçeği sıfırlanamadı:",error);
+      toast("Grafik ölçeği şu anda sıfırlanamadı.");
+      return;
+    }
+    toast("Grafik görünümü varsayılan ölçeğe döndürüldü.");
+  }
+
   function setChartType(type) {
     if (type===chartType) return;
     chartType=type;
@@ -2458,6 +2474,7 @@
     });
     $("layoutButton").addEventListener("click",()=>document.querySelector('[data-deck="layouts"]').click());
     $("refreshButton").addEventListener("click",()=>loadChart());
+    $("resetPriceScaleButton").addEventListener("click",resetMainChartView);
     $("saveLayout").addEventListener("click",saveLayout);
     $("saveState").addEventListener("click",()=>{saveStudies();saveDrawings();toast("Grafik ayarları otomatik kaydedildi.");});
     $("applyMacdParams").addEventListener("click",applyMacdParams);
