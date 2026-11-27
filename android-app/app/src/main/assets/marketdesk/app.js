@@ -503,7 +503,7 @@
         vertLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"},
         horzLine:{color:"rgba(113,177,221,.38)",width:1,style:L.LineStyle.Dashed,labelBackgroundColor:"#25435f"}
       },
-      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.08,bottom:.18}},
+      rightPriceScale:{borderColor:"rgba(145,170,199,.18)",autoScale:true,minimumWidth:68,scaleMargins:{top:.10,bottom:.18}},
       timeScale:{
         borderColor:"rgba(145,170,199,.18)",timeVisible:true,secondsVisible:false,
         rightOffset:0,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false
@@ -960,7 +960,7 @@
         autoSize:true,
         layout:{background:{type:L.ColorType.Solid,color:"#070a0f"},textColor:"#7f93aa",fontFamily:"DM Sans,sans-serif",fontSize:10},
         grid:{vertLines:{color:"rgba(132,157,188,.035)"},horzLines:{color:"rgba(132,157,188,.06)"}},
-        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:68,scaleMargins:id==="STOCHRSI"?{top:.23,bottom:.12}:id==="MACD"?{top:.11,bottom:.18}:{top:.08,bottom:.18}},
+        rightPriceScale:{borderColor:"rgba(145,170,199,.13)",autoScale:true,minimumWidth:68,scaleMargins:id==="STOCHRSI"?{top:.23,bottom:.12}:id==="MACD"?{top:.08,bottom:.18}:{top:.08,bottom:.18}},
         timeScale:{visible:false,borderColor:"rgba(145,170,199,.1)",rightOffset:0,barSpacing:7,minBarSpacing:.5,fixLeftEdge:false},
         crosshair:{mode:L.CrosshairMode.Normal}
       });
