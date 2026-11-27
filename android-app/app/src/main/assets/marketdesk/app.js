@@ -1202,7 +1202,7 @@
   let workspacesBySymbol=loadWorkspaces();
   let activeWorkspaceId=null,workspaceChart=null,workspacePriceSeries=null,workspaceVolumeSeries=null;
   let workspaceChartType="candles",workspaceBars=[],workspaceDrawingMode=null,workspaceFirstPoint=null,workspaceDrawings=[],workspaceRuntime=[];
-  let workspaceInterval="15m",workspaceLoadBusy=false,workspaceLoadGeneration=0;
+  let workspaceInterval="15m",workspaceLoadBusy=false,workspaceLoadGeneration=0,workspaceLoadedInterval=null,workspaceLoadedWorkspaceId=null;
   let workspaceDraftPoints=[],workspaceDrag=null,workspaceCreateGesture=null,workspaceDraftDrawing=null,workspaceSelectedDrawingIndex=-1,workspaceOverlayResizeObserver=null;
   function saveWorkspaceIndex(){try{localStorage.setItem(WORKSPACES_KEY,JSON.stringify(workspacesBySymbol));}catch{}}
   function symbolWorkspaces(symbol=activeSymbol){return Array.isArray(workspacesBySymbol[symbol])?workspacesBySymbol[symbol]:[];}
@@ -1504,28 +1504,6 @@
     workspaceSvg("circle",{cx:x,cy:y,r:10,fill:"#ffffff",opacity:.012,stroke:"none","pointer-events":"all"},index,handle);
     workspaceSvg("circle",{cx:x,cy:y,r:3.5,fill:"#13253a",stroke:"#f3c976","stroke-width":1.2,"vector-effect":"non-scaling-stroke","pointer-events":"none"},null);
   }
-  // Keep short trend segments readable on coarse timeframes without changing
-  // their saved timestamp/price anchors. This is a display-only projection.
-  function workspaceTrendDisplayCoordinates(coords){
-    if(!Array.isArray(coords)||coords.length<2||!coords[0]||!coords[1])return coords;
-    const interval=workspaceNominalBarInterval(workspaceBars);
-    if(!Number.isFinite(interval)||interval<3600)return coords;
-    const scale=workspaceChart?.timeScale();
-    if(!scale||typeof scale.logicalToCoordinate!=="function")return coords;
-    const x0=scale.logicalToCoordinate(0),x1=scale.logicalToCoordinate(1);
-    const barWidth=Math.abs(x1-x0);
-    if(!Number.isFinite(barWidth)||barWidth<=0)return coords;
-    const minimumWidth=Math.max(18,barWidth*2);
-    const a=coords[0],b=coords[1],dx=b.x-a.x;
-    if(!Number.isFinite(dx)||Math.abs(dx)>=minimumWidth)return coords;
-    const direction=dx<0?-1:1;
-    const adjusted=coords.slice();
-    // Keep the second anchor fixed and move only the rendered first endpoint.
-    // The underlying drawing points remain untouched and are restored on lower TFs.
-    adjusted[0]={...a,x:b.x-direction*minimumWidth};
-    return adjusted;
-  }
-
   function renderWorkspaceDrawingOverlay(){
     const svg=$("workspaceDrawingOverlay"),container=$("workspaceChartContainer");
     if(!svg||!container||!workspaceChart||!workspacePriceSeries)return;
@@ -1534,8 +1512,7 @@
     const renderList=workspaceDraftDrawing?[...workspaceDrawings,workspaceDraftDrawing]:workspaceDrawings;
     renderList.forEach((drawing,index)=>{
       const draft=index>=workspaceDrawings.length,drawIndex=draft?null:index;
-      const color=drawing.color||"#e8bd68",points=Array.isArray(drawing.points)?drawing.points:[],rawCoords=points.map(workspaceDrawingPoint);
-      const coords=drawing.type==="trend"?workspaceTrendDisplayCoordinates(rawCoords):rawCoords;
+      const color=drawing.color||"#e8bd68",points=Array.isArray(drawing.points)?drawing.points:[],coords=points.map(workspaceDrawingPoint);
       if(drawing.type==="horizontal"){
         const y=workspacePriceSeries.priceToCoordinate(Number(drawing.price));if(!Number.isFinite(y))return;
         workspaceAddLine(0,y,width,y,drawIndex,"body",color,1.1);
@@ -1604,6 +1581,20 @@
   async function loadWorkspaceChart(){
     const workspace=activeWorkspace();if(!workspace)return;
     const requestId=++workspaceLoadGeneration,requestWorkspaceId=workspace.id,requestInterval=workspaceInterval;
+    // Capture the visible date window before replacing the bars. Re-fitting all
+    // history on every timeframe switch zoomed the chart out by years and made
+    // recent drawings collapse against the far-right edge.
+    let previousTimeRange=null;
+    if(workspaceChart&&workspaceBars.length&&workspaceLoadedWorkspaceId===requestWorkspaceId){
+      try{
+        const visible=workspaceChart.timeScale().getVisibleLogicalRange();
+        if(visible){
+          const from=workspaceTimeForLogicalIndex(visible.from,workspaceBars);
+          const to=workspaceTimeForLogicalIndex(visible.to,workspaceBars);
+          if(Number.isFinite(from)&&Number.isFinite(to)&&to>from)previousTimeRange={from,to};
+        }
+      }catch{}
+    }
     workspaceLoadBusy=true;$("workspaceChartStatus").textContent="VERİ YÜKLENİYOR";
     try{
       ensureWorkspaceChart();
@@ -1611,7 +1602,18 @@
       const result=await getMarketData(item,requestInterval);
       if(requestId!==workspaceLoadGeneration||activeWorkspaceId!==requestWorkspaceId||workspaceInterval!==requestInterval)return;
       workspaceBars=result.bars;if(!workspaceBars.length)throw new Error("Seçili zaman diliminde mum verisi bulunamadı.");
-      createWorkspacePriceSeries();workspaceChart.timeScale().fitContent();updateWorkspaceDrawingScaleSeries();restoreWorkspaceDrawings();
+      createWorkspacePriceSeries();
+      let viewportRestored=false;
+      if(previousTimeRange){
+        const from=workspaceLogicalIndexForTime(previousTimeRange.from,workspaceBars);
+        const to=workspaceLogicalIndexForTime(previousTimeRange.to,workspaceBars);
+        if(Number.isFinite(from)&&Number.isFinite(to)&&to>from){
+          try{workspaceChart.timeScale().setVisibleLogicalRange({from,to});viewportRestored=true;}catch{}
+        }
+      }
+      if(!viewportRestored)workspaceChart.timeScale().fitContent();
+      workspaceLoadedInterval=requestInterval;workspaceLoadedWorkspaceId=requestWorkspaceId;
+      updateWorkspaceDrawingScaleSeries();restoreWorkspaceDrawings();
       $("workspaceChartTicker").textContent=item.ticker+" · "+requestInterval;
       $("workspaceChartSource").textContent=result.source+" · "+result.delay;
       $("workspaceChartStatus").textContent="ÇALIŞMA ALANI AKTİF";
