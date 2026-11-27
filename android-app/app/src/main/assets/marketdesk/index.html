@@ -93,9 +93,11 @@
           </div>
           <div class="quote-strip">
             <div class="quote-main"><strong id="lastPrice">—</strong><span id="priceChange" class="quote-change">—</span></div>
+            <div class="quote-high">
+              <span>24S Yüksek <b id="dayHigh">—</b></span>
+            </div>
             <div class="quote-details">
               <div class="quote-extremes">
-                <span>24S Yüksek <b id="dayHigh">—</b></span>
                 <span>24S Düşük <b id="dayLow">—</b></span>
               </div>
               <small class="quote-volume">24S Hacim <b id="dayVolume">—</b> <span id="volumeCurrency">USDT</span></small>
@@ -105,6 +107,16 @@
         <div id="rawChartView" class="raw-chart-view">
 
         <section class="chart-workspace" id="chartWorkspace">
+          <div class="chart-symbol-line">
+            <div class="chart-market-identity">
+              <div class="chart-market-title">
+                <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
+                <span id="chartTicker">BTC/USDT</span>
+                <span class="chart-source" id="chartSource">Binance</span>
+              </div>
+            </div>
+          </div>
+
           <div class="chart-toolbar">
             <div class="timeframe-group" id="timeframes">
               <button data-interval="1m">1m</button>
@@ -128,18 +140,11 @@
             </div>
           </div>
 
-          <div class="chart-symbol-line">
+          <div class="chart-mode-row">
             <div class="chart-mode-tabs" aria-label="Grafik alanı seçimi">
               <button class="chart-mode-tab active" id="rawChartMode" type="button">Ham Grafik</button>
               <div class="chart-mode-workspaces" id="workspaceTabs"></div>
               <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
-            </div>
-            <div class="chart-market-identity">
-              <div class="chart-market-title">
-                <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
-                <span id="chartTicker">BTC/USDT</span>
-                <span class="chart-source" id="chartSource">Binance</span>
-              </div>
             </div>
           </div>
 
