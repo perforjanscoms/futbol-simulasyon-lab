@@ -1161,7 +1161,7 @@
   function connectBinanceMarketSocket(){
     if(!binanceWantedStreams.size||binanceMarketSocket||!window.WebSocket)return;
     let socket;
-    try{socket=new WebSocket("wss://stream.binance.com:9443/ws");}
+    try{socket=new WebSocket("wss://stream.binance.com:443/ws");}
     catch{scheduleBinanceReconnect();return;}
     binanceMarketSocket=socket;binanceActiveStreams.clear();
     socket.onopen=()=>{
