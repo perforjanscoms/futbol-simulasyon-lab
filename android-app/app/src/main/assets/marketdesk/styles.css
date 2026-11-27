@@ -1346,3 +1346,14 @@ html,body,.app-shell{background:#05070b!important}
   .chart-mode-row .chart-mode-workspaces{display:contents!important}
   .topbar-actions{transform:translateY(2px)!important}
 }
+
+
+/* PR23: compact mobile quote typography and reclaim excess right-axis space. */
+@media(max-width:760px){
+  .quote-main{gap:5px!important;align-items:baseline!important}
+  .quote-main strong{
+    font-size:12.5px!important;line-height:1.1!important;letter-spacing:-.02em!important;
+    font-weight:650!important;font-variant-numeric:tabular-nums!important;
+  }
+  .quote-change{font-size:8px!important;line-height:1.1!important}
+}
