@@ -96,7 +96,6 @@
             <div class="quote-details">
               <span>24s Yüksek <b id="dayHigh">—</b></span>
               <span>24s Düşük <b id="dayLow">—</b></span>
-              <span>Hacim <b id="dayVolume">—</b></span>
             </div>
           </div>
         </section>
@@ -132,9 +131,14 @@
               <div class="chart-mode-workspaces" id="workspaceTabs"></div>
               <button class="chart-mode-create" id="createWorkspaceButton" type="button">Çalışma Alanı Oluştur</button>
             </div>
-            <span id="chartTicker">BTCUSDT</span>
-            <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
-            <span class="chart-source" id="chartSource">Binance public market data</span>
+            <div class="chart-market-identity">
+              <div class="chart-market-title">
+                <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
+                <span id="chartTicker">BTC/USDT</span>
+                <span class="chart-source" id="chartSource">Binance</span>
+              </div>
+              <small class="chart-market-volume">24S Hacim <b id="dayVolume">—</b> <span id="volumeCurrency">USDT</span></small>
+            </div>
           </div>
 
           <div class="chart-container" id="chartContainer">
