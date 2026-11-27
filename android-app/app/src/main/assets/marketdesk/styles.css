@@ -925,3 +925,103 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--teal);outline-o
   .chart-market-volume{font-size:6px}
   .chart-market-volume b,.chart-market-volume span{font-size:6.3px}
 }
+
+
+/* PR13 — remove unused gaps and reclaim vertical chart space. */
+@media(max-width:760px){
+  .topbar .brand{margin-left:6px!important}
+}
+.instrument-bar{min-height:52px!important}
+@media(max-width:760px){
+  .instrument-bar{min-height:50px!important}
+}
+.chart-toolbar{
+  height:31px!important;flex:0 0 31px!important;min-height:31px!important;
+  gap:2px!important;padding:0!important;margin:0!important;
+}
+.timeframe-group{gap:0!important;align-self:center!important}
+.timeframe-group button{
+  min-width:26px!important;height:21px!important;min-height:21px!important;
+  padding:0 3px!important;font-size:7.6px!important;line-height:19px!important;
+}
+.chart-tools{gap:0!important}
+.chart-tools .tool-button{
+  min-width:23px!important;width:23px!important;height:21px!important;min-height:21px!important;
+  padding:0 2px!important;font-size:9.5px!important;line-height:19px!important;
+}
+.chart-tools .tool-separator{margin:0 1px!important;height:12px!important}
+.chart-symbol-line{
+  height:29px!important;flex:0 0 29px!important;min-height:29px!important;
+  margin:0!important;padding:0!important;gap:2px!important;
+}
+.chart-symbol-line>.chart-mode-tabs{
+  height:27px!important;min-height:27px!important;gap:0!important;
+  flex-basis:64%!important;max-width:64%!important;margin:0!important;padding:0!important;
+}
+.chart-mode-workspaces{gap:0!important}
+.chart-mode-workspaces:empty{display:none!important}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-tab,
+.chart-symbol-line>.chart-mode-tabs .chart-mode-create{
+  min-height:18px!important;height:18px!important;padding:0 3px!important;margin:0!important;
+  font-size:6.1px!important;line-height:16px!important;border-radius:3px!important;
+}
+.chart-symbol-line>.chart-mode-tabs .chart-mode-workspaces .chart-mode-tab{padding-left:3px!important;padding-right:3px!important}
+.chart-symbol-line>.chart-market-identity{
+  flex-basis:36%!important;max-width:36%!important;min-width:88px!important;
+  gap:0!important;justify-content:center!important;
+}
+.chart-market-title{gap:2px!important}
+.chart-market-title #chartTicker{font-size:7.4px!important}
+.chart-market-title #chartSource{font-size:6.2px!important}
+.chart-market-volume{font-size:5.8px!important;line-height:1.05!important}
+.chart-market-volume b,.chart-market-volume span{font-size:6px!important}
+@media(max-width:760px){
+  .chart-toolbar{height:28px!important;flex-basis:28px!important;min-height:28px!important}
+  .timeframe-group button{
+    min-width:24px!important;height:19px!important;min-height:19px!important;
+    padding:0 2px!important;font-size:7px!important;line-height:17px!important;
+  }
+  .chart-tools .tool-button{
+    min-width:21px!important;width:21px!important;height:19px!important;min-height:19px!important;
+    padding:0 1px!important;font-size:9px!important;line-height:17px!important;
+  }
+  .chart-symbol-line{height:27px!important;flex-basis:27px!important;min-height:27px!important}
+  .chart-symbol-line>.chart-mode-tabs{height:25px!important;min-height:25px!important;flex-basis:63%!important;max-width:63%!important}
+  .chart-symbol-line>.chart-mode-tabs .chart-mode-tab,
+  .chart-symbol-line>.chart-mode-tabs .chart-mode-create{
+    min-height:17px!important;height:17px!important;padding:0 2px!important;
+    font-size:5.7px!important;line-height:15px!important;
+  }
+  .chart-symbol-line>.chart-market-identity{flex-basis:37%!important;max-width:37%!important;min-width:86px!important}
+  .chart-market-title #chartTicker{font-size:7px!important}
+  .chart-market-title #chartSource{font-size:5.9px!important;max-width:56px!important}
+  .chart-market-volume,.chart-market-volume b,.chart-market-volume span{font-size:5.7px!important}
+}
+
+/* Workspace names remain editable after creation. */
+.workspace-title-edit{display:flex;align-items:center;gap:5px;min-width:0}
+.workspace-title-edit h2{margin:0!important}
+.workspace-rename-trigger{
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 23px;
+  width:23px;height:23px;padding:0;border:1px solid var(--line2);border-radius:5px;
+  background:rgba(255,255,255,.025);color:#9bb0c8;font-size:12px;line-height:1;
+}
+.workspace-rename-form{display:flex;align-items:center;gap:4px;max-width:100%;margin:2px 0}
+.workspace-rename-form[hidden]{display:none!important}
+.workspace-rename-form input{
+  width:min(190px,48vw);min-width:110px;height:25px;padding:0 7px;
+  border:1px solid var(--line2);border-radius:5px;background:#091321;color:var(--text);
+  font:500 9px 'DM Sans',sans-serif;
+}
+.workspace-rename-form button{
+  height:25px;padding:0 7px;border:1px solid var(--line2);border-radius:5px;
+  background:rgba(69,214,195,.08);color:#c6e8e1;font-size:8px;
+}
+.workspace-rename-form button#cancelWorkspaceRename{width:25px;padding:0;background:transparent;color:#a8b7c9;font-size:14px}
+@media(max-width:700px){
+  .workspace-panel-heading{align-items:flex-start;gap:6px}
+  .workspace-panel-heading h2{font-size:13px}
+  .workspace-rename-trigger{width:21px;height:21px;flex-basis:21px}
+  .workspace-panel-actions{gap:4px}
+  .workspace-panel-actions button{min-height:27px;padding:0 7px;font-size:7px}
+}
