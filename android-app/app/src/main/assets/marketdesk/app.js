@@ -1257,6 +1257,7 @@
     });
     workspaceChart.subscribeClick(onWorkspaceChartClick);
     workspaceChart.timeScale().subscribeVisibleLogicalRangeChange(()=>renderWorkspaceDrawingOverlay());
+    workspaceChart.subscribeCrosshairMove(()=>renderWorkspaceDrawingOverlay());
     if(overlay){
       overlay.addEventListener("pointerdown",startWorkspaceDrawingDrag);
       overlay.addEventListener("pointermove",moveWorkspaceDrawingDrag);
@@ -1288,6 +1289,35 @@
     if(typeof time==="number")return time;
     if(time&&typeof time==="object"&&Number.isFinite(Number(time.year)))return Math.floor(Date.UTC(Number(time.year),Number(time.month)-1,Number(time.day))/1000);
     const parsed=Number(time);return Number.isFinite(parsed)?parsed:NaN;
+  }
+  function workspaceMedianBarSeconds(){
+    const bars=workspaceBars||[],deltas=[];
+    if(bars.length<2)return ({"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400,"1w":604800,"1M":2592000}[workspaceInterval]||900);
+    const indexes=new Set();
+    for(let i=1;i<Math.min(bars.length,33);i++)indexes.add(i);
+    for(let i=Math.max(1,bars.length-32);i<bars.length;i++)indexes.add(i);
+    indexes.forEach(i=>{
+      const delta=workspaceTimeNumber(bars[i].time)-workspaceTimeNumber(bars[i-1].time);
+      if(Number.isFinite(delta)&&delta>0)deltas.push(delta);
+    });
+    deltas.sort((a,b)=>a-b);
+    return deltas.length?deltas[Math.floor(deltas.length/2)]:( {"1m":60,"5m":300,"15m":900,"30m":1800,"1h":3600,"4h":14400,"1d":86400,"1w":604800,"1M":2592000}[workspaceInterval]||900);
+  }
+  function workspaceTimeFromCoordinate(x){
+    const scale=workspaceChart?.timeScale(),bars=workspaceBars||[];
+    if(!scale||!bars.length||!Number.isFinite(Number(x)))return NaN;
+    if(typeof scale.coordinateToLogical==="function"){
+      const logical=scale.coordinateToLogical(Number(x));
+      if(Number.isFinite(logical)){
+        const last=bars.length-1,step=workspaceMedianBarSeconds();
+        if(logical<0)return workspaceTimeNumber(bars[0].time)+logical*step;
+        if(logical>last)return workspaceTimeNumber(bars[last].time)+(logical-last)*step;
+        const left=Math.floor(logical),right=Math.min(last,left+1),fraction=logical-left;
+        const t1=workspaceTimeNumber(bars[left].time),t2=workspaceTimeNumber(bars[right].time);
+        if(Number.isFinite(t1)&&Number.isFinite(t2))return t1+(t2-t1)*fraction;
+      }
+    }
+    return workspaceTimeNumber(scale.coordinateToTime(Number(x)));
   }
   function workspaceDrawingTimeCoordinate(time){
     const target=workspaceTimeNumber(time),source=workspaceBars,scale=workspaceChart?.timeScale();
@@ -1492,7 +1522,7 @@
 
   function onWorkspaceChartClick(param){
     if(!workspaceDrawingMode||!param?.point||!param.time||!workspacePriceSeries)return;
-    const price=workspacePriceSeries.coordinateToPrice(param.point.y),time=workspaceTimeNumber(param.time);
+    const price=workspacePriceSeries.coordinateToPrice(param.point.y),rawTime=workspaceTimeNumber(param.time),time=Number.isFinite(rawTime)?rawTime:workspaceTimeFromCoordinate(param.point.x);
     if(!Number.isFinite(price)||!Number.isFinite(time))return;
     const point={time,value:price};
     if(workspaceDrawingMode==="horizontal"){
@@ -1546,8 +1576,9 @@
     const index=Number(target.dataset.drawingIndex);if(!Number.isInteger(index)||!workspaceDrawings[index])return;
     event.preventDefault();event.stopPropagation();
     const rect=svg.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
-    const startTime=workspaceTimeNumber(workspaceChart.timeScale().coordinateToTime(x));
+    const startTime=workspaceTimeFromCoordinate(x);
     const startPrice=workspacePriceSeries.coordinateToPrice(y);
+    if(!Number.isFinite(startTime)||!Number.isFinite(startPrice))return;
     workspaceSelectedDrawingIndex=index;
     workspaceDrag={index,handle:target.dataset.drawingHandle??"body",startX:x,startY:y,startTime,startPrice,original:JSON.parse(JSON.stringify(workspaceDrawings[index]))};
     try{svg.setPointerCapture(event.pointerId);}catch{}
@@ -1557,7 +1588,7 @@
     if(!workspaceDrag)return;
     event.preventDefault();event.stopPropagation();
     const rect=$("workspaceDrawingOverlay").getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
-    const time=workspaceTimeNumber(workspaceChart.timeScale().coordinateToTime(x)),price=workspacePriceSeries.coordinateToPrice(y);
+    const time=workspaceTimeFromCoordinate(x),price=workspacePriceSeries.coordinateToPrice(y);
     if(!Number.isFinite(time)||!Number.isFinite(price))return;
     const drag=workspaceDrag,drawing=JSON.parse(JSON.stringify(drag.original)),handle=drag.handle;
     if(drawing.type==="horizontal")drawing.price=price;
