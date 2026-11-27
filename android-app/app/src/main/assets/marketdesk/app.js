@@ -513,7 +513,9 @@
   }
 
   const LOWER_STUDY_PAD_BARS=3;
-  const LOWER_STUDY_EXTRA_HISTORY=2;
+  // Three synthetic lead-in bars exist only to maintain the lower panes' x-axis.
+  // Do not add the two-bar viewport offset: it makes MACD/Stoch RSI start late.
+  const LOWER_STUDY_EXTRA_HISTORY=0;
   function syncRawChartRanges(source,range){
     if(!range||syncingTimeScales)return;
     syncingTimeScales=true;
