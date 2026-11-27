@@ -1607,8 +1607,11 @@
       if(previousTimeRange){
         const from=workspaceLogicalIndexForTime(previousTimeRange.from,workspaceBars);
         const to=workspaceLogicalIndexForTime(previousTimeRange.to,workspaceBars);
-        if(Number.isFinite(from)&&Number.isFinite(to)&&to>from){
-          try{workspaceChart.timeScale().setVisibleLogicalRange({from,to});viewportRestored=true;}catch{}
+        const visibleFrom=Math.max(0,from),lastIndex=workspaceBars.length-1;
+        // When moving to a shorter-history interval (for example 1m/5m),
+        // clip only the unavailable left side while retaining right-side padding.
+        if(Number.isFinite(visibleFrom)&&Number.isFinite(to)&&from<=lastIndex&&to>visibleFrom){
+          try{workspaceChart.timeScale().setVisibleLogicalRange({from:visibleFrom,to});viewportRestored=true;}catch{}
         }
       }
       if(!viewportRestored)workspaceChart.timeScale().fitContent();
