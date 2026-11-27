@@ -129,6 +129,7 @@
               <button class="tool-button" id="drawButton" title="Çalışma alanı çizim araçları">／</button>
               <button class="tool-button" id="layoutButton" title="Grafik düzenleri">▦</button>
               <button class="tool-button" id="refreshButton" title="Grafiği yenile">↻</button>
+              <button class="tool-button reset-scale-button" id="resetPriceScaleButton" title="Fiyat ölçeğini varsayılana döndür" aria-label="Fiyat ölçeğini varsayılana döndür">↕</button>
             </div>
           </div>
 
@@ -145,16 +146,18 @@
             <div class="market-level-tag" id="marketHighTag" hidden><span>EN YÜKSEK</span><strong id="marketHighValue">—</strong></div>
             <div class="market-level-tag" id="marketAverageTag" hidden><span>ORTALAMA</span><strong id="marketAverageValue">—</strong></div>
             <div class="market-level-tag" id="marketLowTag" hidden><span>TABAN</span><strong id="marketLowValue">—</strong></div>
-            <div class="chart-symbol-line">
-            <div class="chart-market-identity">
-              <div class="chart-market-title">
-                <span class="chart-live-status" id="chartLiveStatus"><i></i><span id="chartStatusText">VERİ YÜKLENİYOR</span></span>
-                <span id="chartTicker">BTC/USDT</span>
-                <span class="chart-source" id="chartSource">Binance</span>
+            <div class="chart-topline">
+              <div class="chart-symbol-line">
+                <div class="chart-market-identity">
+                  <div class="chart-market-title">
+                    <i class="chart-symbol-dot" aria-hidden="true"></i>
+                    <span id="chartTicker">BTC/USDT</span>
+                    <span class="chart-source" id="chartSource">Binance</span>
+                  </div>
+                </div>
               </div>
+              <div class="candle-countdown" id="candleCountdown" title="Seçili zaman dilimindeki mumun kapanmasına kalan süre"><span>MUM KAPANIŞ</span><strong id="candleCountdownValue">--:--:--</strong></div>
             </div>
-          </div>
-            <div class="candle-countdown" id="candleCountdown" title="Seçili zaman dilimindeki mumun kapanmasına kalan süre"><span>MUM KAPANIŞ</span><strong id="candleCountdownValue">--:--:--</strong></div>
             <div id="chartOverlay" class="chart-overlay">
               <div class="chart-message">
                 <span class="message-symbol">◈</span>
